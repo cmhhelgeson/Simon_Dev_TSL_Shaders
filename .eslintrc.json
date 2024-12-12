@@ -1,0 +1,45 @@
+{
+    "root": true,
+    "env": {
+      "browser": true,
+      "node": true,
+      "es2018": true
+    },
+    "parser": "@typescript-eslint/parser",
+    "parserOptions": {
+      "ecmaVersion": 2018,
+      "sourceType": "module",
+      "ecmaFeatures": {
+        "jsx": true
+      }
+    },
+    "extends": [
+      "mdcs",
+      "plugin:@typescript-eslint/strict",
+      "plugin:compat/recommended"
+    ],
+    "plugins": [
+      "import",
+      "html",
+      "@typescript-eslint"
+    ],
+    "rules": {
+      "indent": ["error", 2],
+      "no-throw-literal": [
+        "error"
+      ],
+      "@typescript-eslint/no-empty-interface": "off",
+      "@typescript-eslint/no-empty-object-type": "off",
+      "quotes": [
+        "error",
+        "single"
+      ],
+      "prefer-const": [
+        "error",
+        {
+          "destructuring": "any",
+          "ignoreReadBeforeAssign": false
+        }
+      ]
+    }
+  }
