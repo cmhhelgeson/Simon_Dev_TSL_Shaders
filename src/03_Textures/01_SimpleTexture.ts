@@ -23,6 +23,8 @@ const init = async () => {
 
     const { tint } = effectController;
 
+    const color = texture( map );
+
     return texture( map ).mul( tint );
 
   } )();

@@ -1,6 +1,5 @@
 import * as THREE from 'three';
-import { fract, Fn, mix, If, smoothstep, round, ceil, vec2, viewportSize, float, floor, uniform, min, max, smoothstep, abs, uv, vec3 } from 'three/tsl';
-import { Node, ShaderNodeObject } from 'three/tsl';
+import { fract, Fn, mix, If, round, ceil, viewportSize, floor, uniform, max, smoothstep, abs, uv, vec3 } from 'three/tsl';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 
@@ -25,7 +24,7 @@ enum FunctionMode {
 	CEIL,
 	FLOOR,
 	ROUND,
-	MOD,
+	FRACT,
 }
 
 const init = async () => {
@@ -84,7 +83,7 @@ const init = async () => {
     const ceilFunctionLine = createFunctionLine( ceil( pos.x ) );
     const floorFunctionLine = createFunctionLine( floor( pos.x ) );
     const roundFunctionLine = createFunctionLine( round( pos.x ) );
-    const modFunctionLine = createFunctionLine( fract( pos.x ) );
+    const fractFunctionLine = createFunctionLine( fract( pos.x ) );
     //const cellUVShift = cellUV.add( - 100 );
     //const diagonalLine = smoothstep( 0, 0.005, abs( cellUVShift.y.sub( cellUVShift.x ) ) );
 
@@ -111,9 +110,9 @@ const init = async () => {
 
     } );
 
-    If( functionMode.equal( FunctionMode.MOD ), () => {
+    If( functionMode.equal( FunctionMode.FRACT ), () => {
 
-      color.assign( mix( red, color, roundFunctionLine ) );
+      color.assign( mix( red, color, fractFunctionLine ) );
 
     } );
 
@@ -136,10 +135,9 @@ const init = async () => {
   gui = new GUI();
   gui.add( effectController.cellWidth, 'value', 1, 100 ).step( 1 ).name( 'Cell Width (px)' );
   gui.add( effectController.lineWidth, 'value', 1.0, 8.0 ).name( 'Line Width' );
-  gui.add( effectController, 'Display Function', [ 'CEIL', 'FLOOR', 'ROUND' ] ).onChange( () => {
+  gui.add( effectController, 'Display Function', [ 'CEIL', 'FLOOR', 'ROUND', 'FRACT' ] ).onChange( () => {
 
     effectController.functionMode.value = FunctionMode[ effectController[ 'Display Function' ] ];
-
 
   } );
 
