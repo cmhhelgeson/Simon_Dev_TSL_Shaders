@@ -16,7 +16,7 @@ import {
   clamp,
   float,
   viewportSize,
-  If
+  timerLocal,
 } from 'three/tsl';
 import { Node, ShaderNodeObject } from 'three/tsl';
 
@@ -34,7 +34,7 @@ const init = async () => {
 
   const material = new THREE.MeshBasicNodeMaterial();
   const textureLoader = new THREE.TextureLoader();
-  const map = textureLoader.load( './resources/uv_grid_opengl.jpg' );
+  const map = textureLoader.load( './resources/dog.jpg' );
   map.wrapS = THREE.RepeatWrapping;
   map.wrapT = THREE.RepeatWrapping;
 
@@ -48,13 +48,13 @@ const init = async () => {
     lineSpeed2: uniform( 20.0 ),
     // Expert CRT
     zoom: uniform( 1 ),
-    cellSize: uniform( 12 ),
+    cellSize: uniform( 1 ),
     cellOffset: uniform( 0.5 ),
     borderMask: uniform( 1 ),
     pulseIntensity: uniform( 0.03 ),
-    pulseWidth: uniform( 60 ),
+    pulseWidth: uniform( 1 ),
     pulseRate: uniform( 20 ),
-    screenCurvature: uniform( 0.08 ),
+    screenCurvature: uniform( 0 ),
   };
 
   const red = vec3( 1.0, 0.0, 0.0 );
@@ -161,16 +161,20 @@ const init = async () => {
 
       const cellUV = fract( subcoord.add( cellOffsetVal ) ).mul( 2.0 ).sub( 1.0 );
 
-      const border = cellUV.mul( cellUV ).mul( borderMask ).oneMinus();
+      const border = float( 1.0 ).sub( cellUV.mul( cellUV ).mul( borderMask ) );
 
       maskColor.mulAssign( vec3( clamp( border.x, 0.0, 1.0 ).mul( clamp( border.y, 0.0, 1.0 ) ) ) );
       color.mulAssign( vec3( float( 1.0 ).add( maskColor.sub( 1.0 ) ) ) );
 
+      const pulse = float( 1.0 ).add( pulseIntensity ).mul( sin( pixel.y.div( pulseWidth ).add( timerLocal().mul( pulseRate ) ) ) );
+
+      color.r.mulAssign( pulse );
+      color.b.mulAssign( pulse );
+      color.g.mulAssign( pulse );
+
+      color.mulAssign( 2.5 );
+
       return color;
-
-      // 0 -> 1
-
-
 
     } )(),
 
@@ -203,11 +207,11 @@ const init = async () => {
   refinedCRTFolder.add( effectController.lineSize2, 'value', 1.0, 100.0 ).step( 1.0 ).name( 'Line 2 Size' );
   refinedCRTFolder.add( effectController.lineSpeed2, 'value', 1.0, 100.0 ).step( 1.0 ).name( 'Line 2 Speed' );
   const expertCRTFolder = gui.addFolder( 'Expert CRT' );
-  expertCRTFolder.add( effectController.cellSize, 'value', 6, 50 ).step( 1 ).name( 'Cell Size' );
+  expertCRTFolder.add( effectController.cellSize, 'value', 1, 50 ).step( 1 ).name( 'Cell Size' );
   expertCRTFolder.add( effectController.cellOffset, 'value', 0.0, 1.0 ).step( 0.01 ).name( 'Cell Offset' );
   expertCRTFolder.add( effectController.borderMask, 'value', 0.0, 5.0 ).step( 0.1 ).name( 'Border Mask' );
   expertCRTFolder.add( effectController.pulseIntensity, 'value', 0.0, 0.5 ).step( 0.01 ).name( 'Pulse Intensity' );
-  expertCRTFolder.add( effectController.pulseWidth, 'value', 0, 100 ).step( 5 ).name( 'Pulse Width' );
+  expertCRTFolder.add( effectController.pulseWidth, 'value', 1, 100 ).step( 5 ).name( 'Pulse Width' );
   expertCRTFolder.add( effectController.pulseRate, 'value', 0, 100 ).step( 10 ).name( 'Pulse Rate' );
   expertCRTFolder.add( effectController.screenCurvature, 'value', 0, 0.5 ).step( 0.01 ).name( 'Screen Curvature' );
   expertCRTFolder.add( effectController.zoom, 'value', 0, 1 ).step( 0.1 ).name( 'Zoom' );
