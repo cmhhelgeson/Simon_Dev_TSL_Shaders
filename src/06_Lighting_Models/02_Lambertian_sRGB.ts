@@ -8,6 +8,8 @@ import {
   normalGeometry,
   normalize,
   color,
+  max,
+  dot,
 } from 'three/tsl';
 import { Node, ShaderNodeObject } from 'three/tsl';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -17,7 +19,13 @@ import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 
 let renderer, camera, scene, gui;
 
-type ShaderType = 'Basic Ambient' | 'Basic Normal' | 'Basic Hemi' | 'HemisphereLight';
+type ShaderType =
+'Basic Ambient' |
+'Basic Normal' |
+'Basic Direct' |
+'Basic Hemi' |
+'HemisphereLight' |
+'DirectionalLight'
 
 const init = async () => {
 
@@ -43,7 +51,10 @@ const init = async () => {
     objectColor: uniform( color( 1.0, 1.0, 1.0 ) ),
     // Hemi Lighting Shader
     skyColor: uniform( color( 0.0, 0.3, 0.6 ) ),
-    groundColor: uniform( color( 0.6, 0.3, 0.1 ) )
+    groundColor: uniform( color( 0.6, 0.3, 0.1 ) ),
+    // Direct Light Position
+    lightX: uniform( 0.0 ),
+    lightY: uniform( 0.0 ),
 
   };
 
@@ -53,19 +64,20 @@ const init = async () => {
   const loader = new GLTFLoader();
   const suzanneMaterial = new THREE.MeshStandardNodeMaterial();
 
-  const hemiLight = new THREE.HemisphereLight( 0xffffff, 0xffffff, 1 );
-  hemiLight.color.setHSL( 0.6, 1, 0.6 );
-  hemiLight.groundColor.setHSL( 0.095, 1, 0.75 );
-  hemiLight.position.set( 0, 20, 0 );
-  scene.add( hemiLight );
+  const lights: Record<string, THREE.Light> = {
+    'HemisphereLight': new THREE.HemisphereLight( 0x0095cb, 0xcb9659, 1 ),
+    'DirectionalLight': new THREE.DirectionalLight( 0x0095cb, 10 ),
+  };
+
+  lights[ 'HemisphereLight' ].position.set( 0, 20, 0 );
+  scene.add( lights[ 'HemisphereLight' ] );
+  scene.add( lights[ 'DirectionalLight' ] );
 
   const shaders: Record<ShaderType, ShaderNodeObject<Node>> = {
-
-
     // Basic Ambient lighting
     'Basic Ambient': Fn( () => {
 
-      const baseColor = effectController.objectColor;
+      const baseColor = vec3( 0.5 );
     	// Ambient Lighting
     	const ambient = vec3( 0.5 );
     	return baseColor.mul( ambient );
@@ -78,6 +90,20 @@ const init = async () => {
 
       // Equivalent of normalize(vNormal);
       return normalize( normalGeometry );
+
+
+    } )(),
+
+    // Direct lighting
+    'Basic Direct': Fn( () => {
+
+      const { skyColor, objectColor, lightX, lightY } = effectController;
+
+      const lightDir = normalize( vec3( lightX, lightY, 1.0 ) );
+      const dp = max( 0.0, dot( lightDir, normalGeometry ) );
+
+      const diffuse = dp.mul( skyColor );
+      return objectColor.mul( diffuse );
 
 
     } )(),
@@ -99,8 +125,10 @@ const init = async () => {
 
     } )(),
 
-    // Actual Three.HemisphereLight implementation
+    // Actual THREE.HemisphereLight implementation
     'HemisphereLight': Fn( () => {} ),
+    // Actual THREE.DirectionalLight implementation
+    'DirectionalLight': Fn( () => {} ),
 
   };
 
@@ -132,15 +160,34 @@ const init = async () => {
   controls.minPolarAngle = Math.PI / 4;
   controls.maxPolarAngle = Math.PI / 1.5;
 
+  window.addEventListener( 'mousemove', ( e ) => {
+
+    const { lightX, lightY } = effectController;
+    // 0 to width -> 0 to 1 -> 0 -> 2 -> -1 to 1
+    lightX.value = ( e.offsetX / window.innerWidth ) * 5 - 2.5;
+    lightY.value = ( e.offsetY / window.innerHeight ) * 5 - 2.5;
+    lights[ 'DirectionalLight' ].position.x = lightX.value;
+    lights[ 'DirectionalLight' ].position.y = lightY.value;
+
+  } );
+
   window.addEventListener( 'resize', onWindowResize );
 
   gui = new GUI();
   gui.add( effectController, 'Current Shader', Object.keys( shaders ) ).onChange( () => {
 
-    if ( effectController[ 'Current Shader' ] === 'HemisphereLight' ) {
+    const currentShader = effectController[ 'Current Shader' ];
+
+    if ( currentShader === 'HemisphereLight' || currentShader === 'DirectionalLight' ) {
 
       suzanneMaterial.fragmentNode = defaultFragmentNode;
       suzanneMaterial.needsUpdate = true;
+      for ( const lightName of Object.keys( lights ) ) {
+
+        lights[ lightName ].visible = ( lightName === currentShader );
+
+      }
+
       return;
 
     }
@@ -170,7 +217,8 @@ const init = async () => {
     .onChange( function ( value ) {
 
       effectController.skyColor.value.set( value );
-      hemiLight.color.setHex( value );
+      lights[ 'HemisphereLight' ].color.setHex( value );
+      lights[ 'DirectionalLight' ].color.setHex( value );
 
     } );
 
@@ -179,7 +227,7 @@ const init = async () => {
     .onChange( function ( value ) {
 
       effectController.groundColor.value.set( value );
-      hemiLight.groundColor.setHex( value );
+      lights[ 'HemisphereLight' ].groundColor.setHex( value );
 
     } );
 
