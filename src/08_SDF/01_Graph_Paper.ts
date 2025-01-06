@@ -1,7 +1,50 @@
 import * as THREE from 'three';
-import { fract, float, Fn, sin, timerLocal, vec2, viewportSize, uv, vec3 } from 'three/tsl';
+import {
+  fract,
+  length,
+  smoothstep,
+  float,
+  Fn,
+  mix,
+  If,
+  round,
+  ceil,
+  viewportSize,
+  floor,
+  uniform,
+  max,
+  abs,
+  uv,
+  vec3,
+  remap,
+  reference,
+} from 'three/tsl';
 
-let renderer, camera, scene;
+import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+
+let renderer, camera, scene, gui;
+
+// abs(a) - returns the absolute value of a
+// return a < 0 > -a : a;
+
+// floor(a)
+// return nearest integer value of 'a' that's less than or equal to 'a'
+
+// ceil(a)
+// return nearest integer value of 'a' that's less than or equal to 'a'
+
+// fract(a)
+// return fractional part of 'a'
+
+// mod(x, y)
+// return x modulo y.
+
+enum FunctionMode {
+	CEIL,
+	FLOOR,
+	ROUND,
+	FRACT,
+}
 
 const init = async () => {
 
@@ -11,22 +54,120 @@ const init = async () => {
 
   const material = new THREE.MeshBasicNodeMaterial();
 
-  const RandomTSL = ( pNode ) => {
+  const effectController = {
+    cellWidth: uniform( 100 ),
+    lineWidth: uniform( 1.0 ),
+    vignetteColorMin: uniform( 0.3 ),
+    vignetteColorMax: uniform( 1.0 ),
+    vignetteRadius: uniform( 1.0 ),
+    lightFallOff: uniform( 0.3 ),
+    functionMode: uniform( 0 ),
+    'Display Function': 'CEIL',
+  };
+  const red = vec3( 1.0, 0.0, 0.0 );
+  const blue = vec3( 0.0, 0.0, 1.0 );
+  const yellow = vec3( 1.0, 1.0, 0.0 );
+  const black = vec3( 0.0, 0.0, 0.0 );
+  const green = vec3( 0.0, 1.0, 0.0 );
 
-    const p = float( 50.0 ).mul( fract( pNode.mul( 0.3183099 ).add( vec2( 0.71, 0.113 ) ) ) );
+  const drawGrid = ( baseColor, lineColor, cellWidth, lineWidth ) => {
 
-    const fractCalc = fract( p.x.mul( p.y ).mul( p.x.add( p.y ) ) );
-    return float( - 1.0 ).add( float( 2.0 ).mul( fractCalc ) );
+    const center = uv().sub( 0.5 );
 
+    const gridPosition = center.mul( viewportSize ).div( cellWidth );
+    // Access each individual cell's uv space.
+    const cellUV = fract( gridPosition );
+
+    // Move center of each cell (0, 0) from bottom-left to the middle.
+    cellUV.assign( abs( cellUV.sub( 0.5 ) ) );
+    const distToEdge = ( float( 0.5 ).sub( max( cellUV.x, cellUV.y ) ) ).mul( cellWidth );
+    const ceilLine = smoothstep( 0.0, lineWidth, distToEdge );
+
+    const color = mix( lineColor, baseColor, ceilLine );
+
+    return color;
+
+  };
+
+  const drawBackgroundColor = () => {
+
+    const {
+      vignetteColorMin,
+      vignetteColorMax,
+      vignetteRadius,
+      lightFallOff,
+    } = effectController;
+
+    // Get the distance from the center of the uvs
+    const distFromCenter = length( abs( uv().sub( 0.5 ) ) );
+    // Move distance from range [0, 0.5] to range [1.0, 0.5]/[0.5, 1.0]
+    const vignette = float( 1.0 ).sub( distFromCenter );
+    vignette.assign( smoothstep( vignetteRadius.oneMinus(), lightFallOff.oneMinus(), vignette ) );
+    return vec3( remap( vignette, 0.0, 1.0, vignetteColorMin, vignetteColorMax ) );
 
   };
 
   material.colorNode = Fn( () => {
 
-    const center = uv().sub( 0.5 );
-    const pixelCoord = center.mul( viewportSize );
+    const { cellWidth, lineWidth, functionMode } = effectController;
 
-    return vec3( RandomTSL( pixelCoord.mul( sin( timerLocal() ) ) ) );
+    const vUv = uv();
+
+    // Create baseline color
+    const color = vec3( 0.9 ).toVar( 'color' );
+    const center = vUv.sub( 0.5 );
+    // Move uvs from range 0, 1 to -0.5, 0.5 thus placing 0,0 in the center of the canvas.
+    const gridPosition = center.mul( viewportSize ).div( cellWidth );
+
+    color.assign( drawBackgroundColor() );
+    color.assign( drawGrid( color, vec3( 0.5 ), cellWidth, lineWidth ) );
+    color.assign( drawGrid( color, black, cellWidth.mul( 10 ), lineWidth.mul( 2 ) ) );
+
+    const xAxis = smoothstep( 0, 0.002, abs( vUv.y.sub( 0.5 ) ) );
+    const yAxis = smoothstep( 0, 0.002, abs( vUv.x.sub( 0.5 ) ) );
+
+    const createFunctionLine = ( xVal ) => {
+
+      return smoothstep( 0.0, 0.075, abs( gridPosition.y.sub( xVal ) ) );
+
+    };
+
+    const functionLine = smoothstep( 0.0, 0.075, abs( gridPosition.y.sub( gridPosition.x ) ) );
+    const ceilFunctionLine = createFunctionLine( ceil( gridPosition.x ) );
+    const floorFunctionLine = createFunctionLine( floor( gridPosition.x ) );
+    const roundFunctionLine = createFunctionLine( round( gridPosition.x ) );
+    const fractFunctionLine = createFunctionLine( fract( gridPosition.x ) );
+
+    color.assign( mix( blue, color, xAxis ) );
+    color.assign( mix( blue, color, yAxis ) );
+    color.assign( mix( yellow, color, functionLine ) );
+
+    If( functionMode.equal( FunctionMode.CEIL ), () => {
+
+			    color.assign( mix( red, color, ceilFunctionLine ) );
+
+    } );
+
+    If( functionMode.equal( FunctionMode.FLOOR ), () => {
+
+			    color.assign( mix( red, color, floorFunctionLine ) );
+
+    } );
+
+    If( functionMode.equal( FunctionMode.ROUND ), () => {
+
+			    color.assign( mix( red, color, roundFunctionLine ) );
+
+    } );
+
+    If( functionMode.equal( FunctionMode.FRACT ), () => {
+
+      color.assign( mix( red, color, fractFunctionLine ) );
+
+    } );
+
+
+    return color;
 
   } )();
 
@@ -40,6 +181,22 @@ const init = async () => {
   document.body.appendChild( renderer.domElement );
 
   window.addEventListener( 'resize', onWindowResize );
+
+  gui = new GUI();
+  const gridFolder = gui.addFolder( 'Grid' );
+  gridFolder.add( effectController.cellWidth, 'value', 5, 200 ).step( 1 ).name( 'Cell Width (px)' );
+  gridFolder.add( effectController.lineWidth, 'value', 1.0, 8.0 ).name( 'Line Width' );
+  gridFolder.add( effectController, 'Display Function', [ 'CEIL', 'FLOOR', 'ROUND', 'FRACT' ] ).onChange( () => {
+
+    effectController.functionMode.value = FunctionMode[ effectController[ 'Display Function' ] ];
+
+  } );
+  const vignetteFolder = gui.addFolder( 'Vignette' );
+  vignetteFolder.add( effectController.vignetteColorMin, 'value', 0.0, 0.5 ).step( 0.01 ).name( 'vignetteColorMin' );
+  vignetteFolder.add( effectController.vignetteColorMax, 'value', 0.5, 1.0 ).step( 0.01 ).name( 'vignetteColorMax' );
+  vignetteFolder.add( effectController.vignetteRadius, 'value', 0.0, 1.0 ).step( 0.01 ).name( 'vignetteRadius' );
+  vignetteFolder.add( effectController.lightFallOff, 'value', 0.0, 1.0 ).step( 0.01 ).name( 'lightFallOff' );
+
 
 };
 
