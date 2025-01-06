@@ -10,6 +10,9 @@ import {
   color,
   max,
   dot,
+  If,
+  uint,
+  toOutputColorSpace,
 } from 'three/tsl';
 import { Node, ShaderNodeObject } from 'three/tsl';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -49,6 +52,8 @@ const init = async () => {
     'Current Shader': 'Basic Ambient',
     // Material Properties
     objectColor: uniform( color( 1.0, 1.0, 1.0 ) ),
+    linearToSRGBCond: uniform( uint( 1 ) ),
+    linearToSRGB: true,
     // Hemi Lighting Shader
     skyColor: uniform( color( 0.0, 0.3, 0.6 ) ),
     groundColor: uniform( color( 0.6, 0.3, 0.1 ) ),
@@ -97,13 +102,23 @@ const init = async () => {
     // Direct lighting
     'Basic Direct': Fn( () => {
 
-      const { skyColor, objectColor, lightX, lightY } = effectController;
+      const { skyColor, objectColor, lightX, lightY, linearToSRGBCond } = effectController;
 
       const lightDir = normalize( vec3( lightX, lightY, 1.0 ) );
       const dp = max( 0.0, dot( lightDir, normalGeometry ) );
 
       const diffuse = dp.mul( skyColor );
-      return objectColor.mul( diffuse );
+
+      const color = objectColor.mul( diffuse ).toVar( 'color' );
+
+      If( linearToSRGBCond.equal( 1 ), () => {
+
+        color.assign( toOutputColorSpace( color ) );
+
+      } );
+
+
+      return color;
 
 
     } )(),
@@ -111,7 +126,7 @@ const init = async () => {
     // Crudely emulate THREE.HemisphereLight.
     'Basic Hemi': Fn( () => {
 
-      const { skyColor, groundColor, objectColor } = effectController;
+      const { skyColor, groundColor, objectColor, linearToSRGBCond } = effectController;
 
       const ambient = vec3( 0.5 );
       const lighting = vec3( 0.0 ).toVar( 'lighting' );
@@ -121,7 +136,16 @@ const init = async () => {
 
       lighting.assign( ambient.mul( 0.0 ).add( hemi ) );
 
-      return objectColor.mul( lighting );
+      const color = objectColor.mul( lighting ).toVar( 'color' );
+
+      If( linearToSRGBCond.equal( 1 ), () => {
+
+        color.assign( toOutputColorSpace( color ) );
+
+      } );
+
+
+      return color;
 
     } )(),
 
@@ -174,6 +198,14 @@ const init = async () => {
   window.addEventListener( 'resize', onWindowResize );
 
   gui = new GUI();
+  gui.add( effectController, 'linearToSRGB' ).onChange( () => {
+
+    const { linearToSRGB, linearToSRGBCond } = effectController;
+
+    linearToSRGBCond.value = linearToSRGB === true ? 1 : 0;
+
+
+  } );
   gui.add( effectController, 'Current Shader', Object.keys( shaders ) ).onChange( () => {
 
     const currentShader = effectController[ 'Current Shader' ];

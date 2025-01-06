@@ -1,15 +1,7 @@
 import * as THREE from 'three';
-import { uniform, Fn, texture, uv } from 'three/tsl';
+import { fract, float, Fn, sin, timerLocal, vec2, viewportSize, uv, vec3 } from 'three/tsl';
 
-import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
-
-let renderer, camera, scene, gui;
-
-const textureWrappings = {
-  'Repeat': THREE.RepeatWrapping,
-  'Mirrored Repeat': THREE.MirroredRepeatWrapping,
-  'ClampToEdge': THREE.ClampToEdgeWrapping,
-};
+let renderer, camera, scene;
 
 const init = async () => {
 
@@ -18,25 +10,23 @@ const init = async () => {
   const geometry = new THREE.PlaneGeometry( 2, 2 );
 
   const material = new THREE.MeshBasicNodeMaterial();
-  const textureLoader = new THREE.TextureLoader();
-  const gridMap = textureLoader.load( './resources/uv_grid_opengl.jpg' );
 
-  gridMap.wrapS = THREE.RepeatWrapping;
-  gridMap.wrapT = THREE.RepeatWrapping;
-  gridMap.minFilter = THREE.NearestFilter;
-  gridMap.magFilter = THREE.NearestFilter;
-  const effectController = {
-    tint: uniform( new THREE.Color( 1.0, 1.0, 1.0 ) ),
-    zoom: uniform( 1 ),
-    wrappingMode: 'Repeat Wrapping'
+  const RandomTSL = ( pNode ) => {
+
+    const p = float( 50.0 ).mul( fract( pNode.mul( 0.3183099 ).add( vec2( 0.71, 0.113 ) ) ) );
+
+    const fractCalc = fract( p.x.mul( p.y ).mul( p.x.add( p.y ) ) );
+    return float( - 1.0 ).add( float( 2.0 ).mul( fractCalc ) );
+
 
   };
 
   material.colorNode = Fn( () => {
 
-    const { tint, zoom } = effectController;
-    const gridColor = texture( gridMap, uv().div( zoom ) ).mul( tint );
-    return gridColor;
+    const center = uv().sub( 0.5 );
+    const pixelCoord = center.mul( viewportSize );
+
+    return vec3( RandomTSL( pixelCoord.mul( sin( timerLocal() ) ) ) );
 
   } )();
 
@@ -50,22 +40,6 @@ const init = async () => {
   document.body.appendChild( renderer.domElement );
 
   window.addEventListener( 'resize', onWindowResize );
-
-  gui = new GUI();
-  gui.addColor( { color: effectController.tint.value.getHex( THREE.SRGBColorSpace ) }, 'color' ).onChange( ( value ) => {
-
-    effectController.tint.value.set( value );
-
-  } ).name( 'tint' );
-  gui.add( effectController.zoom, 'value', 1, 10 ).step( 1 ).name( 'zoom' );
-  gui.add( effectController, 'wrappingMode', Object.keys( textureWrappings ) ).onChange( () => {
-
-    const wrappingMode = textureWrappings[ effectController.wrappingMode ];
-
-    gridMap.wrapS = gridMap.wrapT = wrappingMode;
-    gridMap.needsUpdate = true;
-
-  } );
 
 };
 

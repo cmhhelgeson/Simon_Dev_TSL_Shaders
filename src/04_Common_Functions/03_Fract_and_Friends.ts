@@ -53,6 +53,7 @@ const init = async () => {
     const vUv = uv();
 
     // Create baseline color
+    // Move uvs from range 0, 1 to -0.5, 0.5 thus placing 0,0 in the center of the canvas.
     const center = vUv.sub( 0.5 );
     const color = vec3( 0.9 ).toVar( 'color' );
     const pos = center.mul( viewportSize ).div( cellWidth );
