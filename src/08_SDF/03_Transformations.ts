@@ -31,6 +31,7 @@ import {
   cos,
   acos,
   rotate,
+  sin,
   timerLocal
 } from 'three/tsl';
 
@@ -91,7 +92,8 @@ const init = async () => {
 
     const center = uv().sub( 0.5 );
 
-    const gridPosition = center.mul( viewportSize ).div( cellWidth );
+    const gridSpace = center.mul( viewportSize ).sub( sin( timerLocal() ).mul( 400 ) );
+    const gridPosition = rotate( gridSpace, timerLocal() ).div( cellWidth );
     // Access each individual cell's uv space.
     const cellUV = fract( gridPosition );
 
@@ -150,9 +152,8 @@ const init = async () => {
     const viewportPosition = center.mul( viewportSize );
 
     const moveBox = viewportPosition.sub( vec2( boxX, boxY ) );
-    const rotateBox = rotate( moveBox, timerLocal() );
+    const rotateBox = rotate( moveBox, mix( - 3.0, 3.0, sin( timerLocal() ) ) );
     const boxDistance = sdfBox( rotateBox, vec2( 200.0, 50.0 ) );
-
 
     color.assign( drawBackgroundColor() );
     color.assign( drawGrid( color, vec3( 0.5 ), cellWidth, lineWidth ) );
