@@ -51,8 +51,6 @@ const init = async () => {
     lightFallOff: uniform( 0.3 ),
     circleRadius: uniform( 250 ),
     antialiasRange: uniform( 1.0 ),
-    functionMode: uniform( 0 ),
-    'Display Function': 'CEIL',
   };
   const red = vec3( 1.0, 0.0, 0.0 );
   const black = vec3( 0.0, 0.0, 0.0 );
