@@ -5,7 +5,8 @@ export default defineConfig( {
   resolve: {
     alias: {
       'three/addons': 'three/examples/jsm',
-      'three/tsl': 'three/webgpu',
+      'three/webgpu': 'three/webgpu',
+      'three/tsl': 'three/tsl',
       'three': 'three/webgpu',
     }
   },

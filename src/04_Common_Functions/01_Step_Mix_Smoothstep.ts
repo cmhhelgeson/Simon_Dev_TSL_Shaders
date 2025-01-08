@@ -1,6 +1,20 @@
 import * as THREE from 'three';
-import { uniform, Fn, mix, sin, step, select, smoothstep, abs, timerLocal, uv, vec3 } from 'three/tsl';
-import { Node, ShaderNodeObject } from 'three/tsl';
+import {
+  uniform,
+  Fn,
+  mix,
+  sin,
+  step,
+  select,
+  smoothstep,
+  abs,
+  timerLocal,
+  uv,
+  vec3,
+  time,
+  ShaderNodeObject
+} from 'three/tsl';
+import { Node } from 'three/webgpu';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 
@@ -63,7 +77,7 @@ const init = async () => {
 
     'Mix': Fn( () => {
 
-      return mix( vec3( 1.0, 0.0, 0.0 ), vec3( 0.0, 0.0, 1.0 ), sin( timerLocal() ) );
+      return mix( vec3( 1.0, 0.0, 0.0 ), vec3( 0.0, 0.0, 1.0 ), sin( time ) );
 
 
     } )(),

@@ -21,8 +21,8 @@ import {
   sign,
   If,
   rotate,
-  timerLocal,
   uint,
+  time,
 } from 'three/tsl';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
@@ -148,7 +148,7 @@ const init = async () => {
 
     const offsetFromViewportX = viewportSize.x.div( 4 );
 
-    const boxD = sdfBox( rotate( viewportPosition, timerLocal() ), vec2( 200.0, 100.0 ) );
+    const boxD = sdfBox( rotate( viewportPosition, time ), vec2( 200.0, 100.0 ) );
     const d1 = sdfCircle( viewportPosition.sub( vec2( negate( offsetFromViewportX ), - 150.0 ) ), float( 150.0 ) );
     const d2 = sdfCircle( viewportPosition.sub( vec2( offsetFromViewportX, - 150.0 ) ), float( 150.0 ) );
     const d3 = sdfCircle( viewportPosition.sub( vec2( 0, 200.0 ) ), float( 150.0 ) );

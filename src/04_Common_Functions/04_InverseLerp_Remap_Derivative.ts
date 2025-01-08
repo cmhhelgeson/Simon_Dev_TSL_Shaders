@@ -1,6 +1,6 @@
 
 import * as THREE from 'three';
-import { uniform, Fn, texture, uint, If, dFdx, dFdy, time, sin, mix, timerLocal } from 'three/tsl';
+import { uniform, Fn, texture, dFdx, dFdy, time, sin, mix, timerLocal } from 'three/tsl';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 
@@ -65,7 +65,7 @@ const init = async () => {
   material.colorNode = Fn( () => {
 
     const color = texture( map );
-    color.assign( mix( dFdx( color ), dFdy( color ), sin( timerLocal() ) ) );
+    color.assign( mix( dFdx( color ), dFdy( color ), sin( time ) ) );
 
     return color;
 

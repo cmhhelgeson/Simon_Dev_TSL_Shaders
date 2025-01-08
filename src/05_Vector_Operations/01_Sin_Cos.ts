@@ -16,9 +16,10 @@ import {
   clamp,
   float,
   viewportSize,
-  timerLocal,
+  time,
+  ShaderNodeObject,
 } from 'three/tsl';
-import { Node, ShaderNodeObject } from 'three/tsl';
+import { Node } from 'three/webgpu';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 
@@ -65,7 +66,7 @@ const init = async () => {
     'Basic Sin': Fn( () => {
 
       // Map sin of time from range -1 to 1 to range 0 to 1
-      const t = vec3( remap( sin( timerLocal() ), - 1.0, 1.0, 0.0, 1.0 ) );
+      const t = vec3( remap( sin( time ), - 1.0, 1.0, 0.0, 1.0 ) );
 
       // Use range to switch between red and blue
 
@@ -79,8 +80,7 @@ const init = async () => {
 
       const color = texture( map );
 
-      const lines = sin( uv().y.mul( viewportSize.y.div( lineSize ) ).add( timerLocal().mul( lineSpeed ) ) );
-      //const lines2 = sin( uv().y.mul( viewportSize.y.div( lineSize ) ).sub( timerLocal().mul( lineSpeed ) ) );
+      const lines = sin( uv().y.mul( viewportSize.y.div( lineSize ) ).add( time.mul( lineSpeed ) ) );
 
       color.assign( mix( color, lines, 0.05 ) );
 
@@ -95,7 +95,7 @@ const init = async () => {
       const size2 = viewportSize.y.div( lineSize2 );
 
       const t1 = remap(
-        sin( uv().y.mul( size1 ).add( timerLocal() ).mul( lineSpeed ) ),
+        sin( uv().y.mul( size1 ).add( time ).mul( lineSpeed ) ),
         - 1.0,
         1.0,
         0.9,
@@ -103,7 +103,7 @@ const init = async () => {
       );
 
       const t2 = remap(
-        sin( uv().y.mul( size2 ).add( timerLocal() ).mul( lineSpeed2 ) ),
+        sin( uv().y.mul( size2 ).add( time ).mul( lineSpeed2 ) ),
         - 1.0,
         1.0,
         0.95,
@@ -166,7 +166,7 @@ const init = async () => {
       maskColor.mulAssign( vec3( clamp( border.x, 0.0, 1.0 ).mul( clamp( border.y, 0.0, 1.0 ) ) ) );
       color.mulAssign( vec3( float( 1.0 ).add( maskColor.sub( 1.0 ) ) ) );
 
-      const pulse = float( 1.0 ).add( pulseIntensity ).mul( sin( pixel.y.div( pulseWidth ).add( timerLocal().mul( pulseRate ) ) ) );
+      const pulse = float( 1.0 ).add( pulseIntensity ).mul( sin( pixel.y.div( pulseWidth ).add( time.mul( pulseRate ) ) ) );
 
       color.r.mulAssign( pulse );
       color.b.mulAssign( pulse );

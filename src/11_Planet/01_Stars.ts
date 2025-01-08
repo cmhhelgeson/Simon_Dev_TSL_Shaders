@@ -1,5 +1,15 @@
 import * as THREE from 'three';
-import { fract, float, Fn, sin, timerLocal, vec2, viewportSize, uv, vec3 } from 'three/tsl';
+import {
+  fract,
+  float,
+  Fn,
+  sin,
+  time,
+  vec2,
+  viewportSize,
+  uv,
+  vec3
+} from 'three/tsl';
 
 let renderer, camera, scene;
 
@@ -26,7 +36,7 @@ const init = async () => {
     const center = uv().sub( 0.5 );
     const pixelCoord = center.mul( viewportSize );
 
-    return vec3( RandomTSL( pixelCoord.mul( sin( timerLocal() ) ) ) );
+    return vec3( RandomTSL( pixelCoord.mul( sin( time ) ) ) );
 
   } )();
 

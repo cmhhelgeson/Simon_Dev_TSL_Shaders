@@ -21,12 +21,14 @@ import {
   sign,
   If,
   rotate,
-  timerLocal,
   uint,
   pow,
   mix,
   sin,
   mod,
+  For,
+  Loop,
+  time
 } from 'three/tsl';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
@@ -136,17 +138,32 @@ const init = async () => {
 
     // Create baseline color and uvs
     const color = vec3( 0.0 ).toVar( 'color' );
-    const center = vUv.sub( 0.5 );
-    const viewportPosition = center.mul( viewportSize );
+    // Space is standard texture UV space
+    const origin = vUv;
+    // Move to space of 0 to viewportSize
+    const viewportPosition = origin.mul( viewportSize );
+
 
     color.assign( DrawBackground() );
 
-    const moveBy = timerLocal().mul( 50 );
+    const moveBy = time.mul( 50 );
 
-    const cloud = sdfCloud( viewportPosition, smoothstep( - 1.0, 1.0, sin( timerLocal() ) ).add( 1 ) );
-    const cloudShadow = sdfCircle( viewportPosition.add( vec2( 50.0 ) ).add( moveBy ), 120.0 );
+    const cloudOffset = time.mul( 40 );
 
-    color.assign( mix( color, vec3( 0.0 ), remap( smoothstep( - 100.0, 0.0, cloudShadow ), 0.0, 1.0, 1.0, 0.0 ).mul( shadowIntensity ) ) );
+    Loop( { start: uint( 0 ), end: uint( 4 ), type: 'uint', condition: '<' }, ( { i } ) => {
+
+      const offset = vec2( i.mul( 200.0 ).add() );
+
+
+    } );
+
+    const cloudPosition = mod( viewportPosition.sub( cloudOffset ), viewportSize );
+    cloudPosition.assign( cloudPosition.sub( viewportSize.mul( 0.5 ) ) );
+
+    const cloud = sdfCloud( cloudPosition, smoothstep( - 1.0, 1.0, sin( time ) ).add( 1 ) );
+    //const cloudShadow = sdfCircle( cloudPosition.add( vec2( 50.0 ) ).add( moveBy ), 120.0 );
+
+    //color.assign( mix( color, vec3( 0.0 ), remap( smoothstep( - 100.0, 0.0, cloudShadow ), 0.0, 1.0, 1.0, 0.0 ).mul( shadowIntensity ) ) );
     color.assign(
       mix( vec3( 1.0 ), color, smoothstep( 0.0, 1.0, cloud ) )
     );

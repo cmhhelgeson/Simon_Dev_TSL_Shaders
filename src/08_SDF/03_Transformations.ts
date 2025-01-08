@@ -32,7 +32,8 @@ import {
   acos,
   rotate,
   sin,
-  timerLocal
+  timerLocal,
+  time
 } from 'three/tsl';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
@@ -92,8 +93,8 @@ const init = async () => {
 
     const center = uv().sub( 0.5 );
 
-    const gridSpace = center.mul( viewportSize ).sub( sin( timerLocal() ).mul( 400 ) );
-    const gridPosition = rotate( gridSpace, timerLocal() ).div( cellWidth );
+    const gridSpace = center.mul( viewportSize ).sub( sin( time ).mul( 400 ) );
+    const gridPosition = rotate( gridSpace, time ).div( cellWidth );
     // Access each individual cell's uv space.
     const cellUV = fract( gridPosition );
 
@@ -152,7 +153,7 @@ const init = async () => {
     const viewportPosition = center.mul( viewportSize );
 
     const moveBox = viewportPosition.sub( vec2( boxX, boxY ) );
-    const rotateBox = rotate( moveBox, mix( - 3.0, 3.0, sin( timerLocal() ) ) );
+    const rotateBox = rotate( moveBox, mix( - 3.0, 3.0, sin( time ) ) );
     const boxDistance = sdfBox( rotateBox, vec2( 200.0, 50.0 ) );
 
     color.assign( drawBackgroundColor() );
