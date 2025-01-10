@@ -5,7 +5,6 @@ import {
   smoothstep,
   float,
   Fn,
-  mix,
   viewportSize,
   uniform,
   abs,
@@ -22,13 +21,14 @@ import {
   If,
   rotate,
   uint,
-  pow,
   mix,
   sin,
   mod,
   For,
   Loop,
-  time
+  time,
+  step,
+  pow,
 } from 'three/tsl';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
@@ -52,6 +52,7 @@ const init = async () => {
   const effectController = {
     skyGradient: uniform( 0.5 ),
     shadowIntensity: uniform( 0.5 ),
+    dayLength: uniform( 4.0 ),
   };
   const red = vec3( 1.0, 0.0, 0.0 );
   const black = vec3( 0.0, 0.0, 0.0 );
@@ -77,13 +78,59 @@ const init = async () => {
 
   const DrawBackground = () => {
 
-    const { skyGradient } = effectController;
+    const { skyGradient, dayLength } = effectController;
 
-    return mix(
+    const morning = mix(
+      vec3( 0.44, 0.64, 0.84 ),
+      vec3( 0.34, 0.51, 0.94 ),
+      smoothstep( 0.0, 1.0, pow( uv().x.mul( uv().y ), 0.5 ) )
+    );
+
+    const midday = mix(
       vec3( 0.42, 0.58, 0.75 ),
       vec3( 0.36, 0.46, 0.82 ),
-      smoothstep( 0.0, 1.0, pow( uv().x.mul( uv().y ), skyGradient ) )
+      smoothstep( 0.0, 1.0, pow( uv().x.mul( uv().y ), 0.5 ) )
     );
+
+    const evening = mix(
+      vec3( 0.82, 0.51, 0.25 ),
+      vec3( 0.88, 0.71, 0.39 ),
+      smoothstep( 0.0, 1.0, pow( uv().x.mul( uv().y ), 0.5 ) )
+    );
+
+    const night = mix(
+      vec3( 0.07, 0.1, 0.19 ),
+      vec3( 0.19, 0.2, 0.29 ),
+      smoothstep( 0.0, 1.0, pow( uv().x.mul( uv().y ), 0.5 ) )
+    );
+
+    const dayTime = mod( time, dayLength );
+
+    const skyColor = vec3( 0.0 ).toVar( 'skyColor' );
+
+    const morningEnd = dayLength.mul( 0.25 );
+    const middayEnd = dayLength.mul( 0.5 );
+    const eveningEnd = dayLength.mul( 0.75 );
+
+    If( dayTime.lessThan( morningEnd ), () => {
+
+      skyColor.assign( mix( morning, midday, smoothstep( 0.0, morningEnd, dayTime ) ) );
+
+    } ).ElseIf( dayTime.lessThan( middayEnd ), () => {
+
+      skyColor.assign( mix( midday, evening, smoothstep( morningEnd, middayEnd, dayTime ) ) );
+
+    } ).ElseIf( dayTime.lessThan( eveningEnd ), () => {
+
+      skyColor.assign( mix( evening, night, smoothstep( middayEnd, eveningEnd, dayTime ) ) );
+
+    } ).Else( () => {
+
+      skyColor.assign( mix( night, morning, smoothstep( eveningEnd, dayLength, dayTime ) ) );
+
+    } );
+
+    return skyColor;
 
   };
 
@@ -93,11 +140,11 @@ const init = async () => {
 
   };
 
-  const sdfCloud = ( positionNode, scaleNode ) => {
+  const sdfCloud = ( positionNode ) => {
 
-    const puff1 = sdfCircle( positionNode.mul( scaleNode ), float( 100.0 ) );
-    const puff2 = sdfCircle( positionNode.mul( scaleNode ).sub( vec2( 120.0, - 10.0 ) ), float( 75.0 ) );
-    const puff3 = sdfCircle( positionNode.mul( scaleNode ).add( vec2( 120.0, 10.0 ) ), float( 75.0 ) );
+    const puff1 = sdfCircle( positionNode, float( 100.0 ) );
+    const puff2 = sdfCircle( positionNode.sub( vec2( 120.0, - 10.0 ) ), float( 75.0 ) );
+    const puff3 = sdfCircle( positionNode.add( vec2( 120.0, 10.0 ) ), float( 75.0 ) );
 
     const d = opUnion( puff1, opUnion( puff2, puff3 ) );
 
@@ -130,11 +177,18 @@ const init = async () => {
 
   };
 
+  const hash = ( vNode ) => {
+
+    const t = dot( vNode, vec2( 36.5323, 73.945 ) );
+    return sin( t );
+
+  };
+
   material.colorNode = Fn( () => {
 
     const vUv = uv();
 
-    const { shadowIntensity } = effectController;
+    const { shadowIntensity, dayLength } = effectController;
 
     // Create baseline color and uvs
     const color = vec3( 0.0 ).toVar( 'color' );
@@ -143,30 +197,53 @@ const init = async () => {
     // Move to space of 0 to viewportSize
     const viewportPosition = origin.mul( viewportSize );
 
-
     color.assign( DrawBackground() );
 
-    const moveBy = time.mul( 50 );
+    const dayTime = mod( time, dayLength );
 
-    const cloudOffset = time.mul( 40 );
+    const sunOffset = vec2( 200.0, viewportSize.y.mul( float( 0.4 ).add( smoothstep( dayLength.mul( 0.45 ), dayLength.mul( 0.9 ), dayTime ) ) ) );
+    const sunPos = viewportPosition.sub( sunOffset );
+    sunPos.assign( sunPos.sub( viewportSize.mul( 0.5 ) ) );
 
-    Loop( { start: uint( 0 ), end: uint( 4 ), type: 'uint', condition: '<' }, ( { i } ) => {
+    const sunSDF = sdfCircle( sunPos, 100.0 );
 
-      const offset = vec2( i.mul( 200.0 ).add() );
+    color.assign( mix( vec3( 1.0 ), color, smoothstep( 0.0, 1.0, sunSDF ) ) );
+
+
+    const numClouds = float( 10.0 ).toVar( 'numClouds' );
+
+    Loop( { start: uint( 0 ), end: uint( 10 ), type: 'uint', condition: '<' }, ( { i } ) => {
+
+      // const size = mix(maxSizeScale, minSizeScale)
+      const size = mix( 2.0, 1.0, float( i ).div( numClouds ).add( hash( vec2( i ) ).mul( 0.1 ) ) );
+      const speed = size.mul( 0.25 );
+
+      const cloudOffset = vec2( float( i ).mul( 200.0 ).add( time.mul( 100.0 ).mul( speed ) ), float( 200.0 ).mul( hash( vec2( i ) ) ) );
+      const cloudPosition = mod( viewportPosition.sub( cloudOffset ), viewportSize );
+      cloudPosition.assign( cloudPosition.sub( viewportSize.mul( 0.5 ) ) );
+
+      const cloudShadow = sdfCloud( cloudPosition.mul( size ).add( vec2( 25.00 ) ) ).sub( 40.0 );
+
+
+      const cloud = sdfCloud( cloudPosition.mul( size ) );
+
+      color.assign(
+        mix(
+          color,
+          vec3( 0.0 ),
+          remap( smoothstep( - 100.0, 0.0, cloudShadow ), 0.0, 1.0, 1.0, 0.0 ).mul( shadowIntensity )
+        )
+      );
+      color.assign(
+        mix(
+          vec3( 1.0 ),
+          color,
+          smoothstep( 0.0, 1.0, cloud )
+        )
+      );
 
 
     } );
-
-    const cloudPosition = mod( viewportPosition.sub( cloudOffset ), viewportSize );
-    cloudPosition.assign( cloudPosition.sub( viewportSize.mul( 0.5 ) ) );
-
-    const cloud = sdfCloud( cloudPosition, smoothstep( - 1.0, 1.0, sin( time ) ).add( 1 ) );
-    //const cloudShadow = sdfCircle( cloudPosition.add( vec2( 50.0 ) ).add( moveBy ), 120.0 );
-
-    //color.assign( mix( color, vec3( 0.0 ), remap( smoothstep( - 100.0, 0.0, cloudShadow ), 0.0, 1.0, 1.0, 0.0 ).mul( shadowIntensity ) ) );
-    color.assign(
-      mix( vec3( 1.0 ), color, smoothstep( 0.0, 1.0, cloud ) )
-    );
 
     return color;
 
@@ -186,9 +263,7 @@ const init = async () => {
   gui = new GUI();
   gui.add( effectController.skyGradient, 'value', 0.01, 1.0 ).name( 'gradientControl' );
   gui.add( effectController.shadowIntensity, 'value', 0.1, 5.0 ).step( 0.01 ).name( 'shadowIntensity' );
-
-  window.addEventListener;
-
+  gui.add( effectController.dayLength, 'value', 4.0, 40.0 ).step( 4.0 ).name( 'dayLength' );
 
 };
 
