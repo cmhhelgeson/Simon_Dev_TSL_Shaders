@@ -43,6 +43,16 @@ enum BooleanEnum {
 	SUBTRACTION
 }
 
+const effectController = {
+  skyGradient: uniform( 0.5 ),
+  shadowIntensity: uniform( 0.5 ),
+  dayLength: uniform( 4.0 ),
+  sunX: uniform( 200.0 ),
+  moonX: uniform( 700.0 ),
+  moonSubtracter: uniform( 40.0 ),
+  sunRadius: uniform( 100.0 ),
+};
+
 const init = async () => {
 
   camera = new THREE.OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
@@ -51,11 +61,6 @@ const init = async () => {
 
   const material = new THREE.MeshBasicNodeMaterial();
 
-  const effectController = {
-    skyGradient: uniform( 0.5 ),
-    shadowIntensity: uniform( 0.5 ),
-    dayLength: uniform( 4.0 ),
-  };
   const red = vec3( 1.0, 0.0, 0.0 );
   const black = vec3( 0.0, 0.0, 0.0 );
 
@@ -192,11 +197,17 @@ const init = async () => {
 
   };
 
+  const easeOut = ( x, p ) => {
+
+    return float( 1.0 ).sub( pow( x.oneMinus(), p ) );
+
+  };
+
   material.colorNode = Fn( () => {
 
     const vUv = uv();
 
-    const { shadowIntensity, dayLength } = effectController;
+    const { shadowIntensity, dayLength, sunX, moonX, moonSubtracter, sunRadius } = effectController;
 
     // Create baseline color and uvs
     const color = vec3( 0.0 ).toVar( 'color' );
@@ -209,17 +220,26 @@ const init = async () => {
 
     const dayTime = mod( time, dayLength );
 
+    // SUN
     If( dayTime.lessThan( dayLength.mul( 0.75 ) ), () => {
 
-      const t = saturate( dayTime );
+      const t = saturate( inverseLerp( dayTime, float( 0.0 ), float( 1.0 ) ) ).toVar( 'sunT' );
 
-      const sunDefaultPosition = vec2( 200.0, viewportSize.y.mul( float( 0.8 ) ) );
-      const sunMovement = mix( vec2( 0.0, 400.0 ), vec2( 0.0 ), t );
+      const sunDefaultPosition = vec2( sunX, viewportSize.y.mul( float( 0.8 ) ) ).toVar( 'sunDefaultPosition' );
+      const sunMovement = mix( vec2( 0.0, 400.0 ), vec2( 0.0 ), easeOut( t, 4.0 ) ).toVar( 'sunMovement' );
+
+      If( dayTime.greaterThan( dayLength.mul( 0.5 ) ), () => {
+
+        t.assign( saturate( inverseLerp( dayTime, dayLength.mul( 0.5 ), dayLength.mul( 0.75 ) ) ) );
+        sunMovement.assign( mix( vec2( 0.0 ), vec2( 0.0, 400.0 ), t ) );
+
+      } );
 
       const sunOffset = sunDefaultPosition.add( sunMovement );
+
       const sunPos = viewportPosition.sub( sunOffset );
 
-      const sun = sdfCircle( sunPos, float( 100.0 ) );
+      const sun = sdfCircle( sunPos, sunRadius );
       color.assign( mix( vec3( 0.84, 0.62, 0.26 ), color, smoothstep( 0.0, 2.0, sun ) ) );
 
       // Exponenially increase brightness as we get closer to edge of sun
@@ -228,6 +248,36 @@ const init = async () => {
       color.addAssign( mix( vec3( 0.0 ), vec3( 0.9, 0.85, 0.47 ), p ).mul( 0.5 ) );
 
     } );
+
+    // MOON
+    If( dayTime.greaterThan( dayLength.mul( 0.5 ) ), () => {
+
+      const t = saturate( inverseLerp( dayTime, dayLength.mul( 0.5 ), dayLength.mul( 0.9 ) ) ).toVar( 'moonT' );
+
+      const moonDefaultPosition = vec2( moonX, viewportSize.y.mul( float( 0.8 ) ) ).toVar( 'moonDefaultPosition' );
+      const moonMovement = mix( vec2( 0.0, 400.0 ), vec2( 0.0 ), easeOut( t, 4.0 ) ).toVar( 'moonMovement' );
+
+      If( dayTime.greaterThan( dayLength.mul( 0.9 ) ), () => {
+
+        t.assign( saturate( inverseLerp( dayTime, dayLength.mul( 0.9 ), dayLength.mul( 0.95 ) ) ) );
+        moonMovement.assign( mix( vec2( 0.0 ), vec2( 0.0, 400.0 ), t ) );
+
+      } );
+
+      const moonOffset = moonDefaultPosition.add( moonMovement );
+
+      const baseMoonPos = viewportPosition.sub( moonOffset );
+      const rotateMoonPos = rotate( baseMoonPos, float( 3.141592 * 0.2 ) );
+      const moonSubtracterPos = rotateMoonPos.add( vec2( moonSubtracter, 0.0 ) );
+
+      const moonSubtracterSDF = sdfCircle( moonSubtracterPos, sunRadius.sub( 20.0 ) );
+      const moonBaseSDF = sdfCircle( rotateMoonPos, sunRadius );
+      const moon = opSubtraction( moonSubtracterSDF, moonBaseSDF );
+      color.assign( mix( vec3( 0.84, 0.62, 0.26 ), color, smoothstep( 0.0, 2.0, moon ) ) );
+
+    } );
+
+
 
 
     const numClouds = float( 10.0 ).toVar( 'numClouds' );
@@ -279,11 +329,47 @@ const init = async () => {
   document.body.appendChild( renderer.domElement );
 
   window.addEventListener( 'resize', onWindowResize );
+  window.addEventListener( 'mousedown', onMouseDown );
+  window.addEventListener( 'mousemove', onMouseMove );
+  window.addEventListener( 'mouseup', onMouseUp );
 
   gui = new GUI();
   gui.add( effectController.skyGradient, 'value', 0.01, 1.0 ).name( 'gradientControl' );
   gui.add( effectController.shadowIntensity, 'value', 0.1, 5.0 ).step( 0.01 ).name( 'shadowIntensity' );
   gui.add( effectController.dayLength, 'value', 4.0, 40.0 ).step( 4.0 ).name( 'dayLength' );
+  gui.add( effectController.moonSubtracter, 'value', 20.0, 200.0 ).step( 1.0 ).name( 'moonSubtracter' );
+
+};
+
+let isMouseDown = false;
+
+const onMouseDown = () => {
+
+  isMouseDown = true;
+
+};
+
+const onMouseUp = () => {
+
+  isMouseDown = false;
+
+};
+
+const onMouseMove = ( e ) => {
+
+  if ( isMouseDown ) {
+
+    const { sunX, sunRadius } = effectController;
+    const extendedRadius = sunRadius.value + 20;
+    const mousePos = { x: e.clientX, y: e.clientY };
+
+    if ( ! ( mousePos.x < sunX.value - extendedRadius || mousePos.x > sunX.value + extendedRadius ) ) {
+
+      effectController.sunX.value = e.clientX;
+
+    }
+
+  }
 
 };
 
