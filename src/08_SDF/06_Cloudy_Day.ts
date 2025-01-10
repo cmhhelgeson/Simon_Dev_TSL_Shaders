@@ -29,6 +29,8 @@ import {
   time,
   step,
   pow,
+  saturate,
+  exp,
 } from 'three/tsl';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
@@ -184,6 +186,12 @@ const init = async () => {
 
   };
 
+  const inverseLerp = ( currentValue, minValue, maxValue ) => {
+
+    return ( currentValue.sub( minValue ) ).div( maxValue.sub( minValue ) );
+
+  };
+
   material.colorNode = Fn( () => {
 
     const vUv = uv();
@@ -201,13 +209,25 @@ const init = async () => {
 
     const dayTime = mod( time, dayLength );
 
-    const sunOffset = vec2( 200.0, viewportSize.y.mul( float( 0.4 ).add( smoothstep( dayLength.mul( 0.45 ), dayLength.mul( 0.9 ), dayTime ) ) ) );
-    const sunPos = viewportPosition.sub( sunOffset );
-    sunPos.assign( sunPos.sub( viewportSize.mul( 0.5 ) ) );
+    If( dayTime.lessThan( dayLength.mul( 0.75 ) ), () => {
 
-    const sunSDF = sdfCircle( sunPos, 100.0 );
+      const t = saturate( dayTime );
 
-    color.assign( mix( vec3( 1.0 ), color, smoothstep( 0.0, 1.0, sunSDF ) ) );
+      const sunDefaultPosition = vec2( 200.0, viewportSize.y.mul( float( 0.8 ) ) );
+      const sunMovement = mix( vec2( 0.0, 400.0 ), vec2( 0.0 ), t );
+
+      const sunOffset = sunDefaultPosition.add( sunMovement );
+      const sunPos = viewportPosition.sub( sunOffset );
+
+      const sun = sdfCircle( sunPos, float( 100.0 ) );
+      color.assign( mix( vec3( 0.84, 0.62, 0.26 ), color, smoothstep( 0.0, 2.0, sun ) ) );
+
+      // Exponenially increase brightness as we get closer to edge of sun
+      const s = max( 0.001, sun );
+      const p = saturate( exp( s.mul( s ).mul( - 0.001 ) ) );
+      color.addAssign( mix( vec3( 0.0 ), vec3( 0.9, 0.85, 0.47 ), p ).mul( 0.5 ) );
+
+    } );
 
 
     const numClouds = float( 10.0 ).toVar( 'numClouds' );
