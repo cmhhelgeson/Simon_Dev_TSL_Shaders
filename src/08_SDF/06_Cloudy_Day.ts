@@ -50,6 +50,7 @@ const effectController = {
   sunX: uniform( 200.0 ),
   moonX: uniform( 700.0 ),
   moonSubtracter: uniform( 40.0 ),
+  moonRotation: uniform( 0.2 ),
   sunRadius: uniform( 100.0 ),
 };
 
@@ -207,7 +208,7 @@ const init = async () => {
 
     const vUv = uv();
 
-    const { shadowIntensity, dayLength, sunX, moonX, moonSubtracter, sunRadius } = effectController;
+    const { shadowIntensity, dayLength, sunX, moonX, moonRotation, moonSubtracter, sunRadius } = effectController;
 
     // Create baseline color and uvs
     const color = vec3( 0.0 ).toVar( 'color' );
@@ -266,14 +267,26 @@ const init = async () => {
 
       const moonOffset = moonDefaultPosition.add( moonMovement );
 
-      const baseMoonPos = viewportPosition.sub( moonOffset );
-      const rotateMoonPos = rotate( baseMoonPos, float( 3.141592 * 0.2 ) );
-      const moonSubtracterPos = rotateMoonPos.add( vec2( moonSubtracter, 0.0 ) );
+
+      // Moon Shadow
+      const moonShadowPos = viewportPosition.sub( moonOffset ).sub( 15.0 ).toVar( 'moonPos' );
+      moonShadowPos.assign( rotate( moonShadowPos, float( 3.141592 ).mul( moonRotation ) ) );
+      const moonShadowSubtracterPos = moonShadowPos.add( vec2( moonSubtracter, 0.0 ) );
+
+      const moonShadowSubtracterSDF = sdfCircle( moonShadowSubtracterPos, sunRadius.sub( 20.0 ) );
+      const moonShadowBaseSDF = sdfCircle( moonShadowPos, sunRadius );
+      const moonShadow = opSubtraction( moonShadowSubtracterSDF, moonShadowBaseSDF );
+      color.assign( mix( vec3( 0.0 ), color, smoothstep( - 1.0, 10.0, moonShadow ) ) );
+
+      // Moon
+      const moonPos = viewportPosition.sub( moonOffset ).toVar( 'moonPos' );
+      moonPos.assign( rotate( moonPos, float( 3.141592 ).mul( moonRotation ) ) );
+      const moonSubtracterPos = moonPos.add( vec2( moonSubtracter, 0.0 ) );
 
       const moonSubtracterSDF = sdfCircle( moonSubtracterPos, sunRadius.sub( 20.0 ) );
-      const moonBaseSDF = sdfCircle( rotateMoonPos, sunRadius );
+      const moonBaseSDF = sdfCircle( moonPos, sunRadius );
       const moon = opSubtraction( moonSubtracterSDF, moonBaseSDF );
-      color.assign( mix( vec3( 0.84, 0.62, 0.26 ), color, smoothstep( 0.0, 2.0, moon ) ) );
+      color.assign( mix( vec3( 1.0 ), color, smoothstep( 0.0, 2.0, moon ) ) );
 
     } );
 
@@ -338,6 +351,9 @@ const init = async () => {
   gui.add( effectController.shadowIntensity, 'value', 0.1, 5.0 ).step( 0.01 ).name( 'shadowIntensity' );
   gui.add( effectController.dayLength, 'value', 4.0, 40.0 ).step( 4.0 ).name( 'dayLength' );
   gui.add( effectController.moonSubtracter, 'value', 20.0, 200.0 ).step( 1.0 ).name( 'moonSubtracter' );
+  const moonFolder = gui.addFolder( 'Moon' );
+  moonFolder.add( effectController.moonSubtracter, 'value', 20.0, 200.0 ).step( 1.0 ).name( 'moonSubtracter' );
+  moonFolder.add( effectController.moonRotation, 'value', 0.0, 2.0 ).step( 0.1 ).name( 'moonRotation' );
 
 };
 
