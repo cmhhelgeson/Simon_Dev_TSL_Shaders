@@ -3,8 +3,6 @@ import {
   texture,
   uv,
   Fn,
-  vec2,
-  fract,
   remap,
   uniform,
   pass,
@@ -16,21 +14,12 @@ import {
 } from 'three/tsl';
 import PostProcessing from './PostProcessing';
 
-import { sobel } from 'three/addons/tsl/display/SobelOperatorNode.js';
-import { bleach } from 'three/addons/tsl/display/BleachBypass.js';
-
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 
 let renderer, camera, scene, gui;
 
 // Post Processing Outputs
 let postScene, postColor;
-
-enum BooleanEnum {
-	UNION,
-	INTERSECTION,
-	SUBTRACTION
-}
 
 const effectController = {
   remapUVXBegin: uniform( 0.25 ),
@@ -43,82 +32,6 @@ const effectController = {
   contrast: uniform( 1.2 ),
   midpoint: uniform( - 0.01 )
 };
-
-//1.312
-//-0.3
-//1.2
-//-0.01
-
-//0.82
-//-0.4
-// 1.7
-// 0.02
-
-/*const DrawBackground = () => {
-
-};
-
-const sdfCircle = ( positionNode, radiusNode ) => {
-
-  return length( positionNode ).sub( radiusNode );
-
-};
-
-const sdfCloud = ( positionNode ) => {
-
-  const puff1 = sdfCircle( positionNode, float( 100.0 ) );
-  const puff2 = sdfCircle( positionNode.sub( vec2( 120.0, - 10.0 ) ), float( 75.0 ) );
-  const puff3 = sdfCircle( positionNode.add( vec2( 120.0, 10.0 ) ), float( 75.0 ) );
-
-  const d = opUnion( puff1, opUnion( puff2, puff3 ) );
-
-  return d;
-
-};
-
-const sdfBox = ( posNode, boundNode ) => {
-
-  const d = abs( posNode ).sub( boundNode );
-  return length( max( d, 0.0 ) ).add( min( max( d.x, d.y ), 0.0 ) );
-
-};
-
-const opUnion = ( d1Node, d2Node ) => {
-
-  return min( d1Node, d2Node );
-
-};
-
-const opIntersection = ( d1Node, d2Node ) => {
-
-  return max( d1Node, d2Node );
-
-};
-
-const opSubtraction = ( d1Node, d2Node ) => {
-
-  return max( negate( d1Node ), d2Node );
-
-};
-
-const hash = ( vNode ) => {
-
-  const t = dot( vNode, vec2( 36.5323, 73.945 ) );
-  return sin( t );
-
-};
-
-const inverseLerp = ( currentValue, minValue, maxValue ) => {
-
-  return ( currentValue.sub( minValue ) ).div( maxValue.sub( minValue ) );
-
-};
-
-const easeOut = ( x, p ) => {
-
-  return float( 1.0 ).sub( pow( x.oneMinus(), p ) );
-
-}; */
 
 const postProcessFunction = Fn( ( [ color ] ) => {
 
