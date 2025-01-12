@@ -17,6 +17,9 @@ import {
   smoothstep,
   normalize,
   pow,
+  fract,
+  vec2,
+  abs,
 } from 'three/tsl';
 import PostProcessing from './PostProcessing';
 
@@ -76,7 +79,17 @@ const postProcessFunction = Fn( ( [ color ] ) => {
   colorWeight.assign( pow( colorWeight, colorWeightPower ) );
   c.assign( mix( vec3( luminance ), c, colorWeight ) );
 
-  return c;
+  const vignetteCoords = fract( uv().mul( vec2( 2.0, 1.0 ) ) );
+  const remappedCoordsX = remap( abs( vignetteCoords.x.sub( 0.5 ) ), 0.0, 2.0, 2.0, 0.0 );
+  const remappedCoordsY = remap( abs( vignetteCoords.y.sub( 0.5 ) ), 0.0, 1.0, 1.0, 0.0 );
+
+  const v1 = smoothstep( 0.2, 0.5, remappedCoordsX );
+  const v2 = smoothstep( 0.2, 0.5, remappedCoordsY );
+  const vignetteAmount = v1.mul( v2 ).toVar( 'vignetteAmount' );
+  vignetteAmount.assign( pow( vignetteAmount, 0.25 ) );
+  vignetteAmount.assign( remap( vignetteAmount, 0.0, 1.0, 0.5, 1.0 ) );
+
+  return c.mul( vignetteAmount );
 
 
 } );
