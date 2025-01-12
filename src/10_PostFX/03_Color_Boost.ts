@@ -20,10 +20,13 @@ import {
   fract,
   vec2,
   abs,
+  floor,
+  uint,
 } from 'three/tsl';
 import PostProcessing from './PostProcessing';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+import { pixelationPass } from 'three/examples/jsm/tsl/display/PixelationPassNode.js';
 
 let renderer, camera, scene, gui;
 
@@ -41,6 +44,7 @@ const effectController = {
   contrast: uniform( 1.2 ),
   midpoint: uniform( - 0.01 ),
   colorWeightPower: uniform( 32 ),
+  pixelSize: uniform( uint( 6 ) ),
 };
 
 const postProcessFunction = Fn( ( [ color ] ) => {
@@ -89,8 +93,9 @@ const postProcessFunction = Fn( ( [ color ] ) => {
   vignetteAmount.assign( pow( vignetteAmount, 0.25 ) );
   vignetteAmount.assign( remap( vignetteAmount, 0.0, 1.0, 0.5, 1.0 ) );
 
-  return c.mul( vignetteAmount );
+  c.mulAssign( vignetteAmount );
 
+  return c;
 
 } );
 
@@ -128,7 +133,7 @@ const init = async () => {
   postScene = new PostProcessing( renderer );
   postColor = new PostProcessing( renderer );
 
-  const scenePass = pass( scene, camera );
+  const scenePass = pixelationPass( scene, camera, effectController.pixelSize, uniform( 0 ), uniform( 0 ) );
   postScene.outputNode = scenePass;
   postColor.outputNode = postProcessFunction( scenePass );
 
@@ -144,6 +149,7 @@ const init = async () => {
   postProcessingFolder.add( effectController.midpoint, 'value', - 1.0, 1.0 ).step( 0.01 ).name( 'midpoint' );
   // Change how specific the color boost is.
   postProcessingFolder.add( effectController.colorWeightPower, 'value', 1.0, 200.0 ).step( 1 ).name( 'colorWeightPower' );
+  postProcessingFolder.add( effectController.pixelSize, 'value', 1, 200 ).step( 1 ).name( 'pixelSize' );
 
 
 };
