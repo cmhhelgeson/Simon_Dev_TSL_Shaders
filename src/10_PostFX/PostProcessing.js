@@ -5,6 +5,7 @@ import * as THREE from 'three';
 
 // Customized version of THREE.PostProcessing allowing for multiple
 // Postprocess passes across different areas of the image
+// Revert back to THREE.PostProcessing in version r173
 
 let PostProcessInstance = 0;
 class PostProcessing {
