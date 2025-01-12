@@ -8,6 +8,11 @@ import {
   remap,
   uniform,
   pass,
+  vec3,
+  color,
+  dot,
+  mix,
+  saturate
 } from 'three/tsl';
 import PostProcessing from './PostProcessing';
 
@@ -31,7 +36,23 @@ const effectController = {
   remapUVXBegin: uniform( 0.25 ),
   remapUVXEnd: uniform( 0.75 ),
   bleachOpacity: uniform( 0.8 ),
+  testVal: uniform( 0.5 ),
+  tintColor: color( 1.0, 0.5, 0.5 ),
+  saturation: uniform( 1.312 ),
+  brightness: uniform( - 0.2 ),
+  contrast: uniform( 1.2 ),
+  midpoint: uniform( - 0.01 )
 };
+
+//1.312
+//-0.3
+//1.2
+//-0.01
+
+//0.82
+//-0.4
+// 1.7
+// 0.02
 
 /*const DrawBackground = () => {
 
@@ -99,6 +120,29 @@ const easeOut = ( x, p ) => {
 
 }; */
 
+const postProcessFunction = Fn( ( [ color ] ) => {
+
+  const { midpoint, brightness, saturation, contrast } = effectController;
+
+  const c = vec3( color ).toVar( 'inputColor' );
+
+  //Tinting
+  //c.mulAssign( effectController.tintColor );
+
+  //Brightness
+  c.addAssign( brightness );
+
+  //Saturation (accounting for relative brightness of each color)
+  const luminance = dot( c, vec3( 0.2126, 0.7152, 0.0722 ) );
+  c.assign( mix( vec3( luminance ), c, saturation ) );
+
+  c.assign( saturate( c.sub( midpoint ) ).mul( contrast ).add( midpoint ) );
+
+  return c;
+
+
+} );
+
 const init = async () => {
 
   camera = new THREE.OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
@@ -134,8 +178,8 @@ const init = async () => {
   postColor = new PostProcessing( renderer );
 
   const scenePass = pass( scene, camera );
-  postScene.outputNode = scenePass.renderOutput();
-  postColor.outputNode = bleach( scenePass, effectController.bleachOpacity );
+  postScene.outputNode = scenePass;
+  postColor.outputNode = postProcessFunction( scenePass );
 
   window.addEventListener( 'resize', onWindowResize );
 
@@ -143,7 +187,10 @@ const init = async () => {
   gui.add( effectController.remapUVXBegin, 'value', 0.01, 0.9 ).name( 'remapXBegin' );
   gui.add( effectController.remapUVXEnd, 'value', 0.01, 0.9 ).name( 'remapXEnd' );
   const postProcessingFolder = gui.addFolder( 'Post Processing' );
-  postProcessingFolder.add( effectController.bleachOpacity, 'value', 0.01, 10.0 ).name( 'bleachOpacity' );
+  postProcessingFolder.add( effectController.saturation, 'value', 0.0, 2.0 ).name( 'saturation' );
+  postProcessingFolder.add( effectController.brightness, 'value', - 1.0, 1.0 ).step( 0.1 ).name( 'brightness' );
+  postProcessingFolder.add( effectController.contrast, 'value', 0.0, 2.0 ).step( 0.1 ).name( 'contrast' );
+  postProcessingFolder.add( effectController.midpoint, 'value', - 1.0, 1.0 ).step( 0.01 ).name( 'midpoint' );
 
 
 };
