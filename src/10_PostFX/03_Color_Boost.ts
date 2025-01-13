@@ -149,7 +149,7 @@ const init = async () => {
   postProcessingFolder.add( effectController.midpoint, 'value', - 1.0, 1.0 ).step( 0.01 ).name( 'midpoint' );
   // Change how specific the color boost is.
   postProcessingFolder.add( effectController.colorWeightPower, 'value', 1.0, 200.0 ).step( 1 ).name( 'colorWeightPower' );
-  postProcessingFolder.add( effectController.pixelSize, 'value', 1, 200 ).step( 1 ).name( 'pixelSize' );
+  postProcessingFolder.add( effectController.pixelSize, 'value', 1, 20 ).step( 1 ).name( 'pixelSize' );
 
 
 };

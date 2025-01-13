@@ -49,6 +49,13 @@ const postProcessFunction = Fn( ( [ color ] ) => {
   const luminance = dot( c, vec3( 0.2126, 0.7152, 0.0722 ) );
   c.assign( mix( vec3( luminance ), c, saturation ) );
 
+  // Alt Contrast
+  // const sg = sign( color.sub( midpoint ) );
+  // const b = abs( c.sub( midpoint ) ).mul( 2 );
+  // const k = float( 1.0 ).div( contrast );
+  // const d = sg.mul( pow( b, vec3( k ) ) );
+  // c.assign( d.mul( 0.5 ).add( 0.5 ) );
+
   c.assign( saturate( c.sub( midpoint ) ).mul( contrast ).add( midpoint ) );
 
   return c;

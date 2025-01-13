@@ -10,11 +10,23 @@ import {
   color,
   dot,
   mix,
-  saturate
+  saturate,
+  sign,
+  distance,
+  float,
+  smoothstep,
+  normalize,
+  pow,
+  fract,
+  vec2,
+  abs,
+  floor,
+  uint,
 } from 'three/tsl';
 import PostProcessing from './PostProcessing';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+import { pixelationPass } from 'three/examples/jsm/tsl/display/PixelationPassNode.js';
 
 let renderer, camera, scene, gui;
 
@@ -30,105 +42,60 @@ const effectController = {
   saturation: uniform( 1.312 ),
   brightness: uniform( - 0.2 ),
   contrast: uniform( 1.2 ),
-  midpoint: uniform( - 0.01 )
+  midpoint: uniform( - 0.01 ),
+  colorWeightPower: uniform( 32 ),
+  pixelSize: uniform( uint( 6 ) ),
 };
-
-//1.312
-//-0.3
-//1.2
-//-0.01
-
-//0.82
-//-0.4
-// 1.7
-// 0.02
-
-/*const DrawBackground = () => {
-
-};
-
-const sdfCircle = ( positionNode, radiusNode ) => {
-
-  return length( positionNode ).sub( radiusNode );
-
-};
-
-const sdfCloud = ( positionNode ) => {
-
-  const puff1 = sdfCircle( positionNode, float( 100.0 ) );
-  const puff2 = sdfCircle( positionNode.sub( vec2( 120.0, - 10.0 ) ), float( 75.0 ) );
-  const puff3 = sdfCircle( positionNode.add( vec2( 120.0, 10.0 ) ), float( 75.0 ) );
-
-  const d = opUnion( puff1, opUnion( puff2, puff3 ) );
-
-  return d;
-
-};
-
-const sdfBox = ( posNode, boundNode ) => {
-
-  const d = abs( posNode ).sub( boundNode );
-  return length( max( d, 0.0 ) ).add( min( max( d.x, d.y ), 0.0 ) );
-
-};
-
-const opUnion = ( d1Node, d2Node ) => {
-
-  return min( d1Node, d2Node );
-
-};
-
-const opIntersection = ( d1Node, d2Node ) => {
-
-  return max( d1Node, d2Node );
-
-};
-
-const opSubtraction = ( d1Node, d2Node ) => {
-
-  return max( negate( d1Node ), d2Node );
-
-};
-
-const hash = ( vNode ) => {
-
-  const t = dot( vNode, vec2( 36.5323, 73.945 ) );
-  return sin( t );
-
-};
-
-const inverseLerp = ( currentValue, minValue, maxValue ) => {
-
-  return ( currentValue.sub( minValue ) ).div( maxValue.sub( minValue ) );
-
-};
-
-const easeOut = ( x, p ) => {
-
-  return float( 1.0 ).sub( pow( x.oneMinus(), p ) );
-
-}; */
 
 const postProcessFunction = Fn( ( [ color ] ) => {
 
-  const { midpoint, brightness, saturation, contrast } = effectController;
+  const { midpoint, brightness, saturation, contrast, colorWeightPower } = effectController;
 
   const c = vec3( color ).toVar( 'inputColor' );
 
-  //Tinting
+  // Tinting
+
   //c.mulAssign( effectController.tintColor );
 
-  //Brightness
+  // Brightness
+
   c.addAssign( brightness );
 
-  //Saturation (accounting for relative brightness of each color)
+  // Saturation (accounting for relative brightness of each color)
+
   const luminance = dot( c, vec3( 0.2126, 0.7152, 0.0722 ) );
   c.assign( mix( vec3( luminance ), c, saturation ) );
-
   c.assign( saturate( c.sub( midpoint ) ).mul( contrast ).add( midpoint ) );
 
-  return c;
+  // Initial Color Boost
 
+  //const refColor = vec3( 0.72, 0.25, 0.25 );
+  //const colorWeight = float( 1.0 ).sub( distance( c, refColor ) ).toVar( 'colorWeight' );
+  //colorWeight.assign( smoothstep( 0.45, 1.0, colorWeight ) );
+  //c.assign( mix( vec3( luminance ), c, colorWeight ) );
+
+  // Refined Color Boost
+
+  const refColor = vec3( 0.72, 0.25, 0.25 );
+  // The degree to which we desaturate is determined by the current color's similarity
+  // to the reference color, which is then exponentiated by a value to refine it.
+  const colorWeight = dot( normalize( c ), normalize( refColor ) ).toVar( 'colorWeight' );
+  colorWeight.assign( pow( colorWeight, colorWeightPower ) );
+  c.assign( mix( vec3( luminance ), c, colorWeight ) );
+
+  const vignetteCoords = fract( uv().mul( vec2( 2.0, 1.0 ) ) );
+  const remappedCoordsX = remap( abs( vignetteCoords.x.sub( 0.5 ) ), 0.0, 2.0, 2.0, 0.0 );
+  const remappedCoordsY = remap( abs( vignetteCoords.y.sub( 0.5 ) ), 0.0, 1.0, 1.0, 0.0 );
+
+  const v1 = smoothstep( 0.2, 0.5, remappedCoordsX );
+  const v2 = smoothstep( 0.2, 0.5, remappedCoordsY );
+  const vignetteAmount = v1.mul( v2 ).toVar( 'vignetteAmount' );
+  vignetteAmount.assign( pow( vignetteAmount, 0.25 ) );
+  vignetteAmount.assign( remap( vignetteAmount, 0.0, 1.0, 0.5, 1.0 ) );
+
+  c.mulAssign( vignetteAmount );
+
+  return c;
 
 } );
 
@@ -166,7 +133,7 @@ const init = async () => {
   postScene = new PostProcessing( renderer );
   postColor = new PostProcessing( renderer );
 
-  const scenePass = pass( scene, camera );
+  const scenePass = pixelationPass( scene, camera, effectController.pixelSize, uniform( 0 ), uniform( 0 ) );
   postScene.outputNode = scenePass;
   postColor.outputNode = postProcessFunction( scenePass );
 
@@ -180,6 +147,9 @@ const init = async () => {
   postProcessingFolder.add( effectController.brightness, 'value', - 1.0, 1.0 ).step( 0.1 ).name( 'brightness' );
   postProcessingFolder.add( effectController.contrast, 'value', 0.0, 2.0 ).step( 0.1 ).name( 'contrast' );
   postProcessingFolder.add( effectController.midpoint, 'value', - 1.0, 1.0 ).step( 0.01 ).name( 'midpoint' );
+  // Change how specific the color boost is.
+  postProcessingFolder.add( effectController.colorWeightPower, 'value', 1.0, 200.0 ).step( 1 ).name( 'colorWeightPower' );
+  postProcessingFolder.add( effectController.pixelSize, 'value', 1, 20 ).step( 1 ).name( 'pixelSize' );
 
 
 };
