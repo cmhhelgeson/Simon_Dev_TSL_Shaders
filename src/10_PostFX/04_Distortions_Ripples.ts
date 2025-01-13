@@ -5,22 +5,17 @@ import {
   Fn,
   remap,
   uniform,
-  pass,
   vec3,
   color,
   dot,
   mix,
   saturate,
-  sign,
-  distance,
-  float,
   smoothstep,
   normalize,
   pow,
   fract,
   vec2,
   abs,
-  floor,
   uint,
   length,
   sin,
@@ -36,9 +31,10 @@ let renderer, camera, scene, gui;
 // Post Processing Outputs
 let postScene, postColor;
 
+// TODO: Modify ripple to always be in center of screen irrespective of remapped x range
 const effectController = {
-  remapUVXBegin: uniform( 0.25 ),
-  remapUVXEnd: uniform( 0.75 ),
+  remapUVXBegin: uniform( 0.0 ),
+  remapUVXEnd: uniform( 1.0 ),
   bleachOpacity: uniform( 0.8 ),
   testVal: uniform( 0.5 ),
   tintColor: color( 1.0, 0.5, 0.5 ),
@@ -51,6 +47,8 @@ const effectController = {
   rippleRingSize: uniform( 50 ),
   rippleSpeed: uniform( 2 ),
   rippleStrength: uniform( 0.01 ),
+  mouseX: uniform( 0.5 ),
+  mouseY: uniform( 0.5 ),
 };
 
 const postProcessFunction = Fn( ( [ color ] ) => {
@@ -118,15 +116,17 @@ const init = async () => {
 
   material.colorNode = Fn( () => {
 
-    const { remapUVXBegin, remapUVXEnd, rippleRingSize, rippleSpeed, rippleStrength } = effectController;
+    const { mouseX, mouseY, remapUVXBegin, remapUVXEnd, rippleRingSize, rippleSpeed, rippleStrength } = effectController;
 
     const vUv = uv().toVar( 'vUv' );
 
     vUv.x.assign( remap( vUv.x, 0.0, 1.0, remapUVXBegin, remapUVXEnd ) );
 
-    const distToCenter = length( vUv.sub( 0.5 ) ).toVar( 'distToCenter' );
+    const mousePos = vec2( mouseX, mouseY ).toVar( 'mousePos' );
+
+    const distToCenter = length( vUv.sub( mousePos ) ).toVar( 'distToCenter' );
     const d = sin( distToCenter.mul( rippleRingSize ).sub( time.mul( rippleSpeed ) ) ).toVar( 'd' );
-    const dir = normalize( vUv.sub( 0.5 ) );
+    const dir = normalize( vUv.sub( mousePos ) );
     const rippleCoords = vUv.add( d.mul( dir ).mul( rippleStrength ) );
 
 
@@ -153,6 +153,7 @@ const init = async () => {
   postColor.outputNode = postProcessFunction( scenePass );
 
   window.addEventListener( 'resize', onWindowResize );
+  window.addEventListener( 'mousemove', onMouseMove );
 
   //const rawShader = await renderer.debug.getShaderAsync( scene, camera, quad );
   //console.log( rawShader );
@@ -181,6 +182,25 @@ const onWindowResize = () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize( window.innerWidth, window.innerHeight );
+
+};
+
+const onMouseMove = ( e ) => {
+
+  const { mouseX, mouseY } = effectController;
+
+  // Terrible fract emulation
+  if ( e.offsetX >= ( window.innerWidth / 2 ) ) {
+
+    mouseX.value = ( e.offsetX / ( window.innerWidth / 2 ) ) - 1;
+
+  } else {
+
+    mouseX.value = ( e.offsetX / ( window.innerWidth / 2 ) );
+
+  }
+
+  mouseY.value = 1 - ( e.offsetY / window.innerHeight );
 
 };
 
