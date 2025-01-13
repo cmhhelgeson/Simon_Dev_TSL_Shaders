@@ -22,6 +22,9 @@ import {
   abs,
   floor,
   uint,
+  length,
+  sin,
+  time,
 } from 'three/tsl';
 import PostProcessing from './PostProcessing';
 
@@ -44,8 +47,10 @@ const effectController = {
   contrast: uniform( 1.2 ),
   midpoint: uniform( - 0.01 ),
   colorWeightPower: uniform( 32 ),
-  pixelSize: uniform( uint( 6 ) ),
-  rippleDebug: uniform( 0.9 ),
+  pixelSize: uniform( uint( 1 ) ),
+  rippleRingSize: uniform( 50 ),
+  rippleSpeed: uniform( 2 ),
+  rippleStrength: uniform( 0.01 ),
 };
 
 const postProcessFunction = Fn( ( [ color ] ) => {
@@ -113,20 +118,19 @@ const init = async () => {
 
   material.colorNode = Fn( () => {
 
-    const { remapUVXBegin, remapUVXEnd, rippleDebug } = effectController;
+    const { remapUVXBegin, remapUVXEnd, rippleRingSize, rippleSpeed, rippleStrength } = effectController;
 
     const vUv = uv().toVar( 'vUv' );
 
-    const sg = sign( vUv.y.sub( 0.5 ) ).toVar( 'sg' );
-    const b = abs( vUv.y.sub( 0.5 ) ).mul( 2 ).toVar( 'b' );
-    vUv.y.assign(
-      sg.mul( pow(
-        b, rippleDebug
-      ) ).mul( 0.5 ).add( 0.5 )
-    ).mul( 0.5 ).sub( 0.5 );
+    vUv.x.assign( remap( vUv.x, 0.0, 1.0, remapUVXBegin, remapUVXEnd ) );
 
-    //vUv.x.assign( remap( vUv.x, 0.0, 1.0, remapUVXBegin, remapUVXEnd ) );
-    return texture( tomatoTexture, vUv );
+    const distToCenter = length( vUv.sub( 0.5 ) ).toVar( 'distToCenter' );
+    const d = sin( distToCenter.mul( rippleRingSize ).sub( time.mul( rippleSpeed ) ) ).toVar( 'd' );
+    const dir = normalize( vUv.sub( 0.5 ) );
+    const rippleCoords = vUv.add( d.mul( dir ).mul( rippleStrength ) );
+
+
+    return texture( tomatoTexture, rippleCoords );
 
   } )();
 
@@ -157,7 +161,9 @@ const init = async () => {
   gui.add( effectController.remapUVXBegin, 'value', 0.01, 0.9 ).name( 'remapXBegin' );
   gui.add( effectController.remapUVXEnd, 'value', 0.01, 0.9 ).name( 'remapXEnd' );
   const rippleFolder = gui.addFolder( 'Ripple' );
-  rippleFolder.add( effectController.rippleDebug, 'value', 0.0, 2.0 ).name( 'rippleDebug' );
+  rippleFolder.add( effectController.rippleRingSize, 'value', 20, 200 ).step( 1 ).name( 'rippleRingSize' );
+  rippleFolder.add( effectController.rippleSpeed, 'value', 0, 10 ).step( 1 ).name( 'rippleSpeed' );
+  rippleFolder.add( effectController.rippleStrength, 'value', 0.00, 0.1 ).step( 0.001 ).name( 'rippleStrength' );
   const postProcessingFolder = gui.addFolder( 'Post Processing' );
   postProcessingFolder.add( effectController.saturation, 'value', 0.0, 2.0 ).name( 'saturation' );
   postProcessingFolder.add( effectController.brightness, 'value', - 1.0, 1.0 ).step( 0.1 ).name( 'brightness' );
