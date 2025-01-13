@@ -10,7 +10,11 @@ import {
   color,
   dot,
   mix,
-  saturate
+  saturate,
+  sign,
+  abs,
+  float,
+  pow
 } from 'three/tsl';
 import PostProcessing from './PostProcessing';
 
@@ -50,12 +54,14 @@ const postProcessFunction = Fn( ( [ color ] ) => {
   c.assign( mix( vec3( luminance ), c, saturation ) );
 
   // Alt Contrast
-  // const sg = sign( color.sub( midpoint ) );
-  // const b = abs( c.sub( midpoint ) ).mul( 2 );
-  // const k = float( 1.0 ).div( contrast );
-  // const d = sg.mul( pow( b, vec3( k ) ) );
-  // c.assign( d.mul( 0.5 ).add( 0.5 ) );
-
+  //const sg = sign( c.y.sub( midpoint ) ).toVar( 'sg' );
+  //const b = abs( c.sub( midpoint ) ).mul( 2 ).toVar( 'b' );
+  //const k = float( 1.0 ).div( contrast );
+  //c.assign(
+  //  sg.mul( pow(
+  //    b, vec3( k )
+  //  ) ).mul( 0.5 ).add( 0.5 )
+  //);
   c.assign( saturate( c.sub( midpoint ) ).mul( contrast ).add( midpoint ) );
 
   return c;

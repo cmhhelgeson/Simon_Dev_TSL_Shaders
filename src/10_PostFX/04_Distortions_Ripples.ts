@@ -45,6 +45,7 @@ const effectController = {
   midpoint: uniform( - 0.01 ),
   colorWeightPower: uniform( 32 ),
   pixelSize: uniform( uint( 6 ) ),
+  rippleDebug: uniform( 0.9 ),
 };
 
 const postProcessFunction = Fn( ( [ color ] ) => {
@@ -112,14 +113,24 @@ const init = async () => {
 
   material.colorNode = Fn( () => {
 
-    const { remapUVXBegin, remapUVXEnd } = effectController;
+    const { remapUVXBegin, remapUVXEnd, rippleDebug } = effectController;
 
     const vUv = uv().toVar( 'vUv' );
 
-    vUv.x.assign( remap( uv().x, 0.0, 1.0, remapUVXBegin, remapUVXEnd ) );
+    const sg = sign( vUv.y.sub( 0.5 ) ).toVar( 'sg' );
+    const b = abs( vUv.y.sub( 0.5 ) ).mul( 2 ).toVar( 'b' );
+    vUv.y.assign(
+      sg.mul( pow(
+        b, rippleDebug
+      ) ).mul( 0.5 ).add( 0.5 )
+    ).mul( 0.5 ).sub( 0.5 );
+
+    //vUv.x.assign( remap( vUv.x, 0.0, 1.0, remapUVXBegin, remapUVXEnd ) );
     return texture( tomatoTexture, vUv );
 
   } )();
+
+  console.log( material );
 
   const quad = new THREE.Mesh( geometry, material );
   scene.add( quad );
@@ -139,9 +150,14 @@ const init = async () => {
 
   window.addEventListener( 'resize', onWindowResize );
 
+  //const rawShader = await renderer.debug.getShaderAsync( scene, camera, quad );
+  //console.log( rawShader );
+
   gui = new GUI();
   gui.add( effectController.remapUVXBegin, 'value', 0.01, 0.9 ).name( 'remapXBegin' );
   gui.add( effectController.remapUVXEnd, 'value', 0.01, 0.9 ).name( 'remapXEnd' );
+  const rippleFolder = gui.addFolder( 'Ripple' );
+  rippleFolder.add( effectController.rippleDebug, 'value', 0.0, 2.0 ).name( 'rippleDebug' );
   const postProcessingFolder = gui.addFolder( 'Post Processing' );
   postProcessingFolder.add( effectController.saturation, 'value', 0.0, 2.0 ).name( 'saturation' );
   postProcessingFolder.add( effectController.brightness, 'value', - 1.0, 1.0 ).step( 0.1 ).name( 'brightness' );
