@@ -3,11 +3,10 @@ import {
   Fn,
   vec3,
   remap,
-  mix,
-  uniform,
-  normalGeometry,
-  normalize,
-  color,
+  sin,
+  time,
+  positionLocal,
+  rotate,
 } from 'three/tsl';
 import { Node, ShaderNodeObject } from 'three/tsl';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -17,7 +16,17 @@ import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 
 let renderer, camera, scene, gui;
 
-type ShaderType = 'Basic Ambient' | 'Basic Normal' | 'Basic Hemi' | 'HemisphereLight';
+type ShaderType =
+  'Move Z' |
+  'Stretch XZ' |
+  'Rotate X' |
+  'Rotate Y' |
+  'Rotate Z' |
+  'Rotate All'
+
+interface EffectControllerType {
+  'Current Shader': ShaderType,
+}
 
 const init = async () => {
 
@@ -25,6 +34,71 @@ const init = async () => {
   camera.position.z = 4;
 
   scene = new THREE.Scene();
+
+  const effectController: EffectControllerType = {
+    'Current Shader': 'Move Z'
+  };
+
+  const shaders: Record<ShaderType, ShaderNodeObject<Node>> = {
+    'Move Z': Fn( () => {
+
+      const position = positionLocal.toVar( 'newPosition' );
+      position.z.addAssign( sin( time ) );
+
+      return position;
+
+    } )(),
+
+    'Stretch XZ': Fn( () => {
+
+      const newPosition = positionLocal.toVar( 'newPosition' );
+      newPosition.xz.mulAssign( remap( sin( time ), - 1.0, 1.0, 0.5, 1.5 ) );
+
+      return newPosition;
+
+
+    } )(),
+
+    'Rotate X': Fn( () => {
+
+      const newPosition = positionLocal.toVar( 'newPosition' );
+      newPosition.assign( rotate( newPosition, vec3( time, 0.0, 0.0 ) ) );
+
+      return newPosition;
+
+
+    } )(),
+
+    'Rotate Y': Fn( () => {
+
+      const newPosition = positionLocal.toVar( 'newPosition' );
+      newPosition.assign( rotate( newPosition, vec3( 0.0, time, 0.0 ) ) );
+
+      return newPosition;
+
+
+    } )(),
+
+    'Rotate Z': Fn( () => {
+
+      const newPosition = positionLocal.toVar( 'newPosition' );
+      newPosition.assign( rotate( newPosition, vec3( 0.0, 0.0, time ) ) );
+
+      return newPosition;
+
+    } )(),
+
+    'Rotate All': Fn( () => {
+
+      const newPosition = positionLocal.toVar( 'newPosition' );
+      newPosition.assign( rotate( newPosition, time ) );
+
+      return newPosition;
+
+    } )(),
+
+
+  };
 
   // Cubemap texture
   const path = './resources/Cold_Sunset/';
@@ -37,76 +111,21 @@ const init = async () => {
     path + 'Cold_Sunset__Cam_1_Back-Z.png',
   ];
 
-  const effectController = {
-    'Current Shader': 'Basic Ambient',
-    // Material Properties
-    objectColor: uniform( color( 1.0, 1.0, 1.0 ) ),
-    // Hemi Lighting Shader
-    skyColor: uniform( color( 0.0, 0.3, 0.6 ) ),
-    groundColor: uniform( color( 0.6, 0.3, 0.1 ) )
-
-  };
-
   const cubemap = new THREE.CubeTextureLoader().load( urls );
   scene.background = cubemap;
 
   const loader = new GLTFLoader();
   const suzanneMaterial = new THREE.MeshStandardNodeMaterial();
+  suzanneMaterial.positionNode = shaders[ 'Move Z' ];
 
-  const hemiLight = new THREE.HemisphereLight( 0xffffff, 0xffffff, 1 );
-  hemiLight.color.setHSL( 0.6, 1, 0.6 );
-  hemiLight.groundColor.setHSL( 0.095, 1, 0.75 );
-  hemiLight.position.set( 0, 20, 0 );
-  scene.add( hemiLight );
-
-  const shaders: Record<ShaderType, ShaderNodeObject<Node>> = {
-
-
-    // Basic Ambient lighting
-    'Basic Ambient': Fn( () => {
-
-      const baseColor = effectController.objectColor;
-    	// Ambient Lighting
-    	const ambient = vec3( 0.5 );
-    	return baseColor.mul( ambient );
-
-
-    } )(),
-
-    // Return mesh normals
-    'Basic Normal': Fn( () => {
-
-      // Equivalent of normalize(vNormal);
-      return normalize( normalGeometry );
-
-
-    } )(),
-
-    // Crudely emulate THREE.HemisphereLight.
-    'Basic Hemi': Fn( () => {
-
-      const { skyColor, groundColor, objectColor } = effectController;
-
-      const ambient = vec3( 0.5 );
-      const lighting = vec3( 0.0 ).toVar( 'lighting' );
-
-      const hemiMix = remap( normalGeometry.y, - 1.0, 1.0, 0.0, 1.0 );
-      const hemi = mix( groundColor, skyColor, hemiMix );
-
-      lighting.assign( ambient.mul( 0.0 ).add( hemi ) );
-
-      return objectColor.mul( lighting );
-
-    } )(),
-
-    // Actual Three.HemisphereLight implementation
-    'HemisphereLight': Fn( () => {} ),
-
-  };
-
-  const defaultFragmentNode = suzanneMaterial.fragmentNode;
-  suzanneMaterial.fragmentNode = shaders[ 'Basic Ambient' ];
-
+  const light = new THREE.DirectionalLight( 0xffffff, 2 );
+  const light2 = new THREE.DirectionalLight( 0xffffff, 1 );
+  light.position.x = 2;
+  light.position.z = 3;
+  light2.position.x = - 2;
+  light2.position.z = - 3;
+  scene.add( light );
+  scene.add( light2 );
 
   loader.load( './resources/suzanne.glb', function ( gltf ) {
 
@@ -137,51 +156,11 @@ const init = async () => {
   gui = new GUI();
   gui.add( effectController, 'Current Shader', Object.keys( shaders ) ).onChange( () => {
 
-    if ( effectController[ 'Current Shader' ] === 'HemisphereLight' ) {
-
-      suzanneMaterial.fragmentNode = defaultFragmentNode;
-      suzanneMaterial.needsUpdate = true;
-      return;
-
-    }
-
-    suzanneMaterial.fragmentNode = shaders[ effectController[ 'Current Shader' ] ];
+    suzanneMaterial.positionNode = shaders[ effectController[ 'Current Shader' ] ];
     suzanneMaterial.needsUpdate = true;
 
   } );
 
-  gui.addColor( { color: effectController.objectColor.value.getHex( THREE.SRGBColorSpace ) }, 'color' )
-    .name( 'objectColor' )
-    .onChange( function ( value ) {
-
-      effectController.objectColor.value.set( value );
-      suzanneMaterial.colorNode = Fn( () => {
-
-        return effectController.objectColor;
-
-      } )();
-      suzanneMaterial.needsUpdate = true;
-
-    } );
-
-
-  gui.addColor( { color: effectController.skyColor.value.getHex( THREE.SRGBColorSpace ) }, 'color' )
-    .name( 'skyColor' )
-    .onChange( function ( value ) {
-
-      effectController.skyColor.value.set( value );
-      hemiLight.color.setHex( value );
-
-    } );
-
-  gui.addColor( { color: effectController.groundColor.value.getHex( THREE.SRGBColorSpace ) }, 'color' )
-    .name( 'groundColor' )
-    .onChange( function ( value ) {
-
-      effectController.groundColor.value.set( value );
-      hemiLight.groundColor.setHex( value );
-
-    } );
 
 };
 
