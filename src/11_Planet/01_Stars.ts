@@ -1,26 +1,50 @@
 
 import * as THREE from 'three';
-import {
-  uniform,
-  Fn,
-  mix,
-  sin,
-  step,
-  select,
-  smoothstep,
-  abs,
-  uv,
-  vec3,
-  time,
-  ShaderNodeObject
-} from 'three/tsl';
-import { Node } from 'three/webgpu';
+import { uniform, Fn, texture, dFdx, dFdy, time, sin, mix, timerLocal } from 'three/tsl';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 
 let renderer, camera, scene, gui;
 
-type ShaderType = 'Step' | 'Smoothstep' | 'Mix' | 'Lines';
+// InverseLerp(currentValue, minValue, maxValue)
+// Returns how far between minValue and maxValue the current value is
+// Or the distance traveled to maxValue from minValue as a percentage.
+// Could also be construed as a linear version of smooth step.
+
+// inverseLerp( 0.0, 0.0, 100.0 ) -> 0.0
+// inverseLerp( 25.0, 0.0, 100.0 ) -> 0.25
+// inverseLerp( 100.0, 0.0, 100.0 ) -> 1.0
+// inverseLerp( 4.0, 3.0, 6.0 ); -> 0.333...
+
+// Remap(currentValue, inMin, inMax, outMin, outMax)
+// Maps the percentage traveled along the range [inMin, inMax]
+// to the percentage traveled along the range [outMin, outMax]
+// Three.js natively implements this function within the 'RemapNode' class.
+
+// remap(50.0, 0.0, 100.0, 5.0, 10.0) -> 7.5
+// 50% into range [50, 100] is 50.0 -> 50% into range [5, 10] -> 7.5
+
+// dFdx(x) dFdy(y)
+// Get delta of current pixel value and value of the neighboring pixel.
+//
+// The GPU organizes fragment shaders into 2x2 blocks
+// Example of a 2x2 block:
+//
+// +---+------+-------------
+// | (x, y+1) | (x+1, y+1) |
+// +---+------+------------+
+// |  (x, y)  |  (x+1, y)  |
+// +----------+------------+
+
+// dFdx(value) = value(x+1) - value(x);
+// dFdy(value) = value(y+1) - value(y);
+
+enum ShaderMode {
+	'Animate',
+	'dFdx',
+	'dFdy'
+}
+
 
 const init = async () => {
 
@@ -33,74 +57,19 @@ const init = async () => {
   const map = textureLoader.load( './resources/uv_grid_opengl.jpg' );
 
   const effectController = {
-    currentShader: 'Lines',
-    // Step uniforms
-    stepEdgeX: uniform( 0.5 ),
-    stepEdgeY: uniform( 0.5 ),
-    // Smoothstep uniforms
-    smoothstepRangeStart: uniform( 0.012 ),
-    smoothstepRangeEnd: uniform( 0.001 ),
+    tint: uniform( new THREE.Color( 1.0, 0.0, 0.0 ) ),
   };
 
-  const red = vec3( 1.0, 0.0, 0.0 );
-  const blue = vec3( 0.0, 0.0, 1.0 );
-  const white = vec3( 1.0, 1.0, 1.0 );
+  // Grid shaders succintly demonstrate the functionality of dFdx due to the harsh
+  // changes between grid lines and the rest of the grid space.
+  material.colorNode = Fn( () => {
 
-  const shaders: Record<ShaderType, ShaderNodeObject<Node>> = {
+    const color = texture( map );
+    color.assign( mix( dFdx( color ), dFdy( color ), sin( time ) ) );
 
-    'Step': Fn( () => {
+    return color;
 
-      const { stepEdgeX, stepEdgeY } = effectController;
-
-      const vUv = uv();
-
-      const color = vec3( step( stepEdgeX, sin( vUv.x ) ).mul( step( stepEdgeY, vUv.y ) ) );
-
-      return color;
-
-
-    } )(),
-
-    'Mix': Fn( () => {
-
-      return mix( vec3( 1.0, 0.0, 0.0 ), vec3( 0.0, 0.0, 1.0 ), sin( time ) );
-
-
-    } )(),
-
-    'Smoothstep': Fn( () => {
-
-      const { smoothstepRangeStart, smoothstepRangeEnd } = effectController;
-
-      return smoothstep( smoothstepRangeStart, smoothstepRangeEnd, abs( uv().y.sub( 0.5 ) ) );
-
-
-    } )(),
-
-    'Lines': Fn( () => {
-
-      const vUv = uv();
-      // Create line exactly as we did in last shader
-      const line = smoothstep( 0.0, 0.005, abs( vUv.y.sub( 0.5 ) ) );
-      const value1 = vUv.x;
-      const value2 = smoothstep( 0.0, 1.0, vUv.x );
-      const linearLine = smoothstep( 0.0, 0.005, abs( vUv.y.sub( mix( 0.5, 1.0, value1 ) ) ) );
-      const smoothstepLine = smoothstep( 0.0, 0.005, abs( vUv.y.sub( mix( 0.0, 0.5, value2 ) ) ) );
-
-      const color = select( vUv.y.greaterThan( 0.5 ), mix( red, blue, vUv.x ), mix( blue, red, vUv.x ) ).toVar( 'color' );
-      color.assign( mix( white, color, line ) );
-      color.assign( mix( white, color, linearLine ) );
-      color.assign( mix( white, color, smoothstepLine ) );
-
-      return color;
-
-
-    } )(),
-
-
-  };
-
-  material.colorNode = shaders[ effectController.currentShader ];
+  } )();
 
   const quad = new THREE.Mesh( geometry, material );
   scene.add( quad );
@@ -114,18 +83,6 @@ const init = async () => {
   window.addEventListener( 'resize', onWindowResize );
 
   gui = new GUI();
-  gui.add( effectController, 'currentShader', Object.keys( shaders ) ).onChange( () => {
-
-    material.colorNode = shaders[ effectController.currentShader ];
-    material.needsUpdate = true;
-
-  } );
-  const stepFolder = gui.addFolder( 'Step Shader' );
-  stepFolder.add( effectController.stepEdgeX, 'value', 0, 1.0 ).name( 'stepEdgeX' );
-  stepFolder.add( effectController.stepEdgeY, 'value', 0, 1.0 ).name( 'stepEdgeY' );
-  const smoothstepFolder = gui.addFolder( 'Smoothstep Shader' );
-  smoothstepFolder.add( effectController.smoothstepRangeStart, 'value', 0.001, 0.5, 0.001 ).name( 'Range Start' );
-  smoothstepFolder.add( effectController.smoothstepRangeEnd, 'value', 0.001, 0.5, 0.001 ).name( 'Range End' );
 
 };
 
