@@ -3,20 +3,17 @@ import {
   Fn,
   vec3,
   remap,
-  sin,
-  time,
   positionLocal,
-  rotate,
   varyingProperty,
   mix,
   If,
   abs,
   smoothstep,
-  uv,
   pow,
-  uniform
+  uniform,
 } from 'three/tsl';
-import { Node, ShaderNodeObject } from 'three/tsl';
+import { UniformNode } from 'three/webgpu';
+import { Node, ShaderNodeObject, } from 'three/tsl';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
@@ -27,12 +24,12 @@ type ShaderType = 'Varying Color' | 'Red Blue Mix' | 'Varying vs Native';
 
 interface EffectControllerType {
   'Current Shader': ShaderType,
-  tChanger: UniformNode,
+  tChanger: UniformNode<number>,
+  faceWidthSegments: number,
 }
 
 const red = vec3( 1.0, 0.0, 0.0 );
 const blue = vec3( 0.0, 0.0, 1.0 );
-const white = vec3( 1.0, 1.0, 1.0 );
 const yellow = vec3( 1.0, 1.0, 0.0 );
 
 const init = async () => {
@@ -43,11 +40,13 @@ const init = async () => {
   scene = new THREE.Scene();
 
   const effectController: EffectControllerType = {
-    'Current Shader': 'Varying Color',
+    'Current Shader': 'Varying vs Native',
     tChanger: uniform( 2.0 ),
+    faceWidthSegments: 1,
   };
 
   const varyingColor = varyingProperty( 'vec3', 'vColor' );
+  const varyingT = varyingProperty( 'float', 'vT' );
 
   const vertexShaders: Record<ShaderType, ShaderNodeObject<Node>> = {
     'Varying Color': Fn( () => {
@@ -74,12 +73,13 @@ const init = async () => {
 
       const { tChanger } = effectController;
 
-      const t = remap( positionLocal.x, - 0.5, 0.5, 0.0, 1.0 ).toVar( 't' );
+      const t = remap( positionLocal.x, - 1.0, 1.0, 0.0, 1.0 ).toVar( 'tVertex' );
       t.assign( pow( t, tChanger ) );
 
       const color = mix( red, blue, t );
 
       varyingColor.assign( color );
+      varyingT.assign( t );
 
       return positionLocal;
 
@@ -109,23 +109,24 @@ const init = async () => {
       const color = vec3( 0.0 ).toVar( 'color' );
       color.assign( varyingColor );
 
+      // Perform the same mix operation for varyingColor in the fragment shader instead
       If( positionLocal.y.lessThan( 0.0 ), () => {
 
-        const t = remap( positionLocal.x, - 0.5, 0.5, 0.0, 1.0 ).toVar( 't' );
+        const t = remap( positionLocal.x, - 1.0, 1.0, 0.0, 1.0 ).toVar( 'tFragment' );
         t.assign( pow( t, tChanger ) );
 
         color.assign( mix( red, blue, t ) );
 
+        const bottomLine = smoothstep( 0.0, 0.005, abs( positionLocal.y.sub( mix( - 1.0, 0.0, t ) ) ) );
+        color.assign( mix( yellow, color, bottomLine ) );
+
       } );
 
-      const value1 = uv().x;
       const middleLine = smoothstep( 0.004, 0.005, abs( positionLocal.y ) );
       color.assign( mix( vec3( 0.0 ), color, middleLine ) );
-      const topLine = smoothstep( 0.0, 0.005, abs( uv().y.sub( mix( 0.5, 1.0, value1 ) ) ) );
-      const bottomLine = smoothstep( 0.0, 0.005, abs( uv().y.sub( mix( 0.0, 0.5, value1 ) ) ) );
+      const topLine = smoothstep( 0.0, 0.005, abs( positionLocal.y.sub( mix( 0.0, 1.0, varyingT ) ) ) );
 
       color.assign( mix( yellow, color, topLine ) );
-      color.assign( mix( yellow, color, bottomLine ) );
 
 
       return color;
@@ -150,12 +151,12 @@ const init = async () => {
   const cubemap = new THREE.CubeTextureLoader().load( urls );
   scene.background = cubemap;
 
-  const suzanneMaterial = new THREE.MeshStandardNodeMaterial();
-  suzanneMaterial.positionNode = vertexShaders[ 'Varying Color' ];
-  suzanneMaterial.colorNode = fragmentShaders[ 'Varying Color' ];
+  const boxMaterial = new THREE.MeshStandardNodeMaterial();
+  boxMaterial.positionNode = vertexShaders[ effectController[ 'Current Shader' ] ];
+  boxMaterial.colorNode = fragmentShaders[ effectController[ 'Current Shader' ] ];
 
   const boxGeometry = new THREE.BoxGeometry( 2, 2, 2 );
-  const boxMesh = new THREE.Mesh( boxGeometry, suzanneMaterial );
+  const boxMesh = new THREE.Mesh( boxGeometry, boxMaterial );
   scene.add( boxMesh );
 
   const light = new THREE.DirectionalLight( 0xffffff, 2 );
@@ -184,12 +185,18 @@ const init = async () => {
   gui = new GUI();
   gui.add( effectController, 'Current Shader', Object.keys( vertexShaders ) ).onChange( () => {
 
-    suzanneMaterial.positionNode = vertexShaders[ effectController[ 'Current Shader' ] ];
-    suzanneMaterial.colorNode = fragmentShaders[ effectController[ 'Current Shader' ] ];
-    suzanneMaterial.needsUpdate = true;
+    boxMaterial.positionNode = vertexShaders[ effectController[ 'Current Shader' ] ];
+    boxMaterial.colorNode = fragmentShaders[ effectController[ 'Current Shader' ] ];
+    boxMaterial.needsUpdate = true;
 
   } );
   gui.add( effectController.tChanger, 'value', 1.0, 10.0 ).step( 1.0 ).name( 'tPower' );
+  gui.add( effectController, 'faceWidthSegments', 1, 40 ).step( 1 ).onChange( () => {
+
+    boxMesh.geometry.dispose();
+    boxMesh.geometry = new THREE.BoxGeometry( 2, 2, 2, effectController.faceWidthSegments );
+
+  } );
 
 
 };
