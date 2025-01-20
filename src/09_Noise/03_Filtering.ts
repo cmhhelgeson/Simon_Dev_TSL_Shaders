@@ -1,9 +1,26 @@
 import * as THREE from 'three';
-import { uniform, Fn, texture, uv, vec3, textureSize, floor, vec2, mix, fract } from 'three/tsl';
+import { uniform, Fn, texture, uv, vec3, textureSize, floor, vec2, mix, fract, If, uint, smoothstep } from 'three/tsl';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 
 let renderer, camera, scene, gui;
+
+const externalFilterModes = {
+  'NearestFilter': THREE.NearestFilter,
+  'LinearFilter': THREE.LinearFilter
+};
+
+const internalFilterModes = {
+  'None': 0,
+  'Linear Interpolation': 1,
+  'Smoothstep Interpolation': 2,
+};
+
+const effectController = {
+  externalFilterMode: 'NearestFilter',
+  internalFilterMode: 'None',
+  internalFilterUniform: uniform( uint( 0 ) ),
+};
 
 const init = async () => {
 
@@ -13,20 +30,19 @@ const init = async () => {
 
   const material = new THREE.MeshBasicNodeMaterial();
   const textureLoader = new THREE.TextureLoader();
-  const gridMap = textureLoader.load( './resources/texture.png' );
+  let gridMap = textureLoader.load( './resources/texture.png' );
 
-  gridMap.minFilter = THREE.NearestFilter;
+  gridMap.minFilter = THREE.LinearFilter;
   gridMap.magFilter = THREE.NearestFilter;
 
   // TexSize is already known since we are working with a 2x2 texture
   // Alternatively, it can be derived from the textureSize function
+  const size = textureSize( texture( gridMap ) );
 
-  const size = textureSize( texture( gridMap, uv() ) );
+  const colorShader = Fn( () => {
 
+    const { internalFilterUniform } = effectController;
 
-  material.colorNode = Fn( () => {
-
-    // Scale the uvs by the texture size, and shift origin left
     const pc = uv().mul( size ).sub( 0.5 );
 
     // The 2D coordinate of the pixel in the texture
@@ -51,12 +67,35 @@ const init = async () => {
       ( base.add( vec2( 1.0, 1.0 ) ) ).div( size )
     );
 
-    const px1 = mix( sample1, sample2, fract( pc ).x );
-    const px2 = mix( sample3, sample4, fract( pc ).x );
+    const newColor = vec3( 0.0 ).toVar( 'newColor' );
 
-    return mix( px1, px2, fract( pc ).y );
+    If( internalFilterUniform.equal( uint( 0 ) ), () => {
 
-  } )();
+      newColor.assign( texture( gridMap, uv() ) );
+
+    } ).ElseIf( internalFilterUniform.equal( uint( 1 ) ), () => {
+
+      const f = fract( pc );
+
+      const px1 = mix( sample1, sample2, f.x );
+      const px2 = mix( sample3, sample4, f.x );
+      newColor.assign( mix( px1, px2, f.y ) );
+
+    } ).Else( () => {
+
+      const f = smoothstep( 0.0, 1.0, fract( pc ) );
+
+      const px1 = mix( sample1, sample2, f.x );
+      const px2 = mix( sample3, sample4, f.x );
+      newColor.assign( mix( px1, px2, f.y ) );
+
+    } );
+
+    return newColor;
+
+  } );
+
+  material.colorNode = colorShader();
 
   const quad = new THREE.Mesh( geometry, material );
   scene.add( quad );
@@ -70,6 +109,26 @@ const init = async () => {
   window.addEventListener( 'resize', onWindowResize );
 
   gui = new GUI();
+  gui.add( effectController, 'externalFilterMode', Object.keys( externalFilterModes ) ).onChange( () => {
+
+    // Destroy current shader to prevent destroyed texture from being accessed in a submit
+    material.colorNode = null;
+    material.needsUpdate = true;
+    // Dipsose of current grid map to change filter mode
+    gridMap.dispose();
+    gridMap = textureLoader.load( './resources/texture.png' );
+    gridMap.minFilter = gridMap.magFilter = externalFilterModes[ effectController[ 'externalFilterMode' ] ];
+    // Reinitialize shader
+    material.colorNode = colorShader();
+
+  } );
+
+  gui.add( effectController, 'internalFilterMode', Object.keys( internalFilterModes ) ).onChange( () => {
+
+    effectController.internalFilterUniform.value = internalFilterModes[ effectController.internalFilterMode ];
+
+
+  } );
 
 };
 
