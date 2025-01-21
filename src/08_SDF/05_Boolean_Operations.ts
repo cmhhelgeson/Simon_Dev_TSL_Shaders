@@ -138,11 +138,18 @@ const init = async () => {
     ]
   } );
 
-  const opIntersection = ( d1Node, d2Node ) => {
+  const opIntersectionFn = Fn( ( [ d1, d2 ] ) => {
 
-    return max( d1Node, d2Node );
+    return max( d1, d2 );
 
-  };
+  } ).setLayout( {
+    name: 'opIntersection',
+    type: 'float',
+    inputs: [
+      { name: 'd1', type: 'float' },
+      { name: 'd2', type: 'float' }
+    ]
+  } );
 
   const opSubtraction = ( d1Node, d2Node ) => {
 
@@ -182,7 +189,7 @@ const init = async () => {
 
     } ).ElseIf( currentOpUniform.equal( 1 ), () => {
 
-      d.assign( opIntersection( boxD, d ) );
+      d.assign( opIntersectionFn( boxD, d ) );
 
     } ).Else( () => {
 
