@@ -31,12 +31,27 @@ const init = async () => {
 
   };
 
+  const randomFn = Fn( ( [ positionNode ] ) => {
+
+    const p = float( 50.0 ).mul( fract( positionNode.mul( 0.3183099 ).add( vec2( 0.71, 0.113 ) ) ) );
+
+    const fractCalc = fract( p.x.mul( p.y ).mul( p.x.add( p.y ) ) );
+    return float( - 1.0 ).add( float( 2.0 ).mul( fractCalc ) );
+
+  } ).setLayout( {
+    name: 'randomFn',
+    type: 'float',
+    inputs: [
+      { name: 'positionNode', type: 'vec2' }
+    ]
+  } );
+
   material.colorNode = Fn( () => {
 
     const center = uv().sub( 0.5 );
     const pixelCoord = center.mul( viewportSize );
 
-    return vec3( RandomTSL( pixelCoord.mul( sin( time ) ) ) );
+    return vec3( randomFn( pixelCoord.mul( sin( time ) ) ) );
 
   } )();
 

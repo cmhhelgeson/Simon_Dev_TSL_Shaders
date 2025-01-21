@@ -31,11 +31,10 @@ import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 
 let renderer, camera, scene, gui;
 
-enum BooleanEnum {
-	UNION,
-	INTERSECTION,
-	SUBTRACTION
-}
+const FunctionEnum = {
+  'SIN': 0,
+  'NOISE': 1,
+};
 
 const init = async () => {
 
@@ -47,22 +46,26 @@ const init = async () => {
 
   const effectController = {
     // Grid Uniforms
-    cellWidth: uniform( 15 ),
-    lineWidth: uniform( 1.0 ),
+    cellWidth: uniform( 15 ).label( 'uCellWidth' ),
+    lineWidth: uniform( 1.0 ).label( 'uLineWidth' ),
     // Vignette Uniforms
-    vignetteColorMin: uniform( 0.3 ),
-    vignetteColorMax: uniform( 1.0 ),
-    vignetteRadius: uniform( 1.0 ),
-    lightFallOff: uniform( 0.3 ),
+    vignetteColorMin: uniform( 0.3 ).label( 'uVignetteColorMin' ),
+    vignetteColorMax: uniform( 1.0 ).label( 'uVignetteColorMax' ),
+    vignetteRadius: uniform( 1.0 ).label( 'uVignetteRadius' ),
+    lightFallOff: uniform( 0.3 ).label( 'uLightFallOff' ),
     // Antialias Uniforms
-    antialiasRange: uniform( 1.0 ),
-    functionDetail: uniform( 1.0 ),
-    baseAmplitude: uniform( 128.0 ),
+    antialiasRange: uniform( 1.0 ).label( 'uAntialiasRange' ),
+    // Function Uniforms
+    functionDetail: uniform( 1.0 ).label( 'uFunctionDetail' ),
+    baseAmplitude: uniform( 128.0 ).label( 'uBaseAmplitude' ),
     baseFrequencyController: 64.0,
-    baseFrequency: uniform( 1.0 / 64.0 ),
-    amplitudePersistence: uniform( 0.5 ),
-    frequencyLacunity: uniform( 2.0 ),
-    detailIterations: uniform( uint( 2 ) ),
+    baseFrequency: uniform( 1.0 / 64.0 ).label( 'uBaseFrequency' ),
+    amplitudePersistence: uniform( 0.5 ).label( 'uPersistence' ),
+    frequencyLacunity: uniform( 2.0 ).label( 'uLacunity' ),
+    detailIterations: uniform( uint( 2 ) ).label( 'uDetailIterations' ),
+    px: uniform( 2.0 ).label( 'uPx' ),
+    function: 'SIN',
+    defineFunction: uniform( uint( 0 ) ),
   };
   const red = vec3( 1.0, 0.0, 0.0 );
   const black = vec3( 0.0, 0.0, 0.0 );
@@ -173,6 +176,8 @@ const init = async () => {
     const {
       cellWidth,
       lineWidth,
+      px,
+      defineFunction
     } = effectController;
 
     const vUv = uv();
@@ -181,14 +186,29 @@ const init = async () => {
     const color = vec3( 0.9 ).toVar( 'color' );
     const center = vUv.sub( 0.5 );
     // Move uvs from range 0, 1 to -0.5, 0.5 thus placing 0,0 in the center of the canvas.
-    const viewportPosition = center.mul( viewportSize );
+    const viewportPosition = center.mul( viewportSize ).toVar( 'viewportPosition' );
 
-
+    // Draw vignetted background color
     color.assign( drawBackgroundColor() );
-    const distToFunction = plotSinFunction( viewportPosition, float( 2.0 ), time );
+
+    // Draw grid and inner subgrids
     color.assign( drawGrid( color, vec3( 0.5 ), cellWidth, lineWidth ) );
     color.assign( drawGrid( color, black, cellWidth.mul( 10 ), lineWidth.mul( 2 ) ) );
-    const lineBorder = smoothstep( 4.0, 6.0, distToFunction );
+
+
+    const distToFunction = float( 0.0 ).toVar( 'distToFunction' );
+
+    If( defineFunction.equal( uint( 0 ) ), () => {
+
+      distToFunction.assign( plotSinFunction( viewportPosition, px, time ) );
+
+    } ).Else( () => {
+
+      distToFunction.assign( 5.0 );
+
+    } );
+
+    const lineBorder = smoothstep( 4.0, 20.0, distToFunction );
     color.assign( mix( red, color, lineBorder ) );
 
 
@@ -199,7 +219,7 @@ const init = async () => {
   const quad = new THREE.Mesh( geometry, material );
   scene.add( quad );
 
-  renderer = new THREE.WebGPURenderer( { antialias: true } );
+  renderer = new THREE.WebGPURenderer( { antialias: false } );
   renderer.setSize( window.innerWidth, window.innerHeight );
   renderer.setAnimationLoop( animate );
   renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
@@ -208,14 +228,19 @@ const init = async () => {
   window.addEventListener( 'resize', onWindowResize );
 
   gui = new GUI();
+  gui.add( effectController, 'function', Object.keys( FunctionEnum ) ).onChange( () => {
+
+    effectController.defineFunction.value = FunctionEnum[ effectController.function ];
+
+  } );
   const shapeFolder = gui.addFolder( 'Line Shape' );
-  gui.add( effectController.antialiasRange, 'value', 0.1, 5.0 ).step( 0.1 ).name( 'antialiasRange' );
   shapeFolder.add( effectController.baseAmplitude, 'value', 10, 256 ).step( 1 ).name( 'Base Amplitude' );
   shapeFolder.add( effectController, 'baseFrequencyController', 0.0, 200.0 ).step( 0.1 ).name( 'Base Frequency' ).onChange( () => {
 
     effectController.baseFrequency.value = 1.0 / effectController.baseFrequencyController;
 
   } );
+  shapeFolder.add( effectController.px, 'value', 0.1, 5.0 ).name( 'px' );
   const detailFolder = gui.addFolder( 'Line Detail' );
   detailFolder.add( effectController.detailIterations, 'value', 1, 10 ).step( 1 ).name( 'Detail Iterations' );
 

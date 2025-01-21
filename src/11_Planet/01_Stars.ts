@@ -1,6 +1,6 @@
 
 import * as THREE from 'three';
-import { uniform, Fn, texture, dFdx, dFdy, time, sin, mix, timerLocal } from 'three/tsl';
+import { uniform, Fn, texture, dFdx, dFdy, time, sin, mix, timerLocal, floor, float, vec3, dot, fract, uint, Loop } from 'three/tsl';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 
@@ -44,6 +44,117 @@ enum ShaderMode {
 	'dFdx',
 	'dFdy'
 }
+
+const hash3 = ( pNode ) => {
+
+  const p = vec3(
+    dot( pNode, vec3( 127.1, 311.7, 74.7 ) ),
+    dot( pNode, vec3( 269.5, 183.3, 246.1 ) ),
+    dot( pNode, vec3( 113.5, 271.9, 124.6 ) )
+  );
+
+  return float( - 1.0 ).add(
+    float( 2.0 ).mul( fract(
+      sin( p ).mul( 43578.543123 )
+    ) )
+  );
+
+};
+
+const noise3D = ( p ) => {
+
+  const i = floor( p );
+  const f = fract( p );
+
+  const u = f.mul( f ).mul(
+    float( 3.0 ).sub( f.mul( 2.0 ) )
+  );
+
+  // Gradients
+  const ga = hash3( i.add( vec3( 0.0, 0.0, 0.0 ) ) );
+  const gb = hash3( i.add( vec3( 1.0, 0.0, 0.0 ) ) );
+  const gc = hash3( i.add( vec3( 0.0, 1.0, 0.0 ) ) );
+  const gd = hash3( i.add( vec3( 1.0, 1.0, 0.0 ) ) );
+  const ge = hash3( i.add( vec3( 0.0, 0.0, 1.0 ) ) );
+  const gf = hash3( i.add( vec3( 1.0, 0.0, 1.0 ) ) );
+  const gg = hash3( i.add( vec3( 0.0, 1.0, 1.0 ) ) );
+  const gh = hash3( i.add( vec3( 1.0, 1.0, 1.0 ) ) );
+
+  // Projections
+  const va = f.sub( vec3( 0.0, 0.0, 0.0 ) );
+  const vb = f.sub( vec3( 1.0, 0.0, 0.0 ) );
+  const vc = f.sub( vec3( 0.0, 1.0, 0.0 ) );
+  const vd = f.sub( vec3( 1.0, 1.0, 0.0 ) );
+  const ve = f.sub( vec3( 0.0, 0.0, 1.0 ) );
+  const vf = f.sub( vec3( 1.0, 0.0, 1.0 ) );
+  const vg = f.sub( vec3( 0.0, 1.0, 1.0 ) );
+  const vh = f.sub( vec3( 1.0, 1.0, 1.0 ) );
+
+  return mix(
+    mix(
+      mix(
+        dot( ga, va ), dot( gb, vb ), u.x
+      ),
+      mix(
+        dot( gc, vc ), dot( gd, vd ), u.x
+      ),
+      u.y
+    ),
+    mix(
+      mix(
+        dot( ge, ve ), dot( gf, vf ), u.x
+      ),
+      mix(
+        dot( gg, vg ), dot( gh, vh ), u.x
+      ),
+      u.y
+    ),
+    u.z
+  );
+
+};
+
+const fbm = ( pNode ) => {
+
+  const {
+    amplitudePersistence,
+    frequencyLacunarity,
+    octaves
+  } = effectController;
+
+  const currentAmplitude = float( 0.0 ).toVar( 'currentAmplitude' );
+  const currentFrequency = float( 0.0 ).toVar( 'currentFrequency' );
+
+  Loop( { start: uint( 0 ), end: octaves, type: 'uint', condition: '<' }, () => {
+
+    const noiseValue = noise3D( pNode.mul() );
+
+
+  } );
+
+
+};
+
+const mod289 = ( x ) => {
+
+  return x.sub( floor( x / 289.0 ).mul( 289.0 ) );
+
+};
+
+const permute = ( x ) => {
+
+  return mod289(
+    ( x.mul( 34.0 ).add( 1.0 ) ).mul( x )
+  );
+
+
+};
+
+const taylorInvSqrt = ( r ) => {
+
+  return float( 1.79284291400159 ).sub( r.mul( 0.85373472095314 ) );
+
+};
 
 
 const init = async () => {

@@ -98,24 +98,45 @@ const init = async () => {
 
   };
 
-  const sdfCircle = ( positionNode, radiusNode ) => {
+  const sdfCircleFn = Fn( ( [ position, radius ] ) => {
 
-    return length( positionNode ).sub( radiusNode );
+    return length( position ).sub( radius );
 
-  };
+  } ).setLayout( {
+    name: 'sdfCircleFn',
+    type: 'float',
+    inputs: [
+      { name: 'position', type: 'vec2' },
+      { name: 'radius', type: 'float' }
+    ]
+  } );
 
-  const sdfBox = ( posNode, boundNode ) => {
+  const sdfBoxFn = Fn( ( [ pos, bound ] ) => {
 
-    const d = abs( posNode ).sub( boundNode );
+    const d = abs( pos ).sub( bound );
     return length( max( d, 0.0 ) ).add( min( max( d.x, d.y ), 0.0 ) );
 
-  };
+  } ).setLayout( {
+    name: 'sdfBoxFn',
+    type: 'float',
+    inputs: [
+      { name: 'pos', type: 'vec2' },
+      { name: 'bound', type: 'vec2' }
+    ]
+  } );
 
-  const opUnion = ( d1Node, d2Node ) => {
+  const opUnionFn = Fn( ( [ d1, d2 ] ) => {
 
-    return min( d1Node, d2Node );
+    return min( d1, d2 );
 
-  };
+  } ).setLayout( {
+    name: 'opUnion',
+    type: 'float',
+    inputs: [
+      { name: 'd1', type: 'float' },
+      { name: 'd2', type: 'float' }
+    ]
+  } );
 
   const opIntersection = ( d1Node, d2Node ) => {
 
@@ -148,16 +169,16 @@ const init = async () => {
 
     const offsetFromViewportX = viewportSize.x.div( 4 );
 
-    const boxD = sdfBox( rotate( viewportPosition, time ), vec2( 200.0, 100.0 ) );
-    const d1 = sdfCircle( viewportPosition.sub( vec2( negate( offsetFromViewportX ), - 150.0 ) ), float( 150.0 ) );
-    const d2 = sdfCircle( viewportPosition.sub( vec2( offsetFromViewportX, - 150.0 ) ), float( 150.0 ) );
-    const d3 = sdfCircle( viewportPosition.sub( vec2( 0, 200.0 ) ), float( 150.0 ) );
+    const boxD = sdfBoxFn( rotate( viewportPosition, time ), vec2( 200.0, 100.0 ) );
+    const d1 = sdfCircleFn( viewportPosition.sub( vec2( negate( offsetFromViewportX ), - 150.0 ) ), float( 150.0 ) );
+    const d2 = sdfCircleFn( viewportPosition.sub( vec2( offsetFromViewportX, - 150.0 ) ), float( 150.0 ) );
+    const d3 = sdfCircleFn( viewportPosition.sub( vec2( 0, 200.0 ) ), float( 150.0 ) );
 
-    const d = opUnion( opUnion( d1, d2 ), d3 ).toVar( 'd' );
+    const d = opUnionFn( opUnionFn( d1, d2 ), d3 ).toVar( 'd' );
 
     If( currentOpUniform.equal( 0 ), () => {
 
-      d.assign( opUnion( boxD, d ) );
+      d.assign( opUnionFn( boxD, d ) );
 
     } ).ElseIf( currentOpUniform.equal( 1 ), () => {
 
