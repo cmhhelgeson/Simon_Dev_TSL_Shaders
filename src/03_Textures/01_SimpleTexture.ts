@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { uniform, Fn, texture } from 'three/tsl';
+import { uniform, Fn, texture, viewportUV, viewportCoordinate, viewport, viewportSize, viewportSafeUV, uv, textureSize } from 'three/tsl';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 
@@ -16,7 +16,7 @@ const init = async () => {
   const map = textureLoader.load( './resources/uv_grid_opengl.jpg' );
 
   const effectController = {
-    tint: uniform( new THREE.Color( 1.0, 0.0, 0.0 ) ),
+    tint: uniform( new THREE.Color( 1.0, 1.0, 1.0 ) ),
   };
 
   material.colorNode = Fn( () => {
@@ -25,7 +25,9 @@ const init = async () => {
 
     const color = texture( map );
 
-    return texture( map ).mul( tint );
+    const size = textureSize( color );
+
+    return texture( map, viewportCoordinate.div( size ) ).mul( tint );
 
   } )();
 

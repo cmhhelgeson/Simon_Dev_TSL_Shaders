@@ -1,49 +1,11 @@
 
 import * as THREE from 'three';
-import { uniform, Fn, texture, dFdx, dFdy, time, sin, mix, timerLocal, floor, float, vec3, dot, fract, uint, Loop } from 'three/tsl';
+import { uniform, viewportSize, viewportUV, viewportCoordinate, Fn, texture, dFdx, dFdy, time, sin, mix, timerLocal, floor, float, vec3, dot, fract, uint, Loop, uv, negate, length, smoothstep, vec2, ShaderNodeObject, distance, exp } from 'three/tsl';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+import { Node } from 'three/webgpu';
 
 let renderer, camera, scene, gui;
-
-// InverseLerp(currentValue, minValue, maxValue)
-// Returns how far between minValue and maxValue the current value is
-// Or the distance traveled to maxValue from minValue as a percentage.
-// Could also be construed as a linear version of smooth step.
-
-// inverseLerp( 0.0, 0.0, 100.0 ) -> 0.0
-// inverseLerp( 25.0, 0.0, 100.0 ) -> 0.25
-// inverseLerp( 100.0, 0.0, 100.0 ) -> 1.0
-// inverseLerp( 4.0, 3.0, 6.0 ); -> 0.333...
-
-// Remap(currentValue, inMin, inMax, outMin, outMax)
-// Maps the percentage traveled along the range [inMin, inMax]
-// to the percentage traveled along the range [outMin, outMax]
-// Three.js natively implements this function within the 'RemapNode' class.
-
-// remap(50.0, 0.0, 100.0, 5.0, 10.0) -> 7.5
-// 50% into range [50, 100] is 50.0 -> 50% into range [5, 10] -> 7.5
-
-// dFdx(x) dFdy(y)
-// Get delta of current pixel value and value of the neighboring pixel.
-//
-// The GPU organizes fragment shaders into 2x2 blocks
-// Example of a 2x2 block:
-//
-// +---+------+-------------
-// | (x, y+1) | (x+1, y+1) |
-// +---+------+------------+
-// |  (x, y)  |  (x+1, y)  |
-// +----------+------------+
-
-// dFdx(value) = value(x+1) - value(x);
-// dFdy(value) = value(y+1) - value(y);
-
-enum ShaderMode {
-	'Animate',
-	'dFdx',
-	'dFdy'
-}
 
 const hash3 = ( pNode ) => {
 
@@ -124,6 +86,7 @@ const fbm = ( pNode ) => {
 
   const currentAmplitude = float( 0.0 ).toVar( 'currentAmplitude' );
   const currentFrequency = float( 0.0 ).toVar( 'currentFrequency' );
+  const total = float();
 
   Loop( { start: uint( 0 ), end: octaves, type: 'uint', condition: '<' }, () => {
 
@@ -156,6 +119,15 @@ const taylorInvSqrt = ( r ) => {
 
 };
 
+type ShaderType =
+  'Step 1: ViewportCoordinate' |
+  'Step 2: Base UV' |
+  'Step 3: Negate UV' |
+  'Step 4: Cells' |
+  'Step 5: Offset Origin' |
+  'Step 6: Expand Cell Range' |
+  'Complete Shader'
+
 
 const init = async () => {
 
@@ -168,19 +140,91 @@ const init = async () => {
   const map = textureLoader.load( './resources/uv_grid_opengl.jpg' );
 
   const effectController = {
+    currentShader: 'Complete Shader',
     tint: uniform( new THREE.Color( 1.0, 0.0, 0.0 ) ),
+    cellSize: uniform( 100 ),
+    starRadius: uniform( 4.0 ),
+    distanceFromCellCenter: uniform( 4.0 ),
+  };
+
+  const StepOne = () => {
+
+    return viewportCoordinate;
+
+  };
+
+  type StepTwoArgs = ReturnType<typeof StepOne>
+
+  const StepTwo = ( args: StepTwoArgs ) => {
+
+    const { cellSize } = effectController;
+
+    const cellInvert = args.div( cellSize ).toVar( 'cellInvert' );
+
+    return { cellInvert };
+
+  };
+
+  const StepThree = ( args ) => {
+
+    args.y.assign( negate( args.y ) );
+    return args;
+
+  };
+
+  const fragmentShaders: Record<ShaderType, ShaderNodeObject<Node>> = {
+    'Step 1: ViewportCoordinate': Fn( () => {
+
+      return StepOne();
+
+    } )(),
+    'Step 2: Base UV': Fn( () => {
+
+      return StepTwo( StepOne() );
+
+    } )(),
+
+    'Step 3: Negate UV': Fn( () => {
+
+      return StepThree( StepTwo( StepOne() ) );
+
+    } )(),
+
+    'Complete Shader': Fn( () => {
+
+      const { cellSize, starRadius, distanceFromCellCenter } = effectController;
+
+      // Use viewportCoordinate instead of uv to ensure that the stars have a uniform
+      // size irrespective of whether the screen size increases
+      const cellInvert = viewportCoordinate.div( cellSize ).toVar( 'cellInvert' );
+      cellInvert.y.assign( negate( cellInvert.y ) );
+
+      const cellCoords = fract( cellInvert ).sub( 0.5 ).mul( cellSize );
+      const cellID = floor( cellInvert );
+
+      const cellHashValue = hash3( vec3( cellID, 0.0 ) );
+
+      const starPosition = vec2( 0.0 ).toVar( 'starPosition' );
+      starPosition.addAssign( cellHashValue.xy.mul( cellSize.mul( 0.5 ).sub( starRadius.mul( distanceFromCellCenter ) ) ) );
+      const distToStar = length( cellCoords.sub( starPosition ) );
+
+      // Create baseline glow
+      const glow = exp( float( - 2.0 ).mul( distToStar.div( starRadius ) ) );
+
+      // Randomize extent of the glow
+      const starBrightness = cellHashValue.z;
+
+      return vec3( glow.mul( starBrightness ) );
+
+
+    } )(),
+
+
   };
 
   // Grid shaders succintly demonstrate the functionality of dFdx due to the harsh
   // changes between grid lines and the rest of the grid space.
-  material.colorNode = Fn( () => {
-
-    const color = texture( map );
-    color.assign( mix( dFdx( color ), dFdy( color ), sin( time ) ) );
-
-    return color;
-
-  } )();
+  material.colorNode = fragmentShaders[ effectController.currentShader ];
 
   const quad = new THREE.Mesh( geometry, material );
   scene.add( quad );
@@ -194,6 +238,18 @@ const init = async () => {
   window.addEventListener( 'resize', onWindowResize );
 
   gui = new GUI();
+  gui.add( effectController, 'currentShader', Object.keys( fragmentShaders ) ).onChange( () => {
+
+    material.colorNode = fragmentShaders[ effectController.currentShader ];
+    material.needsUpdate = true;
+
+
+  } );
+  const starsFolder = gui.addFolder( 'Stars' );
+  starsFolder.add( effectController.cellSize, 'value', 1, 200 ).step( 0.1 ).name( 'cellSize' );
+  starsFolder.add( effectController.starRadius, 'value', 1.0, 20.0 ).step( 0.1 ).name( 'starRadius' );
+  starsFolder.add( effectController.distanceFromCellCenter, 'value', 0.5, 10.0 ).step( 0.1 ).name( 'starDistanceFromCellCenter' );
+
 
 };
 
