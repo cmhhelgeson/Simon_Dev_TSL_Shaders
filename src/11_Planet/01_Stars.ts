@@ -1,6 +1,6 @@
 
 import * as THREE from 'three';
-import { uniform, viewportSize, viewportUV, viewportCoordinate, Fn, texture, dFdx, dFdy, time, sin, mix, timerLocal, floor, float, vec3, dot, fract, uint, Loop, uv, negate, length, smoothstep, vec2, ShaderNodeObject, distance, exp } from 'three/tsl';
+import { uniform, viewportSize, viewportUV, viewportCoordinate, Fn, texture, dFdx, dFdy, time, sin, mix, timerLocal, floor, float, vec3, dot, fract, uint, Loop, uv, negate, length, smoothstep, vec2, ShaderNodeObject, distance, exp, If, abs, remap, sqrt } from 'three/tsl';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { Node } from 'three/webgpu';
@@ -141,10 +141,22 @@ const init = async () => {
 
   const effectController = {
     currentShader: 'Complete Shader',
-    tint: uniform( new THREE.Color( 1.0, 0.0, 0.0 ) ),
-    cellSize: uniform( 100 ),
+    // Initial size of a star cell, each containing (twinkleStars + static starS) number of randomly generated cells,
+    cellSize: uniform( 158.2 ),
+    // How quickly the cell size decreases after each iteration of stars
+    cellSizeFalloff: uniform( 0.44 ),
+    // The maxiumn radius of a star
     starRadius: uniform( 4.0 ),
+    // The degree to which the star radius decreases after each iteration of stars
+    starRadiusFalloff: uniform( 0.45 ),
+    // The stars offset from the edges of cell, intended to prevent stars from clipping outside the edges of a cell.
     distanceFromCellCenter: uniform( 4.0 ),
+    // Star Glow
+    twinkleMultiplier: uniform( 6.0 ),
+    twinkleSpeed: uniform( 1.0 ),
+    horizontalTwinkleHeight: uniform( 0.25 ),
+    // Planet Radius
+    planetRadius: uniform( 400.0 )
   };
 
   const StepOne = () => {
@@ -172,6 +184,147 @@ const init = async () => {
 
   };
 
+  const starsInputs = [
+    { name: 'pixelCoords', type: 'vec2' },
+    { name: 'starRadius', type: 'float' },
+    { name: 'cellSize', type: 'float' },
+  ];
+
+  const GenerateGridStars = Fn( ( [ pixelCoords, starRadius, cellSize, seed, isTwinkle ] ) => {
+
+    const { distanceFromCellCenter, twinkleMultiplier, horizontalTwinkleHeight, twinkleSpeed } = effectController;
+
+    // Use viewportCoordinate instead of uv to ensure that the stars have a uniform
+    // size irrespective of whether the screen size increases
+    const cellInvert = pixelCoords.div( cellSize ).toVar( 'cellInvert' );
+    cellInvert.y.assign( negate( cellInvert.y ) );
+
+    const cellCoords = fract( cellInvert ).sub( 0.5 ).mul( cellSize );
+    const cellID = floor( cellInvert ).add( seed.div( 100.0 ) );
+
+    const cellHashValue = hash3( vec3( cellID, 0.0 ) );
+
+    const starPosition = vec2( 0.0 ).toVar( 'starPosition' );
+    starPosition.addAssign( cellHashValue.xy.mul( cellSize.mul( 0.5 ).sub( starRadius.mul( distanceFromCellCenter ) ) ) );
+    const distToStar = length( cellCoords.sub( starPosition ) );
+
+    // Create baseline glow
+    const glow = exp( float( - 2.0 ).mul( distToStar.div( starRadius ) ) ).toVar( 'glow' );
+
+    If( isTwinkle, () => {
+
+      remap( sin( time.mul( twinkleSpeed ) ), - 1.0, 1.0, 1.0, 0.1 );
+
+      const twinkleSize = remap( sin( time ), - 1.0, 1.0, 1.0, 0.1 ).mul( starRadius.mul( twinkleMultiplier ) );
+      // Twinkle will moth the same in both vertical and horizontal directions
+      // So we take the absolute distance of twinkleSize
+      const absDist = abs( cellCoords.sub( starPosition ) );
+      // As the star radius increases, the twinkle get less bright
+      const twinkle = smoothstep( starRadius.mul( horizontalTwinkleHeight ), 0.0, absDist.y ).mul( smoothstep(
+        twinkleSize, 0.0, absDist.x
+      ) );
+
+      glow.addAssign( twinkle );
+
+    } );
+
+    // Randomize extent of the glow
+    const starBrightness = cellHashValue.z;
+
+    return vec3( glow.mul( starBrightness ) );
+
+  } ).setLayout( {
+    name: 'GenerateGridStars',
+    type: 'vec3',
+    inputs: [
+      ...starsInputs,
+      { name: 'seed', type: 'float' },
+      { name: 'isTwinkle', type: 'bool' }
+    ],
+  } );
+
+  const sdfCircle = Fn( ( [ p, r, ] ) => {
+
+    return length( p ).sub( r );
+
+  } ).setLayout( {
+    name: 'sdfCircle',
+    type: 'float',
+    inputs: [
+      { name: 'p', type: 'vec2' },
+      { name: 'r', type: 'vec2' }
+    ]
+  } );
+
+  const DrawPlanet = ( pixelCoords, color ) => {
+
+    const { planetRadius } = effectController;
+
+    const d = sdfCircle( pixelCoords, planetRadius );
+
+    const planetColor = vec3( 1.0 );
+
+    // If we are within the 2d- circle, derive x, y, z coordinates for the planet
+    If( d.lessThanEqual( 0.0 ), () => {
+
+      // The x and y coordinates of the planet normalized by the planet's radius.
+      // This also clamps our x and y values within a range of -1 to 1, which
+      // is necessary for the normal z calculation
+      const x = pixelCoords.x.div( planetRadius );
+      const y = pixelCoords.y.div( planetRadius );
+
+      // This is the equation for the upper hemisphere of a sphere
+      // where the sphere's origin is at the point (0, 0, 0).
+      // As x and y increase, the we access points that grow exponentially
+      // closer to the sphere's equator at a normal in the z direction of 0.
+      const z = sqrt( float( 1.0 ).sub( x.mul( x ) ).sub( y.mul( y ) ) );
+      const viewNormal = vec3( x, y, z ).toVar( 'planetViewNormal' );
+      const wsPosition = vec3( x, y, z ).toVar( 'planetWorldSpacePosition' );
+
+    } );
+
+    color.assign( mix( planetColor, color, smoothstep( - 1.0, 0.0, d ) ) );
+
+    return color;
+
+  };
+
+  const GenerateStars = Fn( ( [ pixelCoords, starRadius, cellSize ] ) => {
+
+    const { starRadiusFalloff, cellSizeFalloff } = effectController;
+
+    const stars = vec3( 0.0 ).toVar( 'starsColor' );
+
+    const baseStarRadius = float( 0.0 ).toVar( 'baseStarRadius' );
+    baseStarRadius.assign( starRadius );
+
+    const baseCellSize = float( 0.0 ).toVar( 'baseCellSize' );
+    baseCellSize.assign( cellSize );
+
+    Loop( { start: uint( 0 ), end: uint( 2 ), type: 'uint', condition: '<=' }, ( { i } ) => {
+
+      stars.addAssign( GenerateGridStars( pixelCoords, baseStarRadius, baseCellSize, i, true ) );
+      baseStarRadius.mulAssign( starRadiusFalloff );
+      baseCellSize.mulAssign( cellSizeFalloff );
+
+    } );
+
+    Loop( { start: uint( 0 ), end: uint( 3 ), type: 'uint', condition: '<=' }, ( { i } ) => {
+
+      stars.addAssign( GenerateGridStars( pixelCoords, baseStarRadius, baseCellSize, i, false ) );
+      baseStarRadius.mulAssign( starRadiusFalloff );
+      baseCellSize.mulAssign( cellSizeFalloff );
+
+    } );
+
+    return stars;
+
+  } ).setLayout( {
+    name: 'GenerateStars',
+    type: 'vec3',
+    inputs: starsInputs,
+  } );
+
   const fragmentShaders: Record<ShaderType, ShaderNodeObject<Node>> = {
     'Step 1: ViewportCoordinate': Fn( () => {
 
@@ -192,29 +345,17 @@ const init = async () => {
 
     'Complete Shader': Fn( () => {
 
-      const { cellSize, starRadius, distanceFromCellCenter } = effectController;
+      const { starRadius, cellSize } = effectController;
 
-      // Use viewportCoordinate instead of uv to ensure that the stars have a uniform
-      // size irrespective of whether the screen size increases
-      const cellInvert = viewportCoordinate.div( cellSize ).toVar( 'cellInvert' );
-      cellInvert.y.assign( negate( cellInvert.y ) );
+      const color = vec3( 0.0 ).toVar( 'color' );
 
-      const cellCoords = fract( cellInvert ).sub( 0.5 ).mul( cellSize );
-      const cellID = floor( cellInvert );
+      const offsetUV = uv().sub( 0.5 );
 
-      const cellHashValue = hash3( vec3( cellID, 0.0 ) );
+      color.assign( GenerateStars( offsetUV.mul( viewportSize ), starRadius, cellSize ) );
 
-      const starPosition = vec2( 0.0 ).toVar( 'starPosition' );
-      starPosition.addAssign( cellHashValue.xy.mul( cellSize.mul( 0.5 ).sub( starRadius.mul( distanceFromCellCenter ) ) ) );
-      const distToStar = length( cellCoords.sub( starPosition ) );
+      DrawPlanet( offsetUV.mul( viewportSize ), color );
 
-      // Create baseline glow
-      const glow = exp( float( - 2.0 ).mul( distToStar.div( starRadius ) ) );
-
-      // Randomize extent of the glow
-      const starBrightness = cellHashValue.z;
-
-      return vec3( glow.mul( starBrightness ) );
+      return color;
 
 
     } )(),
@@ -245,10 +386,27 @@ const init = async () => {
 
 
   } );
+
+  // STAR PARAMETERS
   const starsFolder = gui.addFolder( 'Stars' );
-  starsFolder.add( effectController.cellSize, 'value', 1, 200 ).step( 0.1 ).name( 'cellSize' );
-  starsFolder.add( effectController.starRadius, 'value', 1.0, 20.0 ).step( 0.1 ).name( 'starRadius' );
-  starsFolder.add( effectController.distanceFromCellCenter, 'value', 0.5, 10.0 ).step( 0.1 ).name( 'starDistanceFromCellCenter' );
+  const starCellFolder = starsFolder.addFolder( 'Star Cell' );
+  // Cell parameters
+  starCellFolder.add( effectController.cellSize, 'value', 1.0, 500.0 ).step( 0.1 ).name( 'Cell Size' );
+  starCellFolder.add( effectController.cellSizeFalloff, 'value', 0.01, 1.0 ).step( 0.01 ).name( 'Cell Size Falloff' );
+  starCellFolder.add( effectController.distanceFromCellCenter, 'value', 0.5, 10.0 ).step( 0.1 ).name( 'Star Offset from Cell Edge' );
+  const starShapeFolder = starsFolder.addFolder( 'Star Shape' );
+  // Star Shape parameters
+  starShapeFolder.add( effectController.starRadius, 'value', 1.0, 20.0 ).step( 0.1 ).name( 'Star Radius' );
+  starShapeFolder.add( effectController.starRadiusFalloff, 'value', 0.01, 1.0 ).step( 0.01 ).name( 'Star Radius Falloff' );
+  starShapeFolder.add( effectController.distanceFromCellCenter, 'value', 0.5, 10.0 ).step( 0.1 ).name( 'starDistanceFromCellCenter' );
+  const starGlowFolder = starsFolder.addFolder( 'Star Glow' );
+  starGlowFolder.add( effectController.twinkleMultiplier, 'value', 1.0, 100.0 ).step( 0.1 ).name( 'Twinkle Length' );
+  starGlowFolder.add( effectController.horizontalTwinkleHeight, 'value', 0.01, 1.1 ).step( 0.01 ).name( 'Horizontal Twinkle Height' );
+  starGlowFolder.add( effectController.twinkleSpeed, 'value', 1.0, 20.0 ).step( 0.01 ).name( 'Twinkle Speed' );
+
+  // PLANET PARAMETERS
+  const planetFolder = gui.addFolder( 'Planet' );
+  planetFolder.add( effectController.planetRadius, 'value', 20.0, 400.0 ).step( 0.1 ).name( 'Planet Radius' );
 
 
 };
