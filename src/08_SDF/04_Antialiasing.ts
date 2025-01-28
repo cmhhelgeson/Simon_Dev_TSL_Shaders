@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import {
-  fract,
   length,
   smoothstep,
   float,
@@ -12,7 +11,6 @@ import {
   uv,
   vec3,
   remap,
-  max,
   negate,
   min,
   dot,
@@ -23,6 +21,7 @@ import {
 } from 'three/tsl';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+import { DrawGrid, SDFBox, SDFCircle } from './util';
 
 let renderer, camera, scene, gui;
 
@@ -55,25 +54,6 @@ const init = async () => {
   const red = vec3( 1.0, 0.0, 0.0 );
   const black = vec3( 0.0, 0.0, 0.0 );
 
-  const drawGrid = ( baseColor, lineColor, cellWidth, lineWidth ) => {
-
-    const center = uv().sub( 0.5 );
-
-    const gridPosition = center.mul( viewportSize ).div( cellWidth );
-    // Access each individual cell's uv space.
-    const cellUV = fract( gridPosition );
-
-    // Move center of each cell (0, 0) from bottom-left to the middle.
-    cellUV.assign( abs( cellUV.sub( 0.5 ) ) );
-    const distToEdge = ( float( 0.5 ).sub( max( cellUV.x, cellUV.y ) ) ).mul( cellWidth );
-    const ceilLine = smoothstep( 0.0, lineWidth, distToEdge );
-
-    const color = mix( lineColor, baseColor, ceilLine );
-
-    return color;
-
-  };
-
   const drawBackgroundColor = () => {
 
     const {
@@ -92,12 +72,6 @@ const init = async () => {
 
   };
 
-  const sdfCircle = ( positionNode, radiusNode ) => {
-
-    return length( positionNode ).sub( radiusNode );
-
-  };
-
   const sdfHexagon = ( pNode, rNode ) => {
 
     const k = vec3( - 0.866025404, 0.5, 0.577350269 );
@@ -106,13 +80,6 @@ const init = async () => {
     pNode.subAssign( minCalc.mul( k.xy ).mul( 2.0 ) );
     pNode.subAssign( vec2( clamp( pNode.x, negate( k.z ).mul( rNode ), k.z.mul( rNode ) ), rNode ) );
     return length( pNode ).mul( sign( pNode.y ) );
-
-  };
-
-  const sdfBox = ( posNode, boundNode ) => {
-
-    const d = abs( posNode ).sub( boundNode );
-    return length( max( d, 0.0 ) ).add( min( max( d.x, d.y ), 0.0 ) );
 
   };
 
@@ -139,11 +106,11 @@ const init = async () => {
 
     If( shapeUniform.equal( ShapeEnum.CIRCLE ), () => {
 
-      sdfDistance.assign( sdfCircle( viewportPosition, circleRadius ) );
+      sdfDistance.assign( SDFCircle( viewportPosition, circleRadius ) );
 
     } ).ElseIf( shapeUniform.equal( ShapeEnum.BOX ), () => {
 
-      sdfDistance.assign( sdfBox( viewportPosition, vec2( circleRadius, 50.0 ) ) );
+      sdfDistance.assign( SDFBox( viewportPosition, vec2( circleRadius, 50.0 ) ) );
 
     } ).ElseIf( shapeUniform.equal( ShapeEnum.HEXAGON ), () => {
 
@@ -152,8 +119,8 @@ const init = async () => {
     } );
 
     color.assign( drawBackgroundColor() );
-    color.assign( drawGrid( color, vec3( 0.5 ), cellWidth, lineWidth ) );
-    color.assign( drawGrid( color, black, cellWidth.mul( 10 ), lineWidth.mul( 2 ) ) );
+    color.assign( DrawGrid( viewportPosition, color, vec3( 0.5 ), cellWidth, lineWidth ) );
+    color.assign( DrawGrid( viewportPosition, color, black, cellWidth.mul( 10 ), lineWidth.mul( 2 ) ) );
     color.assign( mix( red, color, smoothstep( negate( antialiasRange ), antialiasRange, sdfDistance ) ) );
 
 

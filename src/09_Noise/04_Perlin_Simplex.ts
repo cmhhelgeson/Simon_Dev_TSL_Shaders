@@ -133,12 +133,9 @@ const init = async () => {
 
   };
 
+  const DrawGrid = Fn( ( [ pixelCoords, baseColor, lineColor, cellWidth, lineWidth ] ) => {
 
-  const drawGrid = ( baseColor, lineColor, cellWidth, lineWidth ) => {
-
-    const center = uv().sub( 0.5 );
-
-    const gridPosition = center.mul( viewportSize ).div( cellWidth );
+    const gridPosition = pixelCoords.div( cellWidth );
     // Access each individual cell's uv space.
     const cellUV = fract( gridPosition );
 
@@ -151,9 +148,19 @@ const init = async () => {
 
     return color;
 
-  };
+  } ).setLayout( {
+    name: 'DrawGrid',
+    type: 'vec3',
+    inputs: [
+      { name: 'pixelCoords', type: 'vec2' },
+      { name: 'baseColor', type: 'vec3' },
+      { name: 'lineColor', type: 'vec3' },
+      { name: 'cellWidth', type: 'float' },
+      { name: 'lineWidth', type: 'float' }
+    ]
+  } );
 
-  const drawBackgroundColor = () => {
+  const DrawBackgroundColor = Fn( ( [ inputUV ] ) => {
 
     const {
       vignetteColorMin,
@@ -163,13 +170,19 @@ const init = async () => {
     } = effectController;
 
     // Get the distance from the center of the uvs
-    const distFromCenter = length( abs( uv().sub( 0.5 ) ) );
+    const distFromCenter = length( abs( inputUV.sub( 0.5 ) ) );
     // Move distance from range [0, 0.5] to range [1.0, 0.5]/[0.5, 1.0]
     const vignette = float( 1.0 ).sub( distFromCenter );
     vignette.assign( smoothstep( vignetteRadius.oneMinus(), lightFallOff.oneMinus(), vignette ) );
     return vec3( remap( vignette, 0.0, 1.0, vignetteColorMin, vignetteColorMax ) );
 
-  };
+  } ).setLayout( {
+    name: 'DrawBackgroundColor',
+    type: 'vec3',
+    inputs: [
+      { name: 'inputUV', type: 'vec2' }
+    ],
+  } );
 
   material.colorNode = Fn( () => {
 
@@ -189,11 +202,11 @@ const init = async () => {
     const viewportPosition = center.mul( viewportSize ).toVar( 'viewportPosition' );
 
     // Draw vignetted background color
-    color.assign( drawBackgroundColor() );
+    color.assign( DrawBackgroundColor( uv() ) );
 
     // Draw grid and inner subgrids
-    color.assign( drawGrid( color, vec3( 0.5 ), cellWidth, lineWidth ) );
-    color.assign( drawGrid( color, black, cellWidth.mul( 10 ), lineWidth.mul( 2 ) ) );
+    color.assign( DrawGrid( viewportPosition, color, vec3( 0.5 ), cellWidth, lineWidth ) );
+    color.assign( DrawGrid( viewportPosition, color, black, cellWidth.mul( 10 ), lineWidth.mul( 2 ) ) );
 
 
     const distToFunction = float( 0.0 ).toVar( 'distToFunction' );

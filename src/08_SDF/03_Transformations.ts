@@ -1,66 +1,26 @@
 import * as THREE from 'three';
 import {
-  fract,
   length,
   smoothstep,
   float,
   Fn,
   mix,
-  If,
-  round,
-  ceil,
   viewportSize,
-  floor,
   uniform,
-  length,
-  max,
   abs,
   uv,
   vec3,
   remap,
-  reference,
   step,
-  select,
-  negate,
-  min,
-  sqrt,
   vec2,
-  If,
-  pow,
-  sign,
-  cos,
-  acos,
   rotate,
   sin,
-  timerLocal,
   time
 } from 'three/tsl';
 
-import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+import { DrawGrid, SDFBox } from './util';
 
-let renderer, camera, scene, gui;
-
-// abs(a) - returns the absolute value of a
-// return a < 0 > -a : a;
-
-// floor(a)
-// return nearest integer value of 'a' that's less than or equal to 'a'
-
-// ceil(a)
-// return nearest integer value of 'a' that's less than or equal to 'a'
-
-// fract(a)
-// return fractional part of 'a'
-
-// mod(x, y)
-// return x modulo y.
-
-enum FunctionMode {
-	CEIL,
-	FLOOR,
-	ROUND,
-	FRACT,
-}
+let renderer, camera, scene;
 
 const init = async () => {
 
@@ -83,33 +43,10 @@ const init = async () => {
     functionMode: uniform( 0 ),
     'Display Function': 'CEIL',
   };
-  const red = vec3( 1.0, 0.0, 0.0 );
-  const blue = vec3( 0.0, 0.0, 1.0 );
-  const yellow = vec3( 1.0, 1.0, 0.0 );
   const black = vec3( 0.0, 0.0, 0.0 );
   const green = vec3( 0.0, 1.0, 0.0 );
 
-  const drawGrid = ( baseColor, lineColor, cellWidth, lineWidth ) => {
-
-    const center = uv().sub( 0.5 );
-
-    const gridSpace = center.mul( viewportSize ).sub( sin( time ).mul( 400 ) );
-    const gridPosition = rotate( gridSpace, time ).div( cellWidth );
-    // Access each individual cell's uv space.
-    const cellUV = fract( gridPosition );
-
-    // Move center of each cell (0, 0) from bottom-left to the middle.
-    cellUV.assign( abs( cellUV.sub( 0.5 ) ) );
-    const distToEdge = ( float( 0.5 ).sub( max( cellUV.x, cellUV.y ) ) ).mul( cellWidth );
-    const ceilLine = smoothstep( 0.0, lineWidth, distToEdge );
-
-    const color = mix( lineColor, baseColor, ceilLine );
-
-    return color;
-
-  };
-
-  const drawBackgroundColor = () => {
+  const DrawBackgroundColor = Fn( ( [ inputUV ] ) => {
 
     const {
       vignetteColorMin,
@@ -119,26 +56,19 @@ const init = async () => {
     } = effectController;
 
     // Get the distance from the center of the uvs
-    const distFromCenter = length( abs( uv().sub( 0.5 ) ) );
+    const distFromCenter = length( abs( inputUV.sub( 0.5 ) ) );
     // Move distance from range [0, 0.5] to range [1.0, 0.5]/[0.5, 1.0]
     const vignette = float( 1.0 ).sub( distFromCenter );
     vignette.assign( smoothstep( vignetteRadius.oneMinus(), lightFallOff.oneMinus(), vignette ) );
     return vec3( remap( vignette, 0.0, 1.0, vignetteColorMin, vignetteColorMax ) );
 
-  };
-
-  const sdfCircle = ( positionNode, radiusNode ) => {
-
-    return length( positionNode ).sub( radiusNode );
-
-  };
-
-  const sdfBox = ( posNode, boundNode ) => {
-
-    const d = abs( posNode ).sub( boundNode );
-    return length( max( d, 0.0 ) ).add( min( max( d.x, d.y ), 0.0 ) );
-
-  };
+  } ).setLayout( {
+    name: 'DrawBackgroundColor',
+    type: 'vec3',
+    inputs: [
+      { name: 'inputUV', type: 'vec2' }
+    ],
+  } );
 
   material.colorNode = Fn( () => {
 
@@ -154,13 +84,12 @@ const init = async () => {
 
     const moveBox = viewportPosition.sub( vec2( boxX, boxY ) );
     const rotateBox = rotate( moveBox, mix( - 3.0, 3.0, sin( time ) ) );
-    const boxDistance = sdfBox( rotateBox, vec2( 200.0, 50.0 ) );
+    const boxDistance = SDFBox( rotateBox, vec2( 200.0, 50.0 ) );
 
-    color.assign( drawBackgroundColor() );
-    color.assign( drawGrid( color, vec3( 0.5 ), cellWidth, lineWidth ) );
-    color.assign( drawGrid( color, black, cellWidth.mul( 10 ), lineWidth.mul( 2 ) ) );
+    color.assign( DrawBackgroundColor( uv() ) );
+    color.assign( DrawGrid( viewportPosition, color, vec3( 0.5 ), cellWidth, lineWidth ) );
+    color.assign( DrawGrid( viewportPosition, color, black, cellWidth.mul( 10 ), lineWidth.mul( 2 ) ) );
     color.assign( mix( green, color, step( 0.0, boxDistance ) ) );
-
 
     return color;
 
@@ -176,8 +105,6 @@ const init = async () => {
   document.body.appendChild( renderer.domElement );
 
   window.addEventListener( 'resize', onWindowResize );
-
-  gui = new GUI();
 
   window.addEventListener( 'mousemove', ( e ) => {
 

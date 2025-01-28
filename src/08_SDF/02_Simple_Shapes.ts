@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import {
-  fract,
   length,
   smoothstep,
   float,
@@ -13,10 +12,10 @@ import {
   vec3,
   remap,
   step,
-  max,
 } from 'three/tsl';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+import { SDFCircle, DrawGrid } from './util';
 
 let renderer, camera, scene, gui;
 
@@ -39,30 +38,8 @@ const init = async () => {
     functionMode: uniform( 0 ),
     'Display Function': 'CEIL',
   };
-  const red = vec3( 1.0, 0.0, 0.0 );
-  const blue = vec3( 0.0, 0.0, 1.0 );
-  const yellow = vec3( 1.0, 1.0, 0.0 );
   const black = vec3( 0.0, 0.0, 0.0 );
   const green = vec3( 0.0, 1.0, 0.0 );
-
-  const drawGrid = ( baseColor, lineColor, cellWidth, lineWidth ) => {
-
-    const center = uv().sub( 0.5 );
-
-    const gridPosition = center.mul( viewportSize ).div( cellWidth );
-    // Access each individual cell's uv space.
-    const cellUV = fract( gridPosition );
-
-    // Move center of each cell (0, 0) from bottom-left to the middle.
-    cellUV.assign( abs( cellUV.sub( 0.5 ) ) );
-    const distToEdge = ( float( 0.5 ).sub( max( cellUV.x, cellUV.y ) ) ).mul( cellWidth );
-    const ceilLine = smoothstep( 0.0, lineWidth, distToEdge );
-
-    const color = mix( lineColor, baseColor, ceilLine );
-
-    return color;
-
-  };
 
   const drawBackgroundColor = () => {
 
@@ -82,12 +59,6 @@ const init = async () => {
 
   };
 
-  const sdfCircle = ( positionNode, radiusNode ) => {
-
-    return length( positionNode ).sub( radiusNode );
-
-  };
-
   material.colorNode = Fn( () => {
 
     const { cellWidth, lineWidth, circleRadius } = effectController;
@@ -100,11 +71,11 @@ const init = async () => {
     // Move uvs from range 0, 1 to -0.5, 0.5 thus placing 0,0 in the center of the canvas.
     const viewportPosition = center.mul( viewportSize );
 
-    const circleDistance = sdfCircle( viewportPosition, circleRadius );
+    const circleDistance = SDFCircle( viewportPosition, circleRadius );
 
     color.assign( drawBackgroundColor() );
-    color.assign( drawGrid( color, vec3( 0.5 ), cellWidth, lineWidth ) );
-    color.assign( drawGrid( color, black, cellWidth.mul( 10 ), lineWidth.mul( 2 ) ) );
+    color.assign( DrawGrid( viewportPosition, color, vec3( 0.5 ), cellWidth, lineWidth ) );
+    color.assign( DrawGrid( viewportPosition, color, black, cellWidth.mul( 10 ), lineWidth.mul( 2 ) ) );
     color.assign( mix( green, color, step( 0.0, circleDistance ) ) );
 
 
@@ -130,7 +101,6 @@ const init = async () => {
   vignetteFolder.add( effectController.vignetteColorMax, 'value', 0.5, 1.0 ).step( 0.01 ).name( 'vignetteColorMax' );
   vignetteFolder.add( effectController.vignetteRadius, 'value', 0.0, 1.0 ).step( 0.01 ).name( 'vignetteRadius' );
   vignetteFolder.add( effectController.lightFallOff, 'value', 0.0, 1.0 ).step( 0.01 ).name( 'lightFallOff' );
-
 
 };
 

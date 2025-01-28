@@ -17,10 +17,10 @@ import {
   uv,
   vec3,
   remap,
-  reference,
 } from 'three/tsl';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+import { DrawGrid } from './util';
 
 let renderer, camera, scene, gui;
 
@@ -70,25 +70,6 @@ const init = async () => {
   const black = vec3( 0.0, 0.0, 0.0 );
   const green = vec3( 0.0, 1.0, 0.0 );
 
-  const drawGrid = ( baseColor, lineColor, cellWidth, lineWidth ) => {
-
-    const center = uv().sub( 0.5 );
-
-    const gridPosition = center.mul( viewportSize ).div( cellWidth );
-    // Access each individual cell's uv space.
-    const cellUV = fract( gridPosition );
-
-    // Move center of each cell (0, 0) from bottom-left to the middle.
-    cellUV.assign( abs( cellUV.sub( 0.5 ) ) );
-    const distToEdge = ( float( 0.5 ).sub( max( cellUV.x, cellUV.y ) ) ).mul( cellWidth );
-    const ceilLine = smoothstep( 0.0, lineWidth, distToEdge );
-
-    const color = mix( lineColor, baseColor, ceilLine );
-
-    return color;
-
-  };
-
   const drawBackgroundColor = () => {
 
     const {
@@ -120,8 +101,8 @@ const init = async () => {
     const gridPosition = center.mul( viewportSize ).div( cellWidth );
 
     color.assign( drawBackgroundColor() );
-    color.assign( drawGrid( color, vec3( 0.5 ), cellWidth, lineWidth ) );
-    color.assign( drawGrid( color, black, cellWidth.mul( 10 ), lineWidth.mul( 2 ) ) );
+    color.assign( DrawGrid( center.mul( viewportSize ), color, vec3( 0.5 ), cellWidth, lineWidth ) );
+    color.assign( DrawGrid( center.mul( viewportSize ), color, black, cellWidth.mul( 10 ), lineWidth.mul( 2 ) ) );
 
     const xAxis = smoothstep( 0, 0.002, abs( vUv.y.sub( 0.5 ) ) );
     const yAxis = smoothstep( 0, 0.002, abs( vUv.x.sub( 0.5 ) ) );

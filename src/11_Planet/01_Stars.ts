@@ -152,9 +152,9 @@ const init = async () => {
     // The stars offset from the edges of cell, intended to prevent stars from clipping outside the edges of a cell.
     distanceFromCellCenter: uniform( 4.0 ),
     // Star Glow
-    twinkleMultiplier: uniform( 6.0 ),
+    twinkleMultiplier: uniform( 11.5 ),
     twinkleSpeed: uniform( 1.0 ),
-    horizontalTwinkleHeight: uniform( 0.25 ),
+    horizontalTwinkleHeight: uniform( 0.83 ),
     // Planet Radius
     planetRadius: uniform( 400.0 )
   };
@@ -213,18 +213,26 @@ const init = async () => {
 
     If( isTwinkle, () => {
 
-      remap( sin( time.mul( twinkleSpeed ) ), - 1.0, 1.0, 1.0, 0.1 );
+      const noiseSample = noise3D( vec3( cellID, time.mul( twinkleSpeed ) ) );
 
-      const twinkleSize = remap( sin( time ), - 1.0, 1.0, 1.0, 0.1 ).mul( starRadius.mul( twinkleMultiplier ) );
+
+      const twinkleSize = remap( noiseSample, - 1.0, 1.0, 1.0, 0.1 ).mul( starRadius.mul( twinkleMultiplier ) );
       // Twinkle will moth the same in both vertical and horizontal directions
       // So we take the absolute distance of twinkleSize
       const absDist = abs( cellCoords.sub( starPosition ) );
       // As the star radius increases, the twinkle get less bright
-      const twinkle = smoothstep( starRadius.mul( horizontalTwinkleHeight ), 0.0, absDist.y ).mul( smoothstep(
+      const twinkleValue = smoothstep( starRadius.mul( horizontalTwinkleHeight ), 0.0, absDist.y ).mul( smoothstep(
         twinkleSize, 0.0, absDist.x
-      ) );
+      ) ).toVar( 'twinkleValue' );
 
-      glow.addAssign( twinkle );
+      const verticalTwinkle = smoothstep(
+        starRadius.mul( horizontalTwinkleHeight ), 0.0, absDist.x ).mul(
+        smoothstep( twinkleSize, 0.0, absDist.y )
+      );
+
+      twinkleValue.addAssign( verticalTwinkle );
+
+      glow.addAssign( twinkleValue );
 
     } );
 
