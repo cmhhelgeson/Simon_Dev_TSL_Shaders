@@ -26,6 +26,7 @@ import {
 } from 'three/tsl';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+import { DrawGrid, SDFBox, SDFCircle } from './util';
 
 let renderer, camera, scene, gui;
 
@@ -61,25 +62,6 @@ const init = async () => {
   const red = vec3( 1.0, 0.0, 0.0 );
   const black = vec3( 0.0, 0.0, 0.0 );
 
-  const drawGrid = ( baseColor, lineColor, cellWidth, lineWidth ) => {
-
-    const center = uv().sub( 0.5 );
-
-    const gridPosition = center.mul( viewportSize ).div( cellWidth );
-    // Access each individual cell's uv space.
-    const cellUV = fract( gridPosition );
-
-    // Move center of each cell (0, 0) from bottom-left to the middle.
-    cellUV.assign( abs( cellUV.sub( 0.5 ) ) );
-    const distToEdge = ( float( 0.5 ).sub( max( cellUV.x, cellUV.y ) ) ).mul( cellWidth );
-    const ceilLine = smoothstep( 0.0, lineWidth, distToEdge );
-
-    const color = mix( lineColor, baseColor, ceilLine );
-
-    return color;
-
-  };
-
   const drawBackgroundColor = () => {
 
     const {
@@ -97,33 +79,6 @@ const init = async () => {
     return vec3( remap( vignette, 0.0, 1.0, vignetteColorMin, vignetteColorMax ) );
 
   };
-
-  const sdfCircleFn = Fn( ( [ position, radius ] ) => {
-
-    return length( position ).sub( radius );
-
-  } ).setLayout( {
-    name: 'sdfCircleFn',
-    type: 'float',
-    inputs: [
-      { name: 'position', type: 'vec2' },
-      { name: 'radius', type: 'float' }
-    ]
-  } );
-
-  const sdfBoxFn = Fn( ( [ pos, bound ] ) => {
-
-    const d = abs( pos ).sub( bound );
-    return length( max( d, 0.0 ) ).add( min( max( d.x, d.y ), 0.0 ) );
-
-  } ).setLayout( {
-    name: 'sdfBoxFn',
-    type: 'float',
-    inputs: [
-      { name: 'pos', type: 'vec2' },
-      { name: 'bound', type: 'vec2' }
-    ]
-  } );
 
   const opUnionFn = Fn( ( [ d1, d2 ] ) => {
 
@@ -176,10 +131,10 @@ const init = async () => {
 
     const offsetFromViewportX = viewportSize.x.div( 4 );
 
-    const boxD = sdfBoxFn( rotate( viewportPosition, time ), vec2( 200.0, 100.0 ) );
-    const d1 = sdfCircleFn( viewportPosition.sub( vec2( negate( offsetFromViewportX ), - 150.0 ) ), float( 150.0 ) );
-    const d2 = sdfCircleFn( viewportPosition.sub( vec2( offsetFromViewportX, - 150.0 ) ), float( 150.0 ) );
-    const d3 = sdfCircleFn( viewportPosition.sub( vec2( 0, 200.0 ) ), float( 150.0 ) );
+    const boxD = SDFBox( rotate( viewportPosition, time ), vec2( 200.0, 100.0 ) );
+    const d1 = SDFCircle( viewportPosition.sub( vec2( negate( offsetFromViewportX ), - 150.0 ) ), float( 150.0 ) );
+    const d2 = SDFCircle( viewportPosition.sub( vec2( offsetFromViewportX, - 150.0 ) ), float( 150.0 ) );
+    const d3 = SDFCircle( viewportPosition.sub( vec2( 0, 200.0 ) ), float( 150.0 ) );
 
     const d = opUnionFn( opUnionFn( d1, d2 ), d3 ).toVar( 'd' );
 
@@ -199,8 +154,8 @@ const init = async () => {
 
 
     color.assign( drawBackgroundColor() );
-    color.assign( drawGrid( color, vec3( 0.5 ), cellWidth, lineWidth ) );
-    color.assign( drawGrid( color, black, cellWidth.mul( 10 ), lineWidth.mul( 2 ) ) );
+    color.assign( DrawGrid( center.mul( viewportSize ), color, vec3( 0.5 ), cellWidth, lineWidth ) );
+    color.assign( DrawGrid( center.mul( viewportSize ), color, black, cellWidth.mul( 10 ), lineWidth.mul( 2 ) ) );
     color.assign( mix( red, color, smoothstep( negate( antialiasRange ), antialiasRange, d ) ) );
 
 

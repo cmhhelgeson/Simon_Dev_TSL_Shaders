@@ -65,25 +65,6 @@ const init = async () => {
   const red = vec3( 1.0, 0.0, 0.0 );
   const black = vec3( 0.0, 0.0, 0.0 );
 
-  const drawGrid = ( baseColor, lineColor, cellWidth, lineWidth ) => {
-
-    const center = uv().sub( 0.5 );
-
-    const gridPosition = center.mul( viewportSize ).div( cellWidth );
-    // Access each individual cell's uv space.
-    const cellUV = fract( gridPosition );
-
-    // Move center of each cell (0, 0) from bottom-left to the middle.
-    cellUV.assign( abs( cellUV.sub( 0.5 ) ) );
-    const distToEdge = ( float( 0.5 ).sub( max( cellUV.x, cellUV.y ) ) ).mul( cellWidth );
-    const ceilLine = smoothstep( 0.0, lineWidth, distToEdge );
-
-    const color = mix( lineColor, baseColor, ceilLine );
-
-    return color;
-
-  };
-
   const DrawBackground = () => {
 
     const { skyGradient, dayLength } = effectController;
