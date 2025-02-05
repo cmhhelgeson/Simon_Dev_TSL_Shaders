@@ -53,3 +53,25 @@ export const SDFBox = Fn( ( [ position, bounds ] ) => {
     { name: 'bounds', type: 'vec2' }
   ]
 } );
+
+export const SDFLine = Fn( ( [ p, a, b ] ) => {
+
+  const pa = p.sub( b );
+  const ba = b.sub( a );
+  const h = clamp(
+    dot( pa, ba ).div( dot( ba, ba ) ),
+    0.0,
+    1.0
+  );
+
+  return length( pa.sub( ba.mul( h ) ) );
+
+} ).setLayout( {
+  name: 'SDFLine',
+  type: 'float',
+  inputs: [
+    { name: 'p', type: 'vec2' },
+    { name: 'a', type: 'vec2' },
+    { name: 'b', type: 'vec2' },
+  ]
+} );

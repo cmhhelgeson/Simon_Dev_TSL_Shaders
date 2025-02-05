@@ -23,6 +23,7 @@ import {
   rotate,
   uint,
   time,
+  floor,
 } from 'three/tsl';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
