@@ -119,14 +119,7 @@ const taylorInvSqrt = ( r ) => {
 
 };
 
-type ShaderType =
-  'Step 1: ViewportCoordinate' |
-  'Step 2: Base UV' |
-  'Step 3: Negate UV' |
-  'Step 4: Cells' |
-  'Step 5: Offset Origin' |
-  'Step 6: Expand Cell Range' |
-  'Complete Shader'
+type ShaderType = 'Step 1: UV' | 'Complete Shader';
 
 
 const init = async () => {
@@ -151,6 +144,8 @@ const init = async () => {
     starRadiusFalloff: uniform( 0.45 ),
     // The stars offset from the edges of cell, intended to prevent stars from clipping outside the edges of a cell.
     distanceFromCellCenter: uniform( 4.0 ),
+    // Alter Seed Value
+    seedChange: uniform( 100.0 ),
     // Star Glow
     twinkleMultiplier: uniform( 11.5 ),
     twinkleSpeed: uniform( 1.0 ),
@@ -159,46 +154,44 @@ const init = async () => {
     planetRadius: uniform( 400.0 )
   };
 
-  const StepOne = () => {
-
-    return viewportCoordinate;
-
-  };
-
-  type StepTwoArgs = ReturnType<typeof StepOne>
-
-  const StepTwo = ( args: StepTwoArgs ) => {
-
-    const { cellSize } = effectController;
-
-    const cellInvert = args.div( cellSize ).toVar( 'cellInvert' );
-
-    return { cellInvert };
-
-  };
-
-  const StepThree = ( args ) => {
-
-    args.y.assign( negate( args.y ) );
-    return args;
-
-  };
-
   const starsInputs = [
     { name: 'pixelCoords', type: 'vec2' },
     { name: 'starRadius', type: 'float' },
     { name: 'cellSize', type: 'float' },
   ];
 
+  const GetCellInfo = (
+    pixelCoords,
+    cellSize,
+    seed,
+    seedChange
+  ) => {
+
+    const cellInvert = pixelCoords.div( cellSize ).toVar( 'cellInvert' );
+
+    // Get uv of each cell, then offset each cell into a scaled -1 to 1 NDC esque range
+    // Each cell will now be the canvas for its own star shape
+    const cellCoords = fract( cellInvert ).sub( 0.5 ).mul( cellSize );
+    const cellID = floor( cellInvert ).add( seed.div( seedChange ) );
+
+    // Get a 2d hash color value
+    const cellHashValue = hash3( vec3( cellID, 0.0 ) );
+
+    return { cellCoords, cellID, cellHashValue };
+
+  };
+
   const GenerateGridStars = Fn( ( [ pixelCoords, starRadius, cellSize, seed, isTwinkle ] ) => {
 
-    const { distanceFromCellCenter, twinkleMultiplier, horizontalTwinkleHeight, twinkleSpeed } = effectController;
+    const { distanceFromCellCenter, twinkleMultiplier, horizontalTwinkleHeight, twinkleSpeed, seedChange } = effectController;
 
     // Use viewportCoordinate instead of uv to ensure that the stars have a uniform
     // size irrespective of whether the screen size increases
     const cellInvert = pixelCoords.div( cellSize ).toVar( 'cellInvert' );
-    cellInvert.y.assign( negate( cellInvert.y ) );
+    //cellInvert.y.assign( negate( cellInvert.y ) );
 
+    // Get uv of each cell, then offset each cell into a scaled -cellSize to cellSize NDC esque range
+    // Each cell will now be the canvas for its own star shape
     const cellCoords = fract( cellInvert ).sub( 0.5 ).mul( cellSize );
     const cellID = floor( cellInvert ).add( seed.div( 100.0 ) );
 
@@ -214,7 +207,6 @@ const init = async () => {
     If( isTwinkle, () => {
 
       const noiseSample = noise3D( vec3( cellID, time.mul( twinkleSpeed ) ) );
-
 
       const twinkleSize = remap( noiseSample, - 1.0, 1.0, 1.0, 0.1 ).mul( starRadius.mul( twinkleMultiplier ) );
       // Twinkle will moth the same in both vertical and horizontal directions
@@ -334,20 +326,109 @@ const init = async () => {
   } );
 
   const fragmentShaders: Record<ShaderType, ShaderNodeObject<Node>> = {
-    'Step 1: ViewportCoordinate': Fn( () => {
+    'Step 1: UV': Fn( () => {
 
-      return StepOne();
-
-    } )(),
-    'Step 2: Base UV': Fn( () => {
-
-      return StepTwo( StepOne() );
+      return uv().sub( 0.5 ).mul( viewportSize );
 
     } )(),
 
-    'Step 3: Negate UV': Fn( () => {
+    'Step 2: Initial Cell UV': Fn( () => {
 
-      return StepThree( StepTwo( StepOne() ) );
+      const { cellSize } = effectController;
+
+      const pixelCoords = uv().sub( 0.5 ).mul( viewportSize );
+      const cellInvert = pixelCoords.div( cellSize ).toVar( 'cellInvert' );
+      //cellInvert.y.assign( negate( cellInvert.y ) );
+
+      const cellCoords = fract( cellInvert );
+      return cellCoords;
+
+    } )(),
+
+    'Step 3: Offset Cell UV': Fn( () => {
+
+      const { cellSize } = effectController;
+
+      const pixelCoords = uv().sub( 0.5 ).mul( viewportSize );
+      const cellInvert = pixelCoords.div( cellSize ).toVar( 'cellInvert' );
+      //cellInvert.y.assign( negate( cellInvert.y ) );
+
+      const cellCoords = fract( cellInvert ).sub( 0.5 );
+      return cellCoords;
+
+    } )(),
+
+    'Step 4: Scale Cell UV': Fn( () => {
+
+      const { cellSize } = effectController;
+
+      const pixelCoords = uv().sub( 0.5 ).mul( viewportSize );
+      const cellInvert = pixelCoords.div( cellSize ).toVar( 'cellInvert' );
+      cellInvert.y.assign( negate( cellInvert.y ) );
+
+      const cellCoords = fract( cellInvert ).sub( 0.5 ).mul( cellSize );
+      return cellCoords;
+
+    } )(),
+
+    'Step 5: Cell ID': Fn( () => {
+
+      const { cellSize, seedChange } = effectController;
+
+      const pixelCoords = uv().sub( 0.5 ).mul( viewportSize );
+      const cellInvert = pixelCoords.div( cellSize ).toVar( 'cellInvert' );
+      cellInvert.y.assign( negate( cellInvert.y ) );
+
+      const cellID = floor( cellInvert ).add( float( 1.0 ).div( seedChange ) );
+      return cellID;
+
+
+    } )(),
+
+    'Step 6: Cell Hash': Fn( () => {
+
+      const { cellSize, seedChange } = effectController;
+
+      const pixelCoords = uv().sub( 0.5 ).mul( viewportSize );
+
+      const { cellCoords, cellID, cellHashValue } = GetCellInfo( pixelCoords, cellSize, float( 1.0 ), seedChange );
+
+      return cellHashValue;
+
+
+    } )(),
+
+    'Step 7: Dist to Star': Fn( () => {
+
+      const { cellSize, seedChange, starRadius, distanceFromCellCenter } = effectController;
+
+      const pixelCoords = uv().sub( 0.5 ).mul( viewportSize );
+
+      const { cellCoords, cellID, cellHashValue } = GetCellInfo( pixelCoords, cellSize, float( 1.0 ), seedChange );
+
+      const starPosition = vec2( 0.0 ).toVar( 'starPosition' );
+      starPosition.addAssign( cellHashValue.xy.mul( cellSize.mul( 0.5 ).sub( starRadius.mul( distanceFromCellCenter ) ) ) );
+      const distToStar = length( cellCoords.sub( starPosition ) );
+
+      return distToStar;
+
+    } )(),
+
+    // We work in a broad uv space than scale it down
+    'Step 8: Scaled Dist to Star': Fn( () => {
+
+      const { cellSize, seedChange, starRadius, distanceFromCellCenter } = effectController;
+
+      const pixelCoords = uv().sub( 0.5 ).mul( viewportSize );
+
+      const { cellCoords, cellID, cellHashValue } = GetCellInfo( pixelCoords, cellSize, float( 1.0 ), seedChange );
+
+      const starPosition = vec2( 0.0 ).toVar( 'starPosition' );
+      starPosition.addAssign( cellHashValue.xy.mul( cellSize.mul( 0.5 ).sub( starRadius.mul( distanceFromCellCenter ) ) ) );
+      const distToStar = length( cellCoords.sub( starPosition ) );
+
+      return distToStar.div( cellSize );
+
 
     } )(),
 
@@ -402,6 +483,7 @@ const init = async () => {
   starCellFolder.add( effectController.cellSize, 'value', 1.0, 500.0 ).step( 0.1 ).name( 'Cell Size' );
   starCellFolder.add( effectController.cellSizeFalloff, 'value', 0.01, 1.0 ).step( 0.01 ).name( 'Cell Size Falloff' );
   starCellFolder.add( effectController.distanceFromCellCenter, 'value', 0.5, 10.0 ).step( 0.1 ).name( 'Star Offset from Cell Edge' );
+  starCellFolder.add( effectController.seedChange, 'value', 1.0, 200.0 ).step( 0.1 ).name( 'seedChange' );
   const starShapeFolder = starsFolder.addFolder( 'Star Shape' );
   // Star Shape parameters
   starShapeFolder.add( effectController.starRadius, 'value', 1.0, 20.0 ).step( 0.1 ).name( 'Star Radius' );

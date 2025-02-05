@@ -24,21 +24,6 @@ import { DrawGrid } from './util';
 
 let renderer, camera, scene, gui;
 
-// abs(a) - returns the absolute value of a
-// return a < 0 > -a : a;
-
-// floor(a)
-// return nearest integer value of 'a' that's less than or equal to 'a'
-
-// ceil(a)
-// return nearest integer value of 'a' that's less than or equal to 'a'
-
-// fract(a)
-// return fractional part of 'a'
-
-// mod(x, y)
-// return x modulo y.
-
 enum FunctionMode {
 	CEIL,
 	FLOOR,
