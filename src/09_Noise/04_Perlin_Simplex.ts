@@ -44,7 +44,7 @@ const FunctionEnum = {
 type ShaderType = 'Graph' | 'Gradient Noise';
 
 const effectController = {
-  currentShader: 'Graph',
+  currentShader: 'Gradient Noise',
   // Grid Uniforms
   cellWidth: uniform( 15 ).label( 'uCellWidth' ),
   lineWidth: uniform( 1.0 ).label( 'uLineWidth' ),
@@ -57,10 +57,12 @@ const effectController = {
   antialiasRange: uniform( 1.0 ).label( 'uAntialiasRange' ),
   // Function Uniforms
   lineSpeed: uniform( 96.0 ),
+  gradientSpeed: uniform( 0.2 ),
+  gradientSize: uniform( 10.0 ),
   functionDetail: uniform( 1.0 ).label( 'uFunctionDetail' ),
-  baseAmplitude: uniform( 128.0 ).label( 'uBaseAmplitude' ),
-  baseFrequencyController: 64.0,
-  baseFrequency: uniform( 1.0 / 64.0 ).label( 'uBaseFrequency' ),
+  baseAmplitude: uniform( 0.5 ).label( 'uBaseAmplitude' ),
+  baseFrequencyController: 1.0,
+  baseFrequency: uniform( 1.0 ).label( 'uBaseFrequency' ),
   amplitudePersistence: uniform( 0.5 ).label( 'uPersistence' ),
   frequencyLacunarity: uniform( 2.0 ).label( 'uLacunity' ),
   octaves: uniform( uint( 4 ) ),
@@ -644,7 +646,14 @@ const init = async () =>{
     } )(),
     'Gradient Noise': Fn( () => {
 
-      const noiseSample = remap( noise3D( uv() ), - 1.0, 1.0, 0.0, 1.0 );
+      const {
+        gradientSpeed,
+        gradientSize
+      } = effectController;
+
+      const coords3D = vec3( uv().mul( viewportSize.div( gradientSize ) ), time.mul( gradientSpeed ) );
+
+      const noiseSample = remap( fbm( noise3D( coords3D ) ), - 1.0, 1.0, 0.0, 1.0 );
 
       const color = vec3( 0.0 ).toVar( 'color' );
 
@@ -682,18 +691,21 @@ const init = async () =>{
     effectController.defineFunction.value = FunctionEnum[ effectController.function ];
 
   } );
-  gui.add( effectController.lineSpeed, 'value', 0.0, 1000.0 ).name( 'ineSpeed' );
+  gui.add( effectController.lineSpeed, 'value', 0.0, 1000.0 ).name( 'lineSpeed' );
   const shapeFolder = gui.addFolder( 'Line Shape' );
-  shapeFolder.add( effectController.baseAmplitude, 'value', 10, 256 ).step( 1 ).name( 'Base Amplitude' );
+  shapeFolder.add( effectController.baseAmplitude, 'value', 0.5, 256 ).step( 0.5 ).name( 'Base Amplitude' );
   shapeFolder.add( effectController.amplitudePersistence, 'value', 0.1, 1 ).name( 'Amplitude Persistence' );
-  shapeFolder.add( effectController, 'baseFrequencyController', 0.0, 200.0 ).step( 0.1 ).name( 'Base Frequency' ).onChange( () => {
+  shapeFolder.add( effectController, 'baseFrequencyController', 0.1, 200.0 ).step( 0.1 ).name( 'Base Frequency' ).onChange( () => {
 
-    effectController.baseFrequency.value = 1.0 / effectController.baseFrequencyController;
+    effectController.baseFrequency.value = effectController.baseFrequencyController;
 
   } );
   shapeFolder.add( effectController.octaves, 'value', 1, 8 ).step( 1 ).name( 'Noise Iterations' );
   shapeFolder.add( effectController.frequencyLacunarity, 'value', 0.1, 4.0 ).step( 0.1 ).name( 'Frequency Lacunarity' );
   shapeFolder.add( effectController.px, 'value', 0.1, 5.0 ).name( 'px' );
+  const gradientNoiseFolder = gui.addFolder( 'Gradient Noise' );
+  gradientNoiseFolder.add( effectController.gradientSpeed, 'value', 0.1, 5.0 ).step( 0.1 ).name( 'Gradient Speed' );
+  gradientNoiseFolder.add( effectController.gradientSize, 'value', 1.0, 50.0 ).step( 0.1 ).name( 'Gradient Zoom' );
 
 
 };
