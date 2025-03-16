@@ -222,6 +222,14 @@ const init = async () => {
         smoothstep( twinkleSize, 0.0, absDist.y )
       );
 
+      const s = 4;
+      const t = 4;
+      if ( test = 4 ) {
+
+        const s = 4;
+
+      }
+
       twinkleValue.addAssign( verticalTwinkle );
 
       glow.addAssign( twinkleValue );

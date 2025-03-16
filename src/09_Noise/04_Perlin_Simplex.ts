@@ -26,10 +26,12 @@ import {
   Loop,
   sin,
   floor,
+  ShaderNodeObject,
 } from 'three/tsl';
 import { SDFLine } from '../08_SDF/util';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+import { Node } from 'three/webgpu';
 
 let renderer, camera, scene, gui;
 
@@ -38,7 +40,11 @@ const FunctionEnum = {
   'NOISE': 1,
 };
 
+
+type ShaderType = 'Graph' | 'Gradient Noise';
+
 const effectController = {
+  currentShader: 'Graph',
   // Grid Uniforms
   cellWidth: uniform( 15 ).label( 'uCellWidth' ),
   lineWidth: uniform( 1.0 ).label( 'uLineWidth' ),
@@ -390,15 +396,14 @@ const domainWarpingFBM = Fn( ( [ coords ] ) => {
   ]
 } );
 
-const evaluateNoiseFunction = Fn( ( [ x ] ) => {
-
-  const {
-    amplitudePersistence,
-    frequencyLacunarity,
-    octaves,
-    baseAmplitude,
-    baseFrequency
-  } = effectController;
+const evaluateNoiseFunction = Fn( ( [
+  x,
+  amplitudePersistence,
+  frequencyLacunarity,
+  octaves,
+  baseAmplitude,
+  baseFrequency,
+] ) => {
 
   const y = float( 0.0 ).toVar( 'y' );
 
@@ -424,7 +429,7 @@ const evaluateNoiseFunction = Fn( ( [ x ] ) => {
   name: 'evaluateNoiseFunction',
   type: 'float',
   inputs: [
-    { name: 'x', type: 'float' }
+    { name: 'x', type: 'float' },
   ]
 } );
 
@@ -464,10 +469,15 @@ const evaluateSinFunction = Fn( ( [ x ] ) => {
 
 // Draw the function at varying levels of detail by drawing multiple
 // sublines of the function.
-const plotSinFunction = Fn( ( [ p, px, curTime ] ) => {
+const plotFunction = Fn( ( [ p, px, curTime ] ) => {
 
   const {
     defineFunction,
+    amplitudePersistence,
+    frequencyLacunarity,
+    octaves,
+    baseAmplitude,
+    baseFrequency
   } = effectController;
 
   const result = float( 10000000.0 ).toVar( 'result' );
@@ -489,8 +499,22 @@ const plotSinFunction = Fn( ( [ p, px, curTime ] ) => {
 
     } ).Else( () => {
 
-      a.assign( vec2( c1.x, evaluateNoiseFunction( c1.x.add( curTime ) ) ) );
-      b.assign( vec2( c2.x, evaluateNoiseFunction( c2.x.add( curTime ) ) ) );
+      a.assign( vec2( c1.x, evaluateNoiseFunction(
+        c1.x.add( curTime ),
+        amplitudePersistence,
+        frequencyLacunarity,
+        octaves,
+        baseAmplitude,
+        baseFrequency
+      ) ) );
+      b.assign( vec2( c2.x, evaluateNoiseFunction(
+        c2.x.add( curTime ),
+        amplitudePersistence,
+        frequencyLacunarity,
+        octaves,
+        baseAmplitude,
+        baseFrequency,
+      ) ) );
 
     } );
 
@@ -501,7 +525,7 @@ const plotSinFunction = Fn( ( [ p, px, curTime ] ) => {
   return result;
 
 } ).setLayout( {
-  name: 'plotSinFunction',
+  name: 'plotFunction',
   type: 'float',
   inputs: [
     { name: 'p', type: 'vec2' },
@@ -547,14 +571,13 @@ const init = async () =>{
     ]
   } );
 
-  const DrawBackgroundColor = Fn( ( [ inputUV ] ) => {
-
-    const {
-      vignetteColorMin,
-      vignetteColorMax,
-      vignetteRadius,
-      lightFallOff,
-    } = effectController;
+  const DrawBackgroundColor = Fn( ( [
+    inputUV,
+    vignetteRadius,
+    lightFallOff,
+    vignetteColorMin,
+    vignetteColorMax
+  ] ) => {
 
     // Get the distance from the center of the uvs
     const distFromCenter = length( abs( inputUV.sub( 0.5 ) ) );
@@ -567,59 +590,73 @@ const init = async () =>{
     name: 'DrawBackgroundColor',
     type: 'vec3',
     inputs: [
-      { name: 'inputUV', type: 'vec2' }
+      { name: 'inputUV', type: 'vec2' },
+      { name: 'vignetteRadius', type: 'float' },
+      { name: 'lightFallOff', type: 'float' },
+      { name: 'vignetteColorMin', type: 'float' },
+      { name: 'vignetteColorMax', type: 'float' }
     ],
   } );
 
-  material.colorNode = Fn( () => {
+  const shaders: Record<ShaderType, ShaderNodeObject<Node>> = {
+    'Graph': Fn( () => {
 
-    const {
-      cellWidth,
-      lineWidth,
-      lineSpeed,
-      px,
-      defineFunction
-    } = effectController;
+      const {
+        cellWidth,
+        lineWidth,
+        lineSpeed,
+        px,
+        vignetteRadius,
+        lightFallOff,
+        vignetteColorMin,
+        vignetteColorMax
+      } = effectController;
 
-    const vUv = uv();
+      const vUv = uv();
 
-    // Create baseline color
-    const color = vec3( 0.9 ).toVar( 'color' );
-    const center = vUv.sub( 0.5 );
-    // Move uvs from range 0, 1 to -0.5, 0.5 thus placing 0,0 in the center of the canvas.
-    const viewportPosition = center.mul( viewportSize ).toVar( 'viewportPosition' );
+      // Create baseline color
+      const color = vec3( 0.9 ).toVar( 'color' );
+      const center = vUv.sub( 0.5 );
+      // Move uvs from range 0, 1 to -0.5, 0.5 thus placing 0,0 in the center of the canvas.
+      const viewportPosition = center.mul( viewportSize ).toVar( 'viewportPosition' );
 
-    // Draw vignetted background color
-    color.assign( DrawBackgroundColor( uv() ) );
+      // Draw vignetted background color
+      color.assign( DrawBackgroundColor( uv(), vignetteRadius, lightFallOff, vignetteColorMin, vignetteColorMax ) );
 
-    // Draw grid and inner subgrids
-    color.assign( DrawGrid( viewportPosition, color, vec3( 0.5 ), cellWidth, lineWidth ) );
-    color.assign( DrawGrid( viewportPosition, color, black, cellWidth.mul( 10 ), lineWidth.mul( 2 ) ) );
+      // Draw grid and inner subgrids
+      color.assign( DrawGrid( viewportPosition, color, vec3( 0.5 ), cellWidth, lineWidth ) );
+      color.assign( DrawGrid( viewportPosition, color, black, cellWidth.mul( 10 ), lineWidth.mul( 2 ) ) );
 
+      const distToFunction = float( 0.0 ).toVar( 'distToFunction' );
+      distToFunction.assign( plotFunction( viewportPosition, px, time.mul( lineSpeed ) ) );
 
-    const distToFunction = float( 0.0 ).toVar( 'distToFunction' );
+      const lineColor = RED.mul(
+        mix( 0.25, 1.0, smoothstep( 0.0, 3.0, abs( viewportPosition.y ) ) )
+      );
 
-    If( defineFunction.equal( uint( 0 ) ), () => {
-
-      distToFunction.assign( plotSinFunction( viewportPosition, px, time.mul( lineSpeed ) ) );
-
-    } ).Else( () => {
-
-      distToFunction.assign( plotSinFunction( viewportPosition, px, time.mul( lineSpeed ) ) );
-
-    } );
-
-    const lineColor = RED.mul(
-      mix( 0.25, 1.0, smoothstep( 0.0, 3.0, abs( viewportPosition.y ) ) )
-    );
-
-    const lineBorder = smoothstep( 4.0, 6.0, distToFunction );
-    color.assign( mix( lineColor, color, lineBorder ) );
+      const lineBorder = smoothstep( 4.0, 6.0, distToFunction );
+      color.assign( mix( lineColor, color, lineBorder ) );
 
 
-    return color;
+      return color;
 
-  } )();
+
+    } )(),
+    'Gradient Noise': Fn( () => {
+
+      const noiseSample = remap( noise3D( uv() ), - 1.0, 1.0, 0.0, 1.0 );
+
+      const color = vec3( 0.0 ).toVar( 'color' );
+
+      color.assign( vec3( noiseSample ) );
+
+      return color;
+
+    } )(),
+
+  };
+
+  material.colorNode = shaders[ effectController.currentShader ];
 
   const quad = new THREE.Mesh( geometry, material );
   scene.add( quad );
@@ -633,6 +670,13 @@ const init = async () =>{
   window.addEventListener( 'resize', onWindowResize );
 
   gui = new GUI();
+  gui.add( effectController, 'currentShader', Object.keys( shaders ) ).onChange( () => {
+
+    material.colorNode = shaders[ effectController.currentShader ];
+    material.needsUpdate = true;
+
+
+  } );
   gui.add( effectController, 'function', Object.keys( FunctionEnum ) ).onChange( () => {
 
     effectController.defineFunction.value = FunctionEnum[ effectController.function ];
