@@ -13,6 +13,7 @@
         "jsx": true
       }
     },
+    
     "extends": [
       "mdcs",
       "plugin:@typescript-eslint/strict",
@@ -40,6 +41,10 @@
           "destructuring": "any",
           "ignoreReadBeforeAssign": false
         }
+      ],
+      "browserslist": [
+        "defaults",
+        "not op_mini all"
       ]
     }
   }
