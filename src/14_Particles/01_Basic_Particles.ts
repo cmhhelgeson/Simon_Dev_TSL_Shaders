@@ -9,12 +9,12 @@ import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
 interface ParticleInfo {
 	life: number,
   maxLife: number,
-  alpha?: number,
+  alpha: number,
   size: number
-  angle?: number,
+  angle: number,
   colour?: number,
   position: THREE.Vector3,
-  velocity?: THREE.Vector3,
+  velocity: THREE.Vector3,
 }
 
 interface ParticlesData {
@@ -24,15 +24,22 @@ interface ParticlesData {
 	sizeAttribute: THREE.InstancedBufferAttribute,
 	angles: Float32Array<ArrayBuffer>
 	angleAttribute: THREE.InstancedBufferAttribute,
+	alphas: Float32Array<ArrayBuffer>,
+	alphaAttribute: THREE.InstancedBufferAttribute,
+}
+
+const remap = (val, inLow, inHigh, outLow, outHigh) => {
+	
+	const t = (val - inLow) / (inHigh - inLow);
+	return t * (outHigh - outLow) + outLow;
+
 }
 
 
 class ParticleProject extends App {
   #particles: ParticleInfo[] = [];
 	#particlesData: ParticlesData;
-  #particleGeometry: THREE.BufferGeometry
 	#particleMaterial: PointsNodeMaterial
-	#positionAttribute: THREE.InstancedBufferAttribute;
 
   constructor() {
     super();
@@ -42,25 +49,30 @@ class ParticleProject extends App {
 
 		const numParticles = 1000;
 
-		this.#particleGeometry = new THREE.BufferGeometry();
-
 		const positions = new Float32Array(numParticles * 3);
 		const sizes = new Float32Array(numParticles);
 		const angles = new Float32Array(numParticles);
+		const alphas = new Float32Array(numParticles)
 
 		for (let i = 0; i < numParticles; i ++) {
 			const x = positions[i * 3] = ( Math.random() * 2 - 1) * 100;
 			const y = positions[i * 3 + 1] = (Math.random() * 2 - 1)* 100;
 			const z = positions[i * 3 + 2] = (Math.random() * 2 - 1) * 100;
-			sizes[i] = 50.0;
-			angles[i] = (Math.PI * ((i % 10) / 5 ))
+			sizes[i] = 100.0;
+			angles[i] = (Math.PI * ((i % 10) / 5 ));
+			alphas[i] = 0.0;
+
+			// Direction of velocity explosion will always emanate from the origin
+			const dir = new THREE.Vector3(x, y, z).normalize();
 
 			this.#particles.push({
 				life: 0,
-				maxLife: 4,
+				maxLife: 100,
+				alpha: 0.0,
 				angle: angles[i],
 				position: new THREE.Vector3(x, y, z),
-				size: 50.0,
+				size: 100.0,
+				velocity: dir.multiplyScalar(50)
 			})
 		}
 
@@ -70,10 +82,13 @@ class ParticleProject extends App {
 		const positionAttribute = new THREE.InstancedBufferAttribute( positions, 3 );
 		const sizeAttribute = new THREE.InstancedBufferAttribute( sizes, 1 );
 		const angleAttribute = new THREE.InstancedBufferAttribute( angles, 1)
+		const alphaAttribute = new THREE.InstancedBufferAttribute(alphas, 1)
 		this.#particleMaterial = new THREE.PointsNodeMaterial( {
 			color: 0xffffff,
+			rotationNode: instancedBufferAttribute(angleAttribute),
 			positionNode: instancedBufferAttribute(positionAttribute),
 			sizeNode: instancedBufferAttribute(sizeAttribute),
+			opacityNode: instancedBufferAttribute(alphaAttribute),
 			sizeAttenuation: true,
 			depthWrite: false,
 			map: starTexture,
@@ -91,7 +106,9 @@ class ParticleProject extends App {
 			sizes: sizes,
 			sizeAttribute: sizeAttribute,
 			angles: angles,
-			angleAttribute: angleAttribute
+			angleAttribute: angleAttribute,
+			alphas: alphas,
+			alphaAttribute: alphaAttribute,
 		}
 
 		this.Scene.add(particles);
@@ -100,7 +117,7 @@ class ParticleProject extends App {
 	}
 
 
-	#stepParticles(dt) {
+	#stepParticles(dt, totalTimeElapsed) {
 
 		if(!this.#particleMaterial) {
 
@@ -111,27 +128,53 @@ class ParticleProject extends App {
 		const {
 			positions, positionAttribute,
 			sizes, sizesAttribute,
-			angles, anglesAttribute
+			angles, angleAttribute,
+			alphas, alphaAttribute
 		} = this.#particlesData;
+
+		const gravity = new THREE.Vector3(0.0, -9.8, 0.0);
+		const DRAG = -0.1;
 
 		for (let i = 0; i < this.#particles.length; i++) {
 
 			// Update the particle
 			const p = this.#particles[i];
-
 			p.life += dt;
-			p.life = Math.min(p.life, p.maxLife);
+			p.life = Math.min(p.life, p.maxLife)
 
-			p.angle += dt;
+			if (p.life < 1) {
+				p.alpha = p.life;
+			} else if (p.life > p.maxLife - 1) {
+				p.alpha = p.maxLife - p.life
+			}
+			
+			const rotationFactor = 1000.0;
+			const minDistance = 0.1;
+			const rotationSpeed = rotationFactor / (p.position.length() + minDistance);
+
+			p.angle += rotationSpeed * dt;
+
+			// Apply Gravity
+			const forces = gravity.clone();
+			// Apply pseudo air resistance drag force that works against the velocity
+			forces.add(p.velocity.clone().multiplyScalar(DRAG))
+
+			p.velocity.add(forces.multiplyScalar(dt));
+
+			const displacement = p.velocity.clone().multiplyScalar(dt);
+			p.position.add(displacement)
 
 			// Assign the value of the updated particle to the buffer
 			
 			positions[i * 3] = p.position.x;
-			p.position.y -= 10.0 * dt;
 			positions[i * 3 + 1] = p.position.y 
 			positions[i * 3 + 2] = p.position.z;
+			alphas[i] = p.alpha as number;
+			angles[i] = p.angle as number;
 
 			positionAttribute.needsUpdate = true;
+			alphaAttribute.needsUpdate = true;
+			angleAttribute.needsUpdate = true;
 			
 			sizes[i] = p.size + Math.sin(dt / 100) * 20.0;
 
@@ -140,9 +183,9 @@ class ParticleProject extends App {
 		
 	}
 
-	onStep(dt) {
+	onStep(dt, totalTimeElapsed) {
 
-		this.#stepParticles(dt)
+		this.#stepParticles(dt, totalTimeElapsed)
 
 
 	}
