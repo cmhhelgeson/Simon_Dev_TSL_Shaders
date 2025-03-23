@@ -1,7 +1,7 @@
 
 import * as THREE from 'three/webgpu';
 import { PointsNodeMaterial } from 'three/webgpu';
-import {float, sin, instanceIndex, time, instance, instancedBufferAttribute, vec2} from 'three/tsl';
+import {float, texture, vec3, sin, instanceIndex, time, instance, instancedBufferAttribute, vec2, Fn} from 'three/tsl';
 
 import { App } from './App';
 import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
@@ -12,7 +12,7 @@ interface ParticleInfo {
   alpha: number,
   size: number
   angle: number,
-  colour?: number,
+  color: THREE.Color,
   position: THREE.Vector3,
   velocity: THREE.Vector3,
 }
@@ -52,7 +52,8 @@ class ParticleProject extends App {
 		const positions = new Float32Array(numParticles * 3);
 		const sizes = new Float32Array(numParticles);
 		const angles = new Float32Array(numParticles);
-		const alphas = new Float32Array(numParticles)
+		const alphas = new Float32Array(numParticles);
+		const colors = new Float32Array(numParticles * 3)
 
 		for (let i = 0; i < numParticles; i ++) {
 			const x = positions[i * 3] = ( Math.random() * 2 - 1) * 100;
@@ -65,14 +66,20 @@ class ParticleProject extends App {
 			// Direction of velocity explosion will always emanate from the origin
 			const dir = new THREE.Vector3(x, y, z).normalize();
 
+			const c = new THREE.Color().setHSL(Math.random(), 1, 0.5);
+			colors[i * 3] = c.r;
+			colors[i * 3 + 1] = c.g;
+			colors[i * 3 + 2] = c.b;
+
 			this.#particles.push({
 				life: 0,
-				maxLife: 100,
+				maxLife: 4,
 				alpha: 0.0,
 				angle: angles[i],
 				position: new THREE.Vector3(x, y, z),
 				size: 100.0,
-				velocity: dir.multiplyScalar(50)
+				velocity: dir.multiplyScalar(50),
+				color: c,
 			})
 		}
 
@@ -83,15 +90,25 @@ class ParticleProject extends App {
 		const sizeAttribute = new THREE.InstancedBufferAttribute( sizes, 1 );
 		const angleAttribute = new THREE.InstancedBufferAttribute( angles, 1)
 		const alphaAttribute = new THREE.InstancedBufferAttribute(alphas, 1)
+		const colorAttribute = new THREE.InstancedBufferAttribute(colors, 3);
 		this.#particleMaterial = new THREE.PointsNodeMaterial( {
 			color: 0xffffff,
 			rotationNode: instancedBufferAttribute(angleAttribute),
 			positionNode: instancedBufferAttribute(positionAttribute),
 			sizeNode: instancedBufferAttribute(sizeAttribute),
 			opacityNode: instancedBufferAttribute(alphaAttribute),
+			colorNode: Fn(() => {
+
+				const starMap = texture(starTexture);
+				const color = instancedBufferAttribute(colorAttribute);
+
+				return vec3(starMap.mul(color));
+
+
+			})(),
 			sizeAttenuation: true,
 			depthWrite: false,
-			map: starTexture,
+			//map: starTexture,
 			depthTest: true,
 			transparent: true,
 			blending: THREE.AdditiveBlending
@@ -129,7 +146,7 @@ class ParticleProject extends App {
 			positions, positionAttribute,
 			sizes, sizesAttribute,
 			angles, angleAttribute,
-			alphas, alphaAttribute
+			alphas, alphaAttribute,
 		} = this.#particlesData;
 
 		const gravity = new THREE.Vector3(0.0, -9.8, 0.0);
@@ -187,10 +204,8 @@ class ParticleProject extends App {
 
 		this.#stepParticles(dt, totalTimeElapsed)
 
-
 	}
 	
-
 	async onSetupProject(projectFolder?: GUI): Promise<void> {
 		this.loadRGBE('./resources/moonless_golf_2k.hdr')
 
@@ -198,9 +213,7 @@ class ParticleProject extends App {
 
 	}
 
- 
 }
-
 
 let APP_ = new ParticleProject();
 
