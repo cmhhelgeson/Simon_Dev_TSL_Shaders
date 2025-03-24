@@ -1,0 +1,212 @@
+import MersenneTwiseter from 'mersennetwister'
+import * as THREE from 'three/webgpu'
+
+const MT_ = new MersenneTwiseter();
+
+const random = () => {
+
+	return MT_.random();
+
+}
+
+class Interpolant {
+	// Values which construct the interpolater.
+	Frames = null;
+	// Base THREE.Interpolater class.
+	#interpolater = null;
+	// Buffer where interpolation gets stored.
+	#resultBuffer = null;
+
+	constructor(frames, stride) {
+
+		const times = [];
+		const values = [];
+
+		// Think of frames not as individual frames but as keyframes that define a value.
+		for (let i = 0; i < frames.length; i++) {
+			times.push(frames[i].time)
+			// ... operator will actually dereference values in vectors, similar to arrays
+			values.push(...frames[i].value)
+		}
+
+		// Result buffer get written over during interpolation.
+		this.#resultBuffer = new Float32Array(stride)
+
+		this.Frames = frames;
+		this.#interpolater = new THREE.LinearInterpolant(times, values, stride, this.#resultBuffer)
+	}
+
+	// Pass in totalTimeElapsed, get interpolation value
+	evaluate(totalTimeElapsed) {
+
+		this.#interpolater.evaluate(totalTimeElapsed);
+		return this.onEvaluate(this.#resultBuffer);
+
+	}
+
+	// on functions indicate intended overridability
+	// Default behavior is to return the Float32ArrayBuffer
+	onEvaluate(result) {
+		return result;
+	}
+	
+}
+
+class Vec3Interpolant extends Interpolant {
+
+	constructor(frames) {
+		super(frames, 3);
+	}
+
+	// Repack evaluated values of the result buffer into the expected format.
+	onEvaluate(result) {
+
+		return new THREE.Vector3(result[0], result[1], result[2]);
+
+	}
+
+}
+
+class Vec2Interpolant extends Interpolant {
+
+	constructor(frames) {
+
+		super(frames, 2);
+
+	}
+
+	onEvaluate(result) {
+
+		return THREE.Vector2(result[0], result[1])
+
+	}
+
+}
+
+class Vec4Interpolant extends Interpolant {
+
+	constructor(frames) {
+
+		super(frames, 4);
+
+	}
+
+	onEvaluate(result) {
+
+		return THREE.Vector4(result[0], result[1], result[2], result[3])
+
+	}
+
+
+}
+
+class FloatInterpolant extends Interpolant {
+
+	constructor(frames) {
+
+		for (let i = 0; i < frames.length; i++) {
+
+			frames[i].value = [frames[i].value];
+
+		}
+
+		super(frames, 1);
+
+	}
+
+	onEvaluate(result) {
+
+		return result[0];
+
+	}
+
+	toTexture() {
+
+		const frames = this.Frames;
+
+		// Example Flow:
+		// Frames: 
+		// 	{	time: 0, value: 0 },
+		//  {	time: 4, value: 1 },
+		//  {	time: 7, value: 2 },
+		//  {	time: 9, value: 3 },
+		//	{	time: 10, value: 4 }
+		// Output:
+		// 	maxFrameTime: 10
+		// 	i = 1 -> stepSize = 0.4,
+		//  i = 2 -> stepSize = 0.3
+		// 	i = 3 -> stepSize = 0.2
+		// 	i = 4 -> stepSize = 0.1
+		// 	smallestStep = 0.1
+		// 	recommendedSize = Math.ceil(1/smallestStep) -> 10;
+		// 	10 unit 1-D Texture
+
+		const maxFrameTime = frames[frames.length - 1].time;
+		let smallestStep = 0.5
+
+		for (let i = 1; i < frames.length; ++i) {
+
+			const percentOfTime = (frames[i].time - frames[i - 1].time) / maxFrameTime;
+			smallestStep = Math.min(smallestStep, percentOfTime)
+
+		}
+
+		const recommendedSize = Math.ceil(1 /smallestStep);
+		const width = recommendedSize 
+		const data = new Float32Array(width);
+
+		// 0 / 9 * 10 -> 0
+		// 1 / 9 * 10 -> 1.1_
+		// etc/..
+		// 9 / 9 * 10 -> 10
+		for (let i = 0; i < width; ++i) {
+
+			const t = i / (width - 1);
+			const value = this.evaluate(t * maxFrameTime);
+			data[i] = value;
+
+		}
+
+		const dataTex = new THREE.DataTexture(data, width, 1, THREE.RedFormat, THREE.FloatType);
+		dataTex.minFilter = THREE.LinearFilter;
+		dataTex.magFilter = THREE.LinearFilter;
+		dataTex.wrapS = THREE.ClampToEdgeWrapping;
+		dataTex.wrapT = THREE.ClampToEdgeWrapping;
+		dataTex.needsUpdate = true;
+		return dataTex;
+
+	}
+
+}
+
+class ColorInterpolant extends Interpolant {
+
+	constructor(frames) {
+
+		for (const frame of frames) {
+
+			frame.value = [frame.value.r, frame.value.g, frame.value.b]
+
+		}
+
+		super(frames, 3)
+	}
+
+	onEvaluate(result) {
+
+		return new THREE.Color(result[0], result[1], result[2])
+
+	}
+
+
+}
+
+
+export default {
+	random, 
+	Vec3Interpolant, 
+	FloatInterpolant, 
+	Vec2Interpolant, 
+	Vec4Interpolant,
+	ColorInterpolant
+};

@@ -121,7 +121,7 @@ class App {
   #render_() {
 
     this.onRender();
-    this.#renderer_.render( this.#scene_, this.#camera_ );
+    this.#renderer_.renderAsync( this.#scene_, this.#camera_ );
 
   }
 
