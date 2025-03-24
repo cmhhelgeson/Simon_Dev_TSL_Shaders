@@ -1,6 +1,5 @@
 
-import * as THREE from 'three/webgpu';
-import { PointsNodeMaterial } from 'three/webgpu';
+import * as THREE from 'three';
 import {float, texture, vec3, sin, instanceIndex, time, instance, instancedBufferAttribute, vec2, Fn} from 'three/tsl';
 
 import { App } from './App';
@@ -45,7 +44,7 @@ const remap = (val, inLow, inHigh, outLow, outHigh) => {
 class ParticleProject extends App {
   #particles: ParticleInfo[] = [];
 	#particlesData: ParticlesData;
-	#particleMaterial: PointsNodeMaterial
+	#particleMaterial: THREE.PointsNodeMaterial
 
   constructor() {
     super();
@@ -99,7 +98,7 @@ class ParticleProject extends App {
 			{time: 1, value: 0.0},
 			{time: 2, value: 100.0},
 			{time: 3, value: 0.0},
-			{time: 4, value: 100.0},
+			{time: 4, value: 200.0},
 			{time: 5, value: 0.0},
 			{time: 6, value: 100.0},
 		]);
