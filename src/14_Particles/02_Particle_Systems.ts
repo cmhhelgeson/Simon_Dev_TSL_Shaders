@@ -97,6 +97,11 @@ class ParticleProject extends App {
 		const sizesOverLife = new MATH.FloatInterpolant([
 			{time: 0, value: 100.0},
 			{time: 1, value: 0.0},
+			{time: 2, value: 100.0},
+			{time: 3, value: 0.0},
+			{time: 4, value: 100.0},
+			{time: 5, value: 0.0},
+			{time: 6, value: 100.0},
 		]);
 
 		const sizeOverLifeTexture: THREE.DataTexture = sizesOverLife.toTexture();
@@ -111,7 +116,7 @@ class ParticleProject extends App {
 			color: 0xffffff,
 			rotationNode: instancedBufferAttribute(angleAttribute),
 			positionNode: instancedBufferAttribute(positionAttribute),
-			sizeNode: instancedBufferAttribute(sizeAttribute),
+			sizeNode: texture(sizeOverLifeTexture, vec2(instancedBufferAttribute(lifeAttribute), 0.5)).x,
 			opacityNode: instancedBufferAttribute(alphaAttribute),
 			colorNode: Fn(() => {
 
@@ -224,7 +229,7 @@ class ParticleProject extends App {
 			alphas[i] = p.alpha as number;
 			angles[i] = p.angle as number;
 			
-			sizes[i] = p.size + Math.sin(dt / 100) * 20.0;
+			//sizes[i] = 300.0;
 
 			lifes[i] = p.life / p.maxLife;
 
@@ -235,7 +240,7 @@ class ParticleProject extends App {
 			colorAttribute.needsUpdate = true;
 			// End of block
 			lifeAttribute.needsUpdate = true;
-			sizeAttribute.needsUpdate = true;
+			//sizeAttribute.needsUpdate = true;
 
 		}
 

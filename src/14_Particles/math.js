@@ -152,7 +152,7 @@ class FloatInterpolant extends Interpolant {
 		}
 
 		const recommendedSize = Math.ceil(1 /smallestStep);
-		const width = recommendedSize 
+		const width = recommendedSize + 1;
 		const data = new Float32Array(width);
 
 		// 0 / 9 * 10 -> 0
