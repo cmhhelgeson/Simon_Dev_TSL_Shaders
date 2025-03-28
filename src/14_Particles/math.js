@@ -1,5 +1,5 @@
-import MersenneTwiseter from 'mersennetwister'
-import * as THREE from 'three/webgpu'
+import MersenneTwiseter from 'mersennetwister';
+import * as THREE from 'three';
 
 const MT_ = new MersenneTwiseter();
 
@@ -41,6 +41,42 @@ class Interpolant {
 
 		this.#interpolater.evaluate(totalTimeElapsed);
 		return this.onEvaluate(this.#resultBuffer);
+
+	}
+
+	// Example Flow:
+	// Frames: 
+	// 	{	time: 0, value: 0 },
+	//  {	time: 4, value: 1 },
+	//  {	time: 7, value: 2 },
+	//  {	time: 9, value: 3 },
+	//	{	time: 10, value: 4 }
+	// Output:
+	// 	maxFrameTime: 10
+	// 	i = 1 -> stepSize = 0.4,
+	//  i = 2 -> stepSize = 0.3
+	// 	i = 3 -> stepSize = 0.2
+	// 	i = 4 -> stepSize = 0.1
+	// 	smallestStep = 0.1
+	// 	recommendedSize = Math.ceil(1/smallestStep) -> 10;
+	// 	10 unit 1-D Texture
+
+	getTextureWidth() {
+
+		const frames = this.Frames;
+
+		const maxFrameTime = frames[frames.length - 1].time;
+		let smallestStep = 0.5
+
+		for (let i = 1; i < frames.length; ++i) {
+
+			const percentOfTime = (frames[i].time - frames[i - 1].time) / maxFrameTime;
+			smallestStep = Math.min(smallestStep, percentOfTime)
+
+		}
+
+		const recommendedSize = Math.ceil(1 /smallestStep);
+		return recommendedSize + 1;
 
 	}
 
@@ -122,52 +158,23 @@ class FloatInterpolant extends Interpolant {
 
 	toTexture() {
 
-		const frames = this.Frames;
+		const textureWidth = this.getTextureWidth();
+		const maxFrameTime = this.Frames[this.Frames.length - 1].time;
 
-		// Example Flow:
-		// Frames: 
-		// 	{	time: 0, value: 0 },
-		//  {	time: 4, value: 1 },
-		//  {	time: 7, value: 2 },
-		//  {	time: 9, value: 3 },
-		//	{	time: 10, value: 4 }
-		// Output:
-		// 	maxFrameTime: 10
-		// 	i = 1 -> stepSize = 0.4,
-		//  i = 2 -> stepSize = 0.3
-		// 	i = 3 -> stepSize = 0.2
-		// 	i = 4 -> stepSize = 0.1
-		// 	smallestStep = 0.1
-		// 	recommendedSize = Math.ceil(1/smallestStep) -> 10;
-		// 	10 unit 1-D Texture
+		const data = new Float32Array(textureWidth);
 
-		const maxFrameTime = frames[frames.length - 1].time;
-		let smallestStep = 0.5
+		// 10 unit example texture:
+		// UV.X 0.0 -> this.evaluate(0.0)
+		// UV.X 1.0 -> this.evaluate(1.0)
+		for (let i = 0; i < textureWidth; ++i) {
 
-		for (let i = 1; i < frames.length; ++i) {
-
-			const percentOfTime = (frames[i].time - frames[i - 1].time) / maxFrameTime;
-			smallestStep = Math.min(smallestStep, percentOfTime)
-
-		}
-
-		const recommendedSize = Math.ceil(1 /smallestStep);
-		const width = recommendedSize + 1;
-		const data = new Float32Array(width);
-
-		// 0 / 9 * 10 -> 0
-		// 1 / 9 * 10 -> 1.1_
-		// etc/..
-		// 9 / 9 * 10 -> 10
-		for (let i = 0; i < width; ++i) {
-
-			const t = i / (width - 1);
+			const t = i / (textureWidth - 1);
 			const value = this.evaluate(t * maxFrameTime);
 			data[i] = value;
 
 		}
 
-		const dataTex = new THREE.DataTexture(data, width, 1, THREE.RedFormat, THREE.FloatType);
+		const dataTex = new THREE.DataTexture(data, textureWidth, 1, THREE.RedFormat, THREE.FloatType);
 		dataTex.minFilter = THREE.LinearFilter;
 		dataTex.magFilter = THREE.LinearFilter;
 		dataTex.wrapS = THREE.ClampToEdgeWrapping;
@@ -178,7 +185,6 @@ class FloatInterpolant extends Interpolant {
 	}
 
 }
-
 class ColorInterpolant extends Interpolant {
 
 	constructor(frames) {
@@ -198,6 +204,37 @@ class ColorInterpolant extends Interpolant {
 
 	}
 
+	toTexture() {
+
+		const textureWidth = this.getTextureWidth();
+		const maxFrameTime = this.Frames[this.Frames.length - 1].time;
+
+		const data = new Float32Array(textureWidth * 4);
+
+		// 10 unit example texture:
+		// UV.X 0.0 -> this.evaluate(0.0)
+		// UV.X 1.0 -> this.evaluate(1.0)
+		for (let i = 0; i < textureWidth; ++i) {
+
+			const t = i / (textureWidth - 1);
+			const value = this.evaluate(t * maxFrameTime);
+			console.log(value)
+			data[i * 4] = value.r;
+			data[i * 4 + 1] = value.g;
+			data[i * 4 + 2] = value.b;
+			data[i * 4 + 3] = 1.0;
+
+		}
+
+		const dataTex = new THREE.DataTexture(data, textureWidth, 1, THREE.RGBAFormat, THREE.FloatType);
+		dataTex.minFilter = THREE.LinearFilter;
+		dataTex.magFilter = THREE.LinearFilter;
+		dataTex.wrapS = THREE.ClampToEdgeWrapping;
+		dataTex.wrapT = THREE.ClampToEdgeWrapping;
+		dataTex.needsUpdate = true;
+		return dataTex;
+
+	}
 
 }
 

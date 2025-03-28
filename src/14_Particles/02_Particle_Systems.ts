@@ -13,7 +13,6 @@ interface ParticleInfo {
   alpha: number,
   size: number
   angle: number,
-  color: THREE.Color,
   position: THREE.Vector3,
   velocity: THREE.Vector3,
 }
@@ -21,14 +20,8 @@ interface ParticleInfo {
 interface ParticlesData {
 	positions: Float32Array<ArrayBuffer>,
 	positionAttribute: THREE.InstancedBufferAttribute,
-	sizes: Float32Array<ArrayBuffer>,
-	sizeAttribute: THREE.InstancedBufferAttribute,
 	angles: Float32Array<ArrayBuffer>
 	angleAttribute: THREE.InstancedBufferAttribute,
-	alphas: Float32Array<ArrayBuffer>,
-	alphaAttribute: THREE.InstancedBufferAttribute,
-	colors: Float32Array<ArrayBuffer>,
-	colorAttribute: THREE.InstancedBufferAttribute,
 	lifes: Float32Array<ArrayBuffer>,
 	lifeAttribute: THREE.InstancedBufferAttribute,
 }
@@ -55,44 +48,36 @@ class ParticleProject extends App {
 		const numParticles = 1000;
 
 		const positions = new Float32Array(numParticles * 3);
-		const sizes = new Float32Array(numParticles);
 		const angles = new Float32Array(numParticles);
-		const alphas = new Float32Array(numParticles);
-		const colors = new Float32Array(numParticles * 3)
 		const lifes = new Float32Array(numParticles);
 
 		for (let i = 0; i < numParticles; i ++) {
 			const x = positions[i * 3] = ( MATH.random() * 2 - 1) * 100;
 			const y = positions[i * 3 + 1] = (MATH.random() * 2 - 1)* 100;
 			const z = positions[i * 3 + 2] = (MATH.random() * 2 - 1) * 100;
-			sizes[i] = 100.0;
 			angles[i] = (Math.PI * ((i % 10) / 5 ));
-			alphas[i] = 0.0;
 			lifes[i] = 0.0;
 
 			// Direction of velocity explosion will always emanate from the origin
 			const dir = new THREE.Vector3(x, y, z).normalize();
 
-			const c = new THREE.Color().setHSL(1.0, 1.0, 1.0);
-			colors[i * 3] = c.r;
-			colors[i * 3 + 1] = c.g;
-			colors[i * 3 + 2] = c.b;
-
 			this.#particles.push({
 				life: 0,
-				maxLife: 6,
+				maxLife: 18,
 				alpha: 1.0,
 				angle: angles[i],
 				position: new THREE.Vector3(x, y, z),
 				size: 100.0,
 				velocity: dir.multiplyScalar(50),
-				color: c,
 			})
 		}
 
 		const textureLoader = new THREE.TextureLoader();
 		const starTexture = textureLoader.load('./resources/star.png')
 
+		// All particles use one life value (p.life / p.maxLife) so each interpolant has to cover
+		// the same length of time, irrespective of whether it is doing anything during
+		// large stretches of time.
 		const sizesOverLife = new MATH.FloatInterpolant([
 			{time: 0, value: 100.0},
 			{time: 1, value: 0.0},
@@ -101,26 +86,44 @@ class ParticleProject extends App {
 			{time: 4, value: 200.0},
 			{time: 5, value: 0.0},
 			{time: 6, value: 100.0},
+			{time: 18, value: 100.0},
+		]);
+
+		const alphasOverLife = new MATH.FloatInterpolant([
+			{time: 0, value: 1},
+			{time: 8, value: 1},
+			{time: 10, value: 0},
+			{time: 12, value: 1},
+			{time: 18, value: 1},
+		]);
+
+		const colorsOverLife = new MATH.ColorInterpolant([
+			{time: 0, value: new THREE.Color(0xFFFFFF)},
+			{time: 14, value: new THREE.Color(0xFFFFFF)},
+			{time: 15, value: new THREE.Color(0xFF0000)},
+			{time: 16, value: new THREE.Color(0x00FF00)},
+			{time: 17, value: new THREE.Color(0x0000FF)},
+			{time: 18, value: new THREE.Color(0xFFFFFF)},
 		]);
 
 		const sizeOverLifeTexture: THREE.DataTexture = sizesOverLife.toTexture();
+		const alphasOverLifeTexture: THREE.DataTexture = alphasOverLife.toTexture();
+		const colorsOverLifeTexture: THREE.DataTexture = colorsOverLife.toTexture();
 
 		const positionAttribute = new THREE.InstancedBufferAttribute( positions, 3 );
-		const sizeAttribute = new THREE.InstancedBufferAttribute( sizes, 1 );
 		const angleAttribute = new THREE.InstancedBufferAttribute( angles, 1)
-		const alphaAttribute = new THREE.InstancedBufferAttribute(alphas, 1)
-		const colorAttribute = new THREE.InstancedBufferAttribute(colors, 3);
 		const lifeAttribute = new THREE.InstancedBufferAttribute(lifes, 1);
+		
 		this.#particleMaterial = new THREE.PointsNodeMaterial( {
 			color: 0xffffff,
 			rotationNode: instancedBufferAttribute(angleAttribute),
 			positionNode: instancedBufferAttribute(positionAttribute),
 			sizeNode: texture(sizeOverLifeTexture, vec2(instancedBufferAttribute(lifeAttribute), 0.5)).x,
-			opacityNode: instancedBufferAttribute(alphaAttribute),
+			opacityNode: texture(alphasOverLifeTexture, vec2(instancedBufferAttribute(lifeAttribute), 0.5)).x,
 			colorNode: Fn(() => {
 
 				const starMap = texture(starTexture);
-				const color = instancedBufferAttribute(colorAttribute);
+				const color = texture(colorsOverLifeTexture, vec2(instancedBufferAttribute(lifeAttribute), 0.5)).rgb;
 				return vec3(starMap.mul(color));
 
 			})(),
@@ -138,14 +141,8 @@ class ParticleProject extends App {
 		this.#particlesData = {
 			positions: positions,
 			positionAttribute: positionAttribute,
-			sizes: sizes,
-			sizeAttribute: sizeAttribute,
 			angles: angles,
 			angleAttribute: angleAttribute,
-			alphas: alphas,
-			alphaAttribute: alphaAttribute,
-			colors: colors,
-			colorAttribute: colorAttribute,
 			lifes: lifes,
 			lifeAttribute: lifeAttribute,
 		}
@@ -165,29 +162,12 @@ class ParticleProject extends App {
 
 		const {
 			positions, positionAttribute,
-			sizes, sizeAttribute,
 			angles, angleAttribute,
-			alphas, alphaAttribute,
-			colors, colorAttribute,
 			lifes, lifeAttribute
 		} = this.#particlesData;
 
 		const gravity = new THREE.Vector3(0.0, -9.8, 0.0);
 		const DRAG = -0.1;
-
-		const colorOverLife = new MATH.ColorInterpolant([
-			{time: 0, value: new THREE.Color(0xFFFFFF)},
-			{time: 1, value: new THREE.Color(0xFF0000)},
-			{time: 2, value: new THREE.Color(0x00FF00)},
-			{time: 3, value: new THREE.Color(0x0000FF)},
-			{time: 4, value: new THREE.Color(0xFFFFFF)},
-		]);
-
-		const alphaOverLife = new MATH.FloatInterpolant([
-			{time: 0, value: 0},
-			{time: 1, value: 1},
-			{time: 6, value: 0},
-		]);
 
 		for (let i = 0; i < this.#particles.length; i++) {
 
@@ -213,19 +193,11 @@ class ParticleProject extends App {
 			//p.position.add(displacement)
 
 			// Assign the value of the updated particle to the buffer
-			
-			p.alpha = alphaOverLife.evaluate(p.life)
-			const color = colorOverLife.evaluate(p.life);
 			// Positions
 			positions[i * 3] = p.position.x;
 			positions[i * 3 + 1] = p.position.y 
 			positions[i * 3 + 2] = p.position.z;
-			// Colors
-			colors[i * 3] = color.r;
-			colors[i * 3 + 1] = color.g;
-			colors[i * 3 + 2] = color.b;
 			// Other
-			alphas[i] = p.alpha as number;
 			angles[i] = p.angle as number;
 			
 			//sizes[i] = 300.0;
@@ -234,12 +206,9 @@ class ParticleProject extends App {
 
 			positionAttribute.needsUpdate = true;
 			// Block to get rid of
-			alphaAttribute.needsUpdate = true;
 			angleAttribute.needsUpdate = true;
-			colorAttribute.needsUpdate = true;
 			// End of block
 			lifeAttribute.needsUpdate = true;
-			//sizeAttribute.needsUpdate = true;
 
 		}
 

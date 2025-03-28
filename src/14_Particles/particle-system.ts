@@ -1,6 +1,8 @@
 
 
 import * as THREE from 'three';
+import MATH from './math';
+import { instancedBufferAttribute, texture, vec2, Fn, vec3 } from 'three/tsl';
 
 // Defines the shape of the volume where the particles are created.
 class EmitterShape {
@@ -14,6 +16,8 @@ class Particle {
 	velocity: THREE.Vector3
 	life: number
 	maxLife: number
+
+	static GRAVITY = new THREE.Vector3(0.0, -9.8, 0.0)
 	
 	constructor() {
 
@@ -22,11 +26,7 @@ class Particle {
 		this.life = 0
 		this.maxLife = 6;
 
-
-
 	}
-
-
 
 }
 
@@ -124,9 +124,9 @@ class Emitter {
 			p.angle += rotationSpeed * dt;
 
 			// Apply Gravity
-			const forces = gravity.clone();
+			const forces = Particle.GRAVITY.clone();
 			// Apply pseudo air resistance drag force that works against the velocity
-			forces.add(p.velocity.clone().multiplyScalar(DRAG));
+			forces.add(p.velocity.clone().multiplyScalar(0.1)); //DRAG
 
 			p.velocity.add(forces.multiplyScalar(dt));
 
@@ -183,5 +183,61 @@ class ParticleSystem {
 
 // Renders the particles.
 class ParticleRenderer {
+
+	#particlesSprite: THREE.Sprite;
+
+	initialize(material, params, particlesData) {
+
+		const numParticles = 1000;
+
+		const positions = new Float32Array(params.numParticles * 3);
+		const lifes = new Float32Array(params.numParticles);
+
+		const textureLoader = new THREE.TextureLoader();
+		const starTexture = textureLoader.load('./resources/star.png')
+
+		const sizesOverLife = new MATH.FloatInterpolant([
+			{time: 0, value: 100.0},
+			{time: 1, value: 0.0},
+			{time: 2, value: 100.0},
+			{time: 3, value: 0.0},
+			{time: 4, value: 200.0},
+			{time: 5, value: 0.0},
+			{time: 6, value: 100.0},
+		]);
+
+		const sizeOverLifeTexture: THREE.DataTexture = sizesOverLife.toTexture();
+
+		const positionAttribute = new THREE.InstancedBufferAttribute( positions, 3 );
+		const lifeAttribute = new THREE.InstancedBufferAttribute(lifes, 1);
+		
+		material = new THREE.PointsNodeMaterial( {
+			color: 0xffffff,
+			rotationNode: instancedBufferAttribute(particlesData.angleAttribute),
+			positionNode: instancedBufferAttribute(positionAttribute),
+			sizeNode: texture(sizeOverLifeTexture, vec2(instancedBufferAttribute(lifeAttribute), 0.5)).x,
+			opacityNode: instancedBufferAttribute(particlesData.alphaAttribute),
+			colorNode: Fn(() => {
+
+				const starMap = texture(starTexture);
+				const color = instancedBufferAttribute(particlesData.colorAttribute);
+				return vec3(starMap.mul(color));
+
+			})(),
+			sizeAttenuation: true,
+			depthWrite: false,
+			//map: starTexture,
+			depthTest: true,
+			transparent: true,
+			blending: THREE.AdditiveBlending
+		} );
+
+		const particles = new THREE.Sprite(material)
+		particles.count = numParticles;
+
+		this.#particlesSprite = new THREE.Sprite(material);
+		this.#particlesSprite.count = params.numParticles;
+
+	}
 
 }

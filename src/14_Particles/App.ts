@@ -1,11 +1,8 @@
-//import * as THREE from 'three';
-import * as THREE from 'three/webgpu'
+import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
-import { WebGPURenderer } from 'three/webgpu';
-
 class App {
 
   // Private references to values shared across all single scene Threejs applications
