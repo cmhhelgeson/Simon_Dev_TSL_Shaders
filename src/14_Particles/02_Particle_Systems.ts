@@ -7,6 +7,8 @@ import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
 
 import MATH from './math'
 
+import { ParticleRenderer } from './particle-system';
+
 interface ParticleInfo {
 	life: number,
   maxLife: number,
@@ -33,6 +35,7 @@ const remap = (val, inLow, inHigh, outLow, outHigh) => {
 
 class ParticleProject extends App {
   #particles: ParticleInfo[] = [];
+	#particleRenderer: ParticleRenderer;
 	#particlesData: ParticlesData;
 	#particleMaterial: THREE.PointsNodeMaterial
 
@@ -115,8 +118,8 @@ class ParticleProject extends App {
 		
 		this.#particleMaterial = new THREE.PointsNodeMaterial( {
 			color: 0xffffff,
-			rotationNode: instancedDynamicBufferAttribute(angleAttribute),
-			positionNode: instancedDynamicBufferAttribute(positionAttribute),
+			rotationNode: instancedDynamicBufferAttribute(angleAttribute).debug(code => console.log(code)),
+			positionNode: instancedDynamicBufferAttribute(positionAttribute).debug(code => console.log(code)),
 			sizeNode: texture(sizeOverLifeTexture, vec2(lifeNode, 0.5)).x,
 			opacityNode: texture(alphasOverLifeTexture, vec2(lifeNode, 0.5)).x,
 			colorNode: Fn(() => {
@@ -128,25 +131,19 @@ class ParticleProject extends App {
 			})(),
 			sizeAttenuation: true,
 			depthWrite: false,
-			//map: starTexture,
 			depthTest: true,
 			transparent: true,
 			blending: THREE.AdditiveBlending
-		} );
+		} )
 
-		const particles = new THREE.Sprite(this.#particleMaterial)
-		particles.count = numParticles;
-
-		this.#particlesData = {
+		this.#particleRenderer = new ParticleRenderer(this.#particleMaterial, {
+			scene: this.Scene,
 			positions: positions,
-			angles: angles,
 			lifes: lifes,
-		}
-
-		this.Scene.add(particles);
+			numParticles: numParticles,
+		})
 
 	}
-
 
 	#stepParticles(dt, totalTimeElapsed) {
 
@@ -155,12 +152,6 @@ class ParticleProject extends App {
 			return;
 
 		}
-
-		const {
-			positions,
-			angles,
-			lifes,
-		} = this.#particlesData;
 
 		const gravity = new THREE.Vector3(0.0, -9.8, 0.0);
 		const DRAG = -0.1;
@@ -186,16 +177,9 @@ class ParticleProject extends App {
 			p.velocity.add(forces.multiplyScalar(dt));
 
 			const displacement = p.velocity.clone().multiplyScalar(dt);
-			//p.position.add(displacement)
-
-			// Assign the value of the updated particle to the buffer
-			// Positions
-			positions[i * 3] = p.position.x;
-			positions[i * 3 + 1] = p.position.y 
-			positions[i * 3 + 2] = p.position.z;
-			// Other
-			angles[i] = p.angle as number;
-			lifes[i] = p.life / p.maxLife;
+			p.position.add(displacement)
+			
+			this.#particleRenderer.updateFromParticle(p, i)
 
 		}
 

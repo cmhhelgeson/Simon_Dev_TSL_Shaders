@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import MATH from './math';
 import { instancedBufferAttribute, texture, vec2, Fn, vec3 } from 'three/tsl';
 
-import { PointsNodeMaterial } from 'three/webgpu';
+import { NodeMaterial, PointsNodeMaterial } from 'three/webgpu';
 
 interface EmitterParameters {
 	// Max number of particles being displayed at once
@@ -20,12 +20,12 @@ interface EmitterParameters {
 }
 
 // Defines the shape of the volume where the particles are created.
-class EmitterShape {
+export class EmitterShape {
 
 
 }
 
-class Particle {
+export class Particle {
 
 	position: THREE.Vector3
 	velocity: THREE.Vector3
@@ -47,7 +47,7 @@ class Particle {
 
 // Emitter will create particles.
 // Rather than creating particles randomly, 
-class Emitter {
+export class Emitter {
 
 	#particles: Particle[] = [];
 	#timeSinceLastEmit: number = 0;
@@ -157,7 +157,7 @@ class Emitter {
 
 
 // Entry point for creating particles that contains emitters.
-class ParticleSystem {
+export class ParticleSystem {
 
 	#emitters: Emitter[] = [];
 
@@ -184,32 +184,57 @@ class ParticleSystem {
 }
 
 // Renders the particles.
-class ParticleRenderer {
+
+interface ParticleRendererParams {
+	positions: Float32Array<ArrayBuffer>,
+	lifes: Float32Array<ArrayBuffer>,
+	numParticles: number,
+	scene: THREE.Scene,
+}
+export class ParticleRenderer {
 	
 	// For purposes of the WebGPU version, particlesSprite is effectively the particle geometry.
 	// Though it's an inelegant analogue given that the "geometry" returned already has a material 
 	// attached to it.
 	#particlesSprite: THREE.Sprite;
-	#particlesMaterial: PointsNodeMaterial
+	#positions: Float32Array<ArrayBuffer>;
+	#lifes: Float32Array<ArrayBuffer>;
 
-	initialize(material, params) {
+	constructor(material, params: ParticleRendererParams) {
 
-		const positions = new Float32Array(params.numParticles * 3);
-		const lifes = new Float32Array(params.numParticles);
-
-		const textureLoader = new THREE.TextureLoader();
-		const starTexture = textureLoader.load('./resources/star.png')
-
-		const positionAttribute = new THREE.InstancedBufferAttribute( positions, 3 );
-		const lifeAttribute = new THREE.InstancedBufferAttribute(lifes, 1);
-
-		const particles = new THREE.Sprite(material)
-		particles.count = params.numParticles;
+		this.#positions = params.positions;
+		this.#lifes = params.lifes;
 
 		this.#particlesSprite = new THREE.Sprite(material);
 		this.#particlesSprite.count = params.numParticles;
 
 		params.scene.add(this.#particlesSprite);
+
+	}
+
+	updateFromParticles(particles: Particle[]) {
+
+		for (let i = 0; i < particles.length; i++) {
+
+			const particle = particles[i]
+			this.#positions[i * 3 + 0] = particle.position.x
+			this.#positions[i * 3 + 1] = particle.position.y
+			this.#positions[i * 3 + 2] = particle.position.z;
+
+			this.#lifes[i] = particle.life / particle.maxLife;
+
+
+		}
+
+	}
+
+	updateFromParticle(particle: Particle, index: number) {
+
+		this.#positions[index * 3 + 0] = particle.position.x;
+		this.#positions[index * 3 + 1] = particle.position.y;
+		this.#positions[index * 3 + 2] = particle.position.z;
+
+		this.#lifes[index] = particle.life / particle.maxLife;
 
 	}
 
