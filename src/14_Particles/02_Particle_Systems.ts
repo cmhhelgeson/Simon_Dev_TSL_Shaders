@@ -1,6 +1,6 @@
 
 import * as THREE from 'three';
-import {float, texture, vec3, sin, instanceIndex, time, instance, instancedBufferAttribute, vec2, Fn} from 'three/tsl';
+import {float, texture, vec3, sin, instanceIndex, time, instance, instancedBufferAttribute, instancedDynamicBufferAttribute, vec2, Fn} from 'three/tsl';
 
 import { App } from './App';
 import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
@@ -19,11 +19,8 @@ interface ParticleInfo {
 
 interface ParticlesData {
 	positions: Float32Array<ArrayBuffer>,
-	positionAttribute: THREE.InstancedBufferAttribute,
 	angles: Float32Array<ArrayBuffer>
-	angleAttribute: THREE.InstancedBufferAttribute,
 	lifes: Float32Array<ArrayBuffer>,
-	lifeAttribute: THREE.InstancedBufferAttribute,
 }
 
 const remap = (val, inLow, inHigh, outLow, outHigh) => {
@@ -113,17 +110,19 @@ class ParticleProject extends App {
 		const positionAttribute = new THREE.InstancedBufferAttribute( positions, 3 );
 		const angleAttribute = new THREE.InstancedBufferAttribute( angles, 1)
 		const lifeAttribute = new THREE.InstancedBufferAttribute(lifes, 1);
+
+		const lifeNode = instancedDynamicBufferAttribute(lifeAttribute)
 		
 		this.#particleMaterial = new THREE.PointsNodeMaterial( {
 			color: 0xffffff,
-			rotationNode: instancedBufferAttribute(angleAttribute),
-			positionNode: instancedBufferAttribute(positionAttribute),
-			sizeNode: texture(sizeOverLifeTexture, vec2(instancedBufferAttribute(lifeAttribute), 0.5)).x,
-			opacityNode: texture(alphasOverLifeTexture, vec2(instancedBufferAttribute(lifeAttribute), 0.5)).x,
+			rotationNode: instancedDynamicBufferAttribute(angleAttribute),
+			positionNode: instancedDynamicBufferAttribute(positionAttribute),
+			sizeNode: texture(sizeOverLifeTexture, vec2(lifeNode, 0.5)).x,
+			opacityNode: texture(alphasOverLifeTexture, vec2(lifeNode, 0.5)).x,
 			colorNode: Fn(() => {
 
 				const starMap = texture(starTexture);
-				const color = texture(colorsOverLifeTexture, vec2(instancedBufferAttribute(lifeAttribute), 0.5)).rgb;
+				const color = texture(colorsOverLifeTexture, vec2(lifeNode, 0.5)).rgb;
 				return vec3(starMap.mul(color));
 
 			})(),
@@ -140,11 +139,8 @@ class ParticleProject extends App {
 
 		this.#particlesData = {
 			positions: positions,
-			positionAttribute: positionAttribute,
 			angles: angles,
-			angleAttribute: angleAttribute,
 			lifes: lifes,
-			lifeAttribute: lifeAttribute,
 		}
 
 		this.Scene.add(particles);
@@ -161,9 +157,9 @@ class ParticleProject extends App {
 		}
 
 		const {
-			positions, positionAttribute,
-			angles, angleAttribute,
-			lifes, lifeAttribute
+			positions,
+			angles,
+			lifes,
 		} = this.#particlesData;
 
 		const gravity = new THREE.Vector3(0.0, -9.8, 0.0);
@@ -199,16 +195,7 @@ class ParticleProject extends App {
 			positions[i * 3 + 2] = p.position.z;
 			// Other
 			angles[i] = p.angle as number;
-			
-			//sizes[i] = 300.0;
-
 			lifes[i] = p.life / p.maxLife;
-
-			positionAttribute.needsUpdate = true;
-			// Block to get rid of
-			angleAttribute.needsUpdate = true;
-			// End of block
-			lifeAttribute.needsUpdate = true;
 
 		}
 

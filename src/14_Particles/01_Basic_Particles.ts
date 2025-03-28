@@ -1,6 +1,6 @@
 
 import * as THREE from 'three';
-import {float, texture, vec3, sin, instanceIndex, time, instance, instancedBufferAttribute, vec2, Fn} from 'three/tsl';
+import {float, texture, vec3, sin, instanceIndex, time, instance, instancedBufferAttribute, instancedDynamicBufferAttribute, vec2, Fn} from 'three/tsl';
 
 import { App } from './App';
 import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
@@ -18,13 +18,9 @@ interface ParticleInfo {
 
 interface ParticlesData {
 	positions: Float32Array<ArrayBuffer>,
-	positionAttribute: THREE.InstancedBufferAttribute,
 	sizes: Float32Array<ArrayBuffer>,
-	sizeAttribute: THREE.InstancedBufferAttribute,
 	angles: Float32Array<ArrayBuffer>
-	angleAttribute: THREE.InstancedBufferAttribute,
 	alphas: Float32Array<ArrayBuffer>,
-	alphaAttribute: THREE.InstancedBufferAttribute,
 }
 
 const remap = (val, inLow, inHigh, outLow, outHigh) => {
@@ -33,7 +29,6 @@ const remap = (val, inLow, inHigh, outLow, outHigh) => {
 	return t * (outHigh - outLow) + outLow;
 
 }
-
 
 class ParticleProject extends App {
   #particles: ParticleInfo[] = [];
@@ -92,10 +87,10 @@ class ParticleProject extends App {
 		const colorAttribute = new THREE.InstancedBufferAttribute(colors, 3);
 		this.#particleMaterial = new THREE.PointsNodeMaterial( {
 			color: 0xffffff,
-			rotationNode: instancedBufferAttribute(angleAttribute),
-			positionNode: instancedBufferAttribute(positionAttribute),
-			sizeNode: instancedBufferAttribute(sizeAttribute),
-			opacityNode: instancedBufferAttribute(alphaAttribute),
+			rotationNode: instancedDynamicBufferAttribute(angleAttribute),
+			positionNode: instancedDynamicBufferAttribute(positionAttribute),
+			sizeNode: instancedDynamicBufferAttribute(sizeAttribute),
+			opacityNode: instancedDynamicBufferAttribute(alphaAttribute),
 			colorNode: Fn(() => {
 
 				const starMap = texture(starTexture);
@@ -118,13 +113,9 @@ class ParticleProject extends App {
 
 		this.#particlesData = {
 			positions: positions,
-			positionAttribute: positionAttribute,
 			sizes: sizes,
-			sizeAttribute: sizeAttribute,
 			angles: angles,
-			angleAttribute: angleAttribute,
 			alphas: alphas,
-			alphaAttribute: alphaAttribute,
 		}
 
 		this.Scene.add(particles);
@@ -142,10 +133,10 @@ class ParticleProject extends App {
 		}
 
 		const {
-			positions, positionAttribute,
+			positions,
 			sizes,
-			angles, angleAttribute,
-			alphas, alphaAttribute,
+			angles,
+			alphas,
 		} = this.#particlesData;
 
 		const gravity = new THREE.Vector3(0.0, -9.8, 0.0);
@@ -187,11 +178,6 @@ class ParticleProject extends App {
 			positions[i * 3 + 2] = p.position.z;
 			alphas[i] = p.alpha as number;
 			angles[i] = p.angle as number;
-
-			positionAttribute.needsUpdate = true;
-			alphaAttribute.needsUpdate = true;
-			angleAttribute.needsUpdate = true;
-			
 			sizes[i] = p.size + Math.sin(dt / 100) * 20.0;
 
 		}

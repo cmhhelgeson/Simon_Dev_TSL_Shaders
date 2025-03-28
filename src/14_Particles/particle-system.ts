@@ -4,6 +4,21 @@ import * as THREE from 'three';
 import MATH from './math';
 import { instancedBufferAttribute, texture, vec2, Fn, vec3 } from 'three/tsl';
 
+import { PointsNodeMaterial } from 'three/webgpu';
+
+interface EmitterParameters {
+	// Max number of particles being displayed at once
+	// Or the maximum amount of particle data we can hold.
+	// For instance, though we may "emit" 1000 particles over the lifetime of the application
+	// We'll only store data for 100 particles. When the lives of particles 0 - 99 ends,
+	// their memory will be reset and used for the emitted particles 100 - 199
+	maxDisplayParticles: number,
+	// Number of particles emitted per second
+	particleEmissionRate: number,
+	// Max number of particles emitted during the lifetime of the application
+	maxEmission: number,
+}
+
 // Defines the shape of the volume where the particles are created.
 class EmitterShape {
 
@@ -24,20 +39,9 @@ class Particle {
 		this.position = new THREE.Vector3();
 		this.velocity = new THREE.Vector3();
 		this.life = 0
-		this.maxLife = 6;
+		this.maxLife = 18;
 
 	}
-
-}
-
-class EmitterParameters {
-
-	// Max number of particles display at once.
-	maxDisplayParticles = 100;
-	// Number of particles emitted per second
-	particleEmissionRate = 1;
-	// Max number of particles ever emitted
-	maxEmission = 200;
 
 }
 
@@ -46,19 +50,20 @@ class EmitterParameters {
 class Emitter {
 
 	#particles: Particle[] = [];
-	#emissionTime = 0;
-	#numParticlesEmitted = 0;
+	#timeSinceLastEmit: number = 0;
+	#numParticlesEmitted: number = 0;
 	#params: EmitterParameters;
 
 	constructor(params) {
 		this.#params = params
 	}
 
-	// 1. Update itself and its own properties
-	// 2. Then update the particles it has jusidiction over.
+
 	step(dt) {
 
+		// Update current emitter instance.
 		this.#updateEmission(dt);
+		// Update the particles this emitter has jurisdiction over
 		this.#updateParticles(dt);
 
 	}
@@ -71,7 +76,7 @@ class Emitter {
 		// Condtions for whether a new particle can be created
 		return (
 			// We are equal to are beyond the time per particle
-			this.#emissionTime >= secondsPerParticle &&
+			this.#timeSinceLastEmit >= secondsPerParticle &&
 			// We are not tracking the maximum number of particles available at once.
 			this.#particles.length < this.#params.maxDisplayParticles &&
 			// We have created less than the total number of particles that can be created over an emitter's lifetime.
@@ -95,13 +100,13 @@ class Emitter {
 	#updateEmission(dt) {
 
 		// Update time since last particle emission
-		this.#emissionTime += dt;
+		this.#timeSinceLastEmit += dt;
 		const secondsPerParticle = 1.0 / this.#params.particleEmissionRate;
 		
 		if (this.#canCreateParticle()) {
 
 			// Reset time since last emission
-			this.#emissionTime -= secondsPerParticle
+			this.#timeSinceLastEmit -= secondsPerParticle
 
 			this.#numParticlesEmitted += 1;
 
@@ -160,14 +165,12 @@ class ParticleSystem {
 
 	}
 
-	// Create an emitter.
 	addEmitter(emitter) {
 
 		this.#emitters.push(emitter);
 
 	}
 
-	// Step through each emitter. (probably call in App.onStep())
 	step(dt) {
 
 		for (const emitter of this.#emitters) {
@@ -178,17 +181,18 @@ class ParticleSystem {
 
 	}
 
-
 }
 
 // Renders the particles.
 class ParticleRenderer {
-
+	
+	// For purposes of the WebGPU version, particlesSprite is effectively the particle geometry.
+	// Though it's an inelegant analogue given that the "geometry" returned already has a material 
+	// attached to it.
 	#particlesSprite: THREE.Sprite;
+	#particlesMaterial: PointsNodeMaterial
 
-	initialize(material, params, particlesData) {
-
-		const numParticles = 1000;
+	initialize(material, params) {
 
 		const positions = new Float32Array(params.numParticles * 3);
 		const lifes = new Float32Array(params.numParticles);
@@ -196,47 +200,16 @@ class ParticleRenderer {
 		const textureLoader = new THREE.TextureLoader();
 		const starTexture = textureLoader.load('./resources/star.png')
 
-		const sizesOverLife = new MATH.FloatInterpolant([
-			{time: 0, value: 100.0},
-			{time: 1, value: 0.0},
-			{time: 2, value: 100.0},
-			{time: 3, value: 0.0},
-			{time: 4, value: 200.0},
-			{time: 5, value: 0.0},
-			{time: 6, value: 100.0},
-		]);
-
-		const sizeOverLifeTexture: THREE.DataTexture = sizesOverLife.toTexture();
-
 		const positionAttribute = new THREE.InstancedBufferAttribute( positions, 3 );
 		const lifeAttribute = new THREE.InstancedBufferAttribute(lifes, 1);
-		
-		material = new THREE.PointsNodeMaterial( {
-			color: 0xffffff,
-			rotationNode: instancedBufferAttribute(particlesData.angleAttribute),
-			positionNode: instancedBufferAttribute(positionAttribute),
-			sizeNode: texture(sizeOverLifeTexture, vec2(instancedBufferAttribute(lifeAttribute), 0.5)).x,
-			opacityNode: instancedBufferAttribute(particlesData.alphaAttribute),
-			colorNode: Fn(() => {
-
-				const starMap = texture(starTexture);
-				const color = instancedBufferAttribute(particlesData.colorAttribute);
-				return vec3(starMap.mul(color));
-
-			})(),
-			sizeAttenuation: true,
-			depthWrite: false,
-			//map: starTexture,
-			depthTest: true,
-			transparent: true,
-			blending: THREE.AdditiveBlending
-		} );
 
 		const particles = new THREE.Sprite(material)
-		particles.count = numParticles;
+		particles.count = params.numParticles;
 
 		this.#particlesSprite = new THREE.Sprite(material);
 		this.#particlesSprite.count = params.numParticles;
+
+		params.scene.add(this.#particlesSprite);
 
 	}
 
