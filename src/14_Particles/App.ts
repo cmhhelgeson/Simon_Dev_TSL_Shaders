@@ -122,7 +122,7 @@ class App {
 
   }
 
-  #step_( dt ) {
+  #step_( dt: number ) {
 
     this.onStep( dt, this.#clock_.getElapsedTime() );
 

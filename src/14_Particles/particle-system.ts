@@ -4,9 +4,9 @@ import * as THREE from 'three';
 import MATH from './math';
 import { instancedBufferAttribute, texture, vec2, Fn, vec3 } from 'three/tsl';
 
-import { NodeMaterial, PointsNodeMaterial } from 'three/webgpu';
+import { NodeMaterial, PointsNodeMaterial, SpriteNodeMaterial } from 'three/webgpu';
 
-interface EmitterParameters {
+export interface EmitterParameters {
 	// Max number of particles being displayed at once
 	// Or the maximum amount of particle data we can hold.
 	// For instance, though we may "emit" 1000 particles over the lifetime of the application
@@ -138,8 +138,6 @@ export class Emitter {
 			const displacement = p.velocity.clone().multiplyScalar(dt);
 			//p.position.add(displacement)
 
-
-
 	}
 
 	#updateParticles(dt) {
@@ -165,13 +163,13 @@ export class ParticleSystem {
 
 	}
 
-	addEmitter(emitter) {
+	addEmitter(emitter: Emitter) {
 
 		this.#emitters.push(emitter);
 
 	}
 
-	step(dt) {
+	step(dt: number) {
 
 		for (const emitter of this.#emitters) {
 
@@ -200,7 +198,7 @@ export class ParticleRenderer {
 	#positions: Float32Array<ArrayBuffer>;
 	#lifes: Float32Array<ArrayBuffer>;
 
-	constructor(material, params: ParticleRendererParams) {
+	constructor(material: SpriteNodeMaterial, params: ParticleRendererParams) {
 
 		this.#positions = params.positions;
 		this.#lifes = params.lifes;

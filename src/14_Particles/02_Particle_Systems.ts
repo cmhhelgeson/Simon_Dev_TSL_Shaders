@@ -7,7 +7,8 @@ import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
 
 import MATH from './math'
 
-import { ParticleRenderer } from './particle-system';
+import { ParticleRenderer, ParticleSystem, EmitterParameters, Emitter} from './particle-system';
+import { PointsNodeMaterial } from 'three/webgpu';
 
 interface ParticleInfo {
 	life: number,
@@ -36,11 +37,23 @@ const remap = (val, inLow, inHigh, outLow, outHigh) => {
 class ParticleProject extends App {
   #particles: ParticleInfo[] = [];
 	#particleRenderer: ParticleRenderer;
-	#particlesData: ParticlesData;
-	#particleMaterial: THREE.PointsNodeMaterial
+	#particleMaterial: PointsNodeMaterial
+	#particleSystem: ParticleSystem;
 
   constructor() {
     super();
+
+		this.#particleSystem = new ParticleSystem();
+
+		const emitterParams: EmitterParameters = {
+			maxDisplayParticles: 100,
+			maxEmission: 1000,
+			particleEmissionRate: 1.0
+		}
+		const emitter = new Emitter(emitterParams)
+		this.#particleSystem.addEmitter(emitter)
+
+
   }
 
 	#createPointsParticleSystem() {
@@ -145,7 +158,7 @@ class ParticleProject extends App {
 
 	}
 
-	#stepParticles(dt, totalTimeElapsed) {
+	#stepParticles(dt: number, totalTimeElapsed: number) {
 
 		if(!this.#particleMaterial) {
 
@@ -186,7 +199,9 @@ class ParticleProject extends App {
 		
 	}
 
-	onStep(dt, totalTimeElapsed) {
+	onStep(dt: number, totalTimeElapsed: number) {
+
+		this.#particleSystem.step(dt);
 
 		this.#stepParticles(dt, totalTimeElapsed)
 
