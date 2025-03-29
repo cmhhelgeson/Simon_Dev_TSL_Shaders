@@ -18,12 +18,17 @@ const remap = (val, inLow, inHigh, outLow, outHigh) => {
 }
 
 class ParticleProject extends App {
+	// From 1 hr onwards, pass particle renderer as emitter params
+	// Each emitter will now be responsible for its own rendering
 	#particleRenderer: ParticleRenderer;
 	#particleMaterial: PointsNodeMaterial
 	#particleSystem: ParticleSystem;
 
   constructor() {
     super();
+  }
+
+	#createPointsParticleSystem() {
 
 		this.#particleSystem = new ParticleSystem();
 
@@ -35,22 +40,7 @@ class ParticleProject extends App {
 			startNumParticles: 0,
 		} */
 
-		// Emitter parameters for having particles available on application start
-		const emitterParams = {
-			maxDisplayParticles: 1000,
-			maxEmission: 1000,
-			startNumParticles: 1000,
-			// Effectively irrelvant
-			particleEmissionRate: 1.0,
-		}
-		const emitter = new Emitter(emitterParams)
-		this.#particleSystem.addEmitter(emitter)
-
-  }
-
-	#createPointsParticleSystem() {
-
-		const numParticles = this.#particleSystem.getEmitterParams(0).maxDisplayParticles;
+		const numParticles = 1000;
 
 		const positions = new Float32Array(numParticles * 3);
 		const angles = new Float32Array(numParticles);
@@ -76,8 +66,6 @@ class ParticleProject extends App {
 				velocity: dir.multiplyScalar(50),
 			})
 		}
-
-		this.#particleSystem.assignEmitterParticles(particles, 0);
 
 		const textureLoader = new THREE.TextureLoader();
 		const starTexture = textureLoader.load('./resources/star.png')
@@ -153,6 +141,21 @@ class ParticleProject extends App {
 			numParticles: numParticles,
 		})
 
+		// Emitter parameters for having particles available on application start
+		const emitterParams: EmitterParameters = {
+			maxDisplayParticles: 1000,
+			maxEmission: 1000,
+			startNumParticles: 1000,
+			// Effectively irrelvant
+			particleEmissionRate: 1.0,
+			// Passing the renderer as a reference to each emitter
+			particleRenderer: this.#particleRenderer,
+		}
+		const emitter = new Emitter(emitterParams)
+		this.#particleSystem.addEmitter(emitter)
+
+		this.#particleSystem.assignEmitterParticles(particles, 0);
+
 	}
 
 	#stepParticles(dt: number, totalTimeElapsed: number) {
@@ -167,19 +170,24 @@ class ParticleProject extends App {
 
 		const particles = this.#particleSystem.getEmitterParticles(0);
 
-		for (let i = 0; i < particles.length; i++) {
-
-			this.#particleRenderer.updateFromParticle(particles[i], i)
-
-		}
 
 	}
 
 	onStep(dt: number, totalTimeElapsed: number) {
 
+		if (!this.#particleMaterial) {
+			return;
+		}
+
 		this.#particleSystem.step(dt);
 
-		this.#stepParticles(dt, totalTimeElapsed)
+		const particles = this.#particleSystem.getEmitterParticles(0)
+
+		for (let i = 0; i < particles.length; i++) {
+
+			this.#particleRenderer.updateFromParticle(particles[i], i)
+
+		}
 
 	}
 	

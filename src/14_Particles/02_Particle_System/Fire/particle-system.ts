@@ -18,6 +18,7 @@ export interface EmitterParameters {
 	particleEmissionRate: number,
 	// Max number of particles emitted during the lifetime of the application
 	maxEmission: number,
+	particleRenderer: ParticleRenderer,
 }
 
 // Defines the shape of the volume where the particles are created.
@@ -244,12 +245,13 @@ export class ParticleSystem {
 
 // Renders the particles.
 
-interface ParticleRendererParams {
+export interface ParticleRendererParams {
 	positions: Float32Array<ArrayBuffer>,
 	lifes: Float32Array<ArrayBuffer>,
 	angles: Float32Array<ArrayBuffer>,
 	numParticles: number,
 	scene: THREE.Scene,
+	//group: THREE.Group,
 }
 export class ParticleRenderer {
 	
@@ -271,6 +273,8 @@ export class ParticleRenderer {
 		this.#particlesSprite.count = params.numParticles;
 
 		params.scene.add(this.#particlesSprite);
+
+		//params.group.add(this.#particlesSprite)
 
 	}
 
