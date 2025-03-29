@@ -2,29 +2,13 @@
 import * as THREE from 'three';
 import {float, texture, vec3, sin, instanceIndex, time, instance, instancedBufferAttribute, instancedDynamicBufferAttribute, vec2, Fn} from 'three/tsl';
 
-import { App } from './App';
+import { App } from '../../utils/App';
 import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
 
-import MATH from './math'
+import MATH from '../../utils/math'
 
-import { ParticleRenderer, ParticleSystem, EmitterParameters, Emitter} from './particle-system';
+import { ParticleRenderer, ParticleSystem, EmitterParameters, Emitter, Particle} from './lazy-particle-system';
 import { PointsNodeMaterial } from 'three/webgpu';
-
-interface ParticleInfo {
-	life: number,
-  maxLife: number,
-  alpha: number,
-  size: number
-  angle: number,
-  position: THREE.Vector3,
-  velocity: THREE.Vector3,
-}
-
-interface ParticlesData {
-	positions: Float32Array<ArrayBuffer>,
-	angles: Float32Array<ArrayBuffer>
-	lifes: Float32Array<ArrayBuffer>,
-}
 
 const remap = (val, inLow, inHigh, outLow, outHigh) => {
 	
@@ -33,9 +17,7 @@ const remap = (val, inLow, inHigh, outLow, outHigh) => {
 
 }
 
-
 class ParticleProject extends App {
-  #particles: ParticleInfo[] = [];
 	#particleRenderer: ParticleRenderer;
 	#particleMaterial: PointsNodeMaterial
 	#particleSystem: ParticleSystem;
@@ -45,24 +27,36 @@ class ParticleProject extends App {
 
 		this.#particleSystem = new ParticleSystem();
 
-		const emitterParams: EmitterParameters = {
+		// Normal emitter parameters
+		/* const emitterParams: EmitterParameters = {
 			maxDisplayParticles: 100,
 			maxEmission: 1000,
 			particleEmissionRate: 1.0
+			startNumParticles: 0,
+		} */
+
+		// Emitter parameters for having particles available on application start
+		const emitterParams = {
+			maxDisplayParticles: 1000,
+			maxEmission: 1000,
+			startNumParticles: 1000,
+			// Effectively irrelvant
+			particleEmissionRate: 1.0,
 		}
 		const emitter = new Emitter(emitterParams)
 		this.#particleSystem.addEmitter(emitter)
-
 
   }
 
 	#createPointsParticleSystem() {
 
-		const numParticles = 1000;
+		const numParticles = this.#particleSystem.getEmitterParams(0).maxDisplayParticles;
 
 		const positions = new Float32Array(numParticles * 3);
 		const angles = new Float32Array(numParticles);
 		const lifes = new Float32Array(numParticles);
+
+		const particles: Particle[] = [];
 
 		for (let i = 0; i < numParticles; i ++) {
 			const x = positions[i * 3] = ( MATH.random() * 2 - 1) * 100;
@@ -74,16 +68,16 @@ class ParticleProject extends App {
 			// Direction of velocity explosion will always emanate from the origin
 			const dir = new THREE.Vector3(x, y, z).normalize();
 
-			this.#particles.push({
+			particles.push({
 				life: 0,
 				maxLife: 18,
-				alpha: 1.0,
 				angle: angles[i],
 				position: new THREE.Vector3(x, y, z),
-				size: 100.0,
 				velocity: dir.multiplyScalar(50),
 			})
 		}
+
+		this.#particleSystem.assignEmitterParticles(particles, 0);
 
 		const textureLoader = new THREE.TextureLoader();
 		const starTexture = textureLoader.load('./resources/star.png')
@@ -128,11 +122,13 @@ class ParticleProject extends App {
 		const lifeAttribute = new THREE.InstancedBufferAttribute(lifes, 1);
 
 		const lifeNode = instancedDynamicBufferAttribute(lifeAttribute)
+		const angleNode = instancedDynamicBufferAttribute(angleAttribute)
+		const newPosition = instancedDynamicBufferAttribute(positionAttribute)
 		
-		this.#particleMaterial = new THREE.PointsNodeMaterial( {
+		this.#particleMaterial = new PointsNodeMaterial( {
 			color: 0xffffff,
-			rotationNode: instancedDynamicBufferAttribute(angleAttribute).debug(code => console.log(code)),
-			positionNode: instancedDynamicBufferAttribute(positionAttribute).debug(code => console.log(code)),
+			rotationNode: angleNode,
+			positionNode: newPosition,
 			sizeNode: texture(sizeOverLifeTexture, vec2(lifeNode, 0.5)).x,
 			opacityNode: texture(alphasOverLifeTexture, vec2(lifeNode, 0.5)).x,
 			colorNode: Fn(() => {
@@ -153,6 +149,7 @@ class ParticleProject extends App {
 			scene: this.Scene,
 			positions: positions,
 			lifes: lifes,
+			angles: angles,
 			numParticles: numParticles,
 		})
 
@@ -166,37 +163,16 @@ class ParticleProject extends App {
 
 		}
 
-		const gravity = new THREE.Vector3(0.0, -9.8, 0.0);
-		const DRAG = -0.1;
+		this.#particleSystem.step(dt);
 
-		for (let i = 0; i < this.#particles.length; i++) {
+		const particles = this.#particleSystem.getEmitterParticles(0);
 
-			// Update the particle
-			const p = this.#particles[i];
-			p.life += dt;
-			p.life = Math.min(p.life, p.maxLife)
-			
-			const rotationFactor = 100.0;
-			const minDistance = 0.1;
-			const rotationSpeed = rotationFactor / (p.position.length() + minDistance);
+		for (let i = 0; i < particles.length; i++) {
 
-			p.angle += rotationSpeed * dt;
-
-			// Apply Gravity
-			const forces = gravity.clone();
-			// Apply pseudo air resistance drag force that works against the velocity
-			forces.add(p.velocity.clone().multiplyScalar(DRAG))
-
-			p.velocity.add(forces.multiplyScalar(dt));
-
-			const displacement = p.velocity.clone().multiplyScalar(dt);
-			p.position.add(displacement)
-			
-			this.#particleRenderer.updateFromParticle(p, i)
+			this.#particleRenderer.updateFromParticle(particles[i], i)
 
 		}
 
-		
 	}
 
 	onStep(dt: number, totalTimeElapsed: number) {
@@ -217,17 +193,6 @@ class ParticleProject extends App {
 }
 
 let APP_ = new ParticleProject();
-
-
-/*const interpolater = new MATH.ColorInterpolant(
-	[
-		{ time: 0, value: new THREE.Color(0xFFFFFF)},
-		{ time: 1, value: new THREE.Color(0xFF0000)},
-		{time: 10, value: new THREE.Color(0x00FF00)},
-	]
-);
-
-console.log(interpolater.evaluate(9.9)) */
 
 window.addEventListener('DOMContentLoaded', async () => {
   await APP_.initialize();

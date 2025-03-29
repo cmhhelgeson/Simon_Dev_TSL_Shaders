@@ -9,25 +9,28 @@ const random = () => {
 
 }
 
-class Interpolant {
+type Frame<T> = {
+	time: number,
+	value: T,
+}
+
+type FloatFrame = Frame<number>
+
+class Interpolant<T> {
 	// Values which construct the interpolater.
-	Frames = null;
+	Frames: Frame<T>[];
 	// Base THREE.Interpolater class.
-	#interpolater = null;
+	#interpolater: THREE.Interpolant;
 	// Buffer where interpolation gets stored.
-	#resultBuffer = null;
+	#resultBuffer: ArrayBuffer
 
-	constructor(frames, stride) {
+	constructor(frames: Frame<T>[], stride) {
 
-		const times = [];
-		const values = [];
 
 		// Think of frames not as individual frames but as keyframes that define a value.
-		for (let i = 0; i < frames.length; i++) {
-			times.push(frames[i].time)
-			// ... operator will actually dereference values in vectors, similar to arrays
-			values.push(...frames[i].value)
-		}
+
+		const times: number[] = frames.map(f => f.time);
+		const values: number[] = frames.flatMap(f => (f.value instanceof Array ? f.value : [f.value]));
 
 		// Result buffer get written over during interpolation.
 		this.#resultBuffer = new Float32Array(stride)
@@ -88,7 +91,7 @@ class Interpolant {
 	
 }
 
-class Vec3Interpolant extends Interpolant {
+class Vec3Interpolant extends Interpolant<THREE.Vector3> {
 
 	constructor(frames) {
 		super(frames, 3);
@@ -103,7 +106,7 @@ class Vec3Interpolant extends Interpolant {
 
 }
 
-class Vec2Interpolant extends Interpolant {
+class Vec2Interpolant extends Interpolant<THREE.Vector2> {
 
 	constructor(frames) {
 
@@ -113,13 +116,13 @@ class Vec2Interpolant extends Interpolant {
 
 	onEvaluate(result) {
 
-		return THREE.Vector2(result[0], result[1])
+		return new THREE.Vector2(result[0], result[1])
 
 	}
 
 }
 
-class Vec4Interpolant extends Interpolant {
+class Vec4Interpolant extends Interpolant<THREE.Vector4> {
 
 	constructor(frames) {
 
@@ -129,14 +132,14 @@ class Vec4Interpolant extends Interpolant {
 
 	onEvaluate(result) {
 
-		return THREE.Vector4(result[0], result[1], result[2], result[3])
+		return new THREE.Vector4(result[0], result[1], result[2], result[3])
 
 	}
 
 
 }
 
-class FloatInterpolant extends Interpolant {
+class FloatInterpolant extends Interpolant<number> {
 
 	constructor(frames) {
 
@@ -185,7 +188,7 @@ class FloatInterpolant extends Interpolant {
 	}
 
 }
-class ColorInterpolant extends Interpolant {
+class ColorInterpolant extends Interpolant<THREE.Color> {
 
 	constructor(frames) {
 

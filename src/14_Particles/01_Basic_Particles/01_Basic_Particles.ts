@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import {float, texture, vec3, sin, instanceIndex, time, instance, instancedBufferAttribute, instancedDynamicBufferAttribute, vec2, Fn} from 'three/tsl';
 
-import { App } from './App';
+import { App } from '../utils/App';
 import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
 
 interface ParticleInfo {

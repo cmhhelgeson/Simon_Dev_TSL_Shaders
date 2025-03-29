@@ -1,7 +1,7 @@
 
 
 import * as THREE from 'three';
-import MATH from './math';
+import MATH from '../../utils/math';
 import { instancedBufferAttribute, texture, vec2, Fn, vec3 } from 'three/tsl';
 
 import { NodeMaterial, PointsNodeMaterial, SpriteNodeMaterial } from 'three/webgpu';
@@ -13,6 +13,7 @@ export interface EmitterParameters {
 	// We'll only store data for 100 particles. When the lives of particles 0 - 99 ends,
 	// their memory will be reset and used for the emitted particles 100 - 199
 	maxDisplayParticles: number,
+	startNumParticles: number,
 	// Number of particles emitted per second
 	particleEmissionRate: number,
 	// Max number of particles emitted during the lifetime of the application
@@ -22,6 +23,15 @@ export interface EmitterParameters {
 // Defines the shape of the volume where the particles are created.
 export class EmitterShape {
 
+	constructor(){
+
+	}
+
+	// Why do we do this
+	emit() {
+		return new Particle();
+	}
+
 
 }
 
@@ -30,6 +40,7 @@ export class Particle {
 	position: THREE.Vector3
 	velocity: THREE.Vector3
 	life: number
+	angle: number
 	maxLife: number
 
 	static GRAVITY = new THREE.Vector3(0.0, -9.8, 0.0)
@@ -38,6 +49,7 @@ export class Particle {
 
 		this.position = new THREE.Vector3();
 		this.velocity = new THREE.Vector3();
+		this.angle = (Math.PI * ((1 % 10) / 5 ));
 		this.life = 0
 		this.maxLife = 18;
 
@@ -52,12 +64,43 @@ export class Emitter {
 	#particles: Particle[] = [];
 	#timeSinceLastEmit: number = 0;
 	#numParticlesEmitted: number = 0;
-	#params: EmitterParameters;
+	params: EmitterParameters;
 
 	constructor(params) {
-		this.#params = params
+		this.params = params;
+		for (let i = 0; i < this.params.startNumParticles; i++) {
+
+			this.#particles.push(this.#emitParticle())
+
+		}
+	}
+	
+	copyParticle(p: Particle, index: number) {
+
+		this.#particles[index].angle = p.angle;
+		this.#particles[index].life = p.life;
+		this.#particles[index].maxLife = p.maxLife;
+		this.#particles[index].position = p.position.clone();
+		this.#particles[index].velocity = p.velocity.clone();
+
 	}
 
+	copyParticles(particles: Particle[]) {
+
+		const loopStop = Math.min(particles.length, this.params.maxDisplayParticles);
+
+		for (let i = 0; i < loopStop; i++) {
+
+			this.copyParticle(particles[i], i);
+
+		}
+	}
+
+	getParticles() {
+
+		return this.#particles;
+
+	}
 
 	step(dt) {
 
@@ -71,16 +114,16 @@ export class Emitter {
 	#canCreateParticle() {
 
 		// Time between each particle
-		const secondsPerParticle = 1.0 / this.#params.particleEmissionRate;
+		const secondsPerParticle = 1.0 / this.params.particleEmissionRate;
 
 		// Condtions for whether a new particle can be created
 		return (
 			// We are equal to are beyond the time per particle
 			this.#timeSinceLastEmit >= secondsPerParticle &&
 			// We are not tracking the maximum number of particles available at once.
-			this.#particles.length < this.#params.maxDisplayParticles &&
+			this.#particles.length < this.params.maxDisplayParticles &&
 			// We have created less than the total number of particles that can be created over an emitter's lifetime.
-			this.#numParticlesEmitted < this.#params.maxEmission
+			this.#numParticlesEmitted < this.params.maxEmission
 		);
 
 	}
@@ -97,11 +140,11 @@ export class Emitter {
 	// Presumably, once a particle has reached a certain lifetime, it can then be emitted
 	// again, which replicates the effect of a steady stream of particles with a finite number
 	// of them.
-	#updateEmission(dt) {
+	#updateEmission(dt: number) {
 
 		// Update time since last particle emission
 		this.#timeSinceLastEmit += dt;
-		const secondsPerParticle = 1.0 / this.#params.particleEmissionRate;
+		const secondsPerParticle = 1.0 / this.params.particleEmissionRate;
 		
 		if (this.#canCreateParticle()) {
 
@@ -117,7 +160,7 @@ export class Emitter {
 
 	}
 
-	#updateParticle(p, dt) {
+	#updateParticle(p, dt: number) {
 
 			p.life += dt;
 			p.life = Math.min(p.life, p.maxLife)
@@ -140,7 +183,7 @@ export class Emitter {
 
 	}
 
-	#updateParticles(dt) {
+	#updateParticles(dt: number) {
 
 		for (const particle of this.#particles) {
 
@@ -163,9 +206,27 @@ export class ParticleSystem {
 
 	}
 
+	getEmitterParams(index: number) {
+
+		return this.#emitters[index].params;
+
+	}
+
+	getEmitterParticles(index: number) {
+
+		return this.#emitters[index].getParticles();
+
+	}
+
 	addEmitter(emitter: Emitter) {
 
 		this.#emitters.push(emitter);
+
+	}
+
+	assignEmitterParticles(particles: Particle[], index: number) {
+
+		this.#emitters[index].copyParticles(particles);
 
 	}
 
@@ -186,6 +247,7 @@ export class ParticleSystem {
 interface ParticleRendererParams {
 	positions: Float32Array<ArrayBuffer>,
 	lifes: Float32Array<ArrayBuffer>,
+	angles: Float32Array<ArrayBuffer>,
 	numParticles: number,
 	scene: THREE.Scene,
 }
@@ -197,11 +259,13 @@ export class ParticleRenderer {
 	#particlesSprite: THREE.Sprite;
 	#positions: Float32Array<ArrayBuffer>;
 	#lifes: Float32Array<ArrayBuffer>;
+	#angles: Float32Array<ArrayBuffer>;
 
 	constructor(material: SpriteNodeMaterial, params: ParticleRendererParams) {
 
 		this.#positions = params.positions;
 		this.#lifes = params.lifes;
+		this.#angles = params.angles;
 
 		this.#particlesSprite = new THREE.Sprite(material);
 		this.#particlesSprite.count = params.numParticles;
@@ -221,6 +285,8 @@ export class ParticleRenderer {
 
 			this.#lifes[i] = particle.life / particle.maxLife;
 
+			this.#angles[i] = particle.angle;
+
 
 		}
 
@@ -233,6 +299,8 @@ export class ParticleRenderer {
 		this.#positions[index * 3 + 2] = particle.position.z;
 
 		this.#lifes[index] = particle.life / particle.maxLife;
+
+		this.#angles[index] = particle.angle;
 
 	}
 
