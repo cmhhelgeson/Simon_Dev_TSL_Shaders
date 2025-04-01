@@ -10,47 +10,21 @@ import MATH from '../../utils/math'
 import { ParticleRenderer, ParticleSystem, EmitterParameters, Emitter, Particle} from './lazy-particle-system';
 import { PointsNodeMaterial } from 'three/webgpu';
 
-const remap = (val, inLow, inHigh, outLow, outHigh) => {
-	
-	const t = (val - inLow) / (inHigh - inLow);
-	return t * (outHigh - outLow) + outLow;
-
-}
-
 class ParticleProject extends App {
-	#particleRenderer: ParticleRenderer;
+	// From 1 hr onwards, pass particle renderer as emitter params
+	// Each emitter will now be responsible for its own rendering
 	#particleMaterial: PointsNodeMaterial
 	#particleSystem: ParticleSystem;
 
   constructor() {
     super();
-
-		this.#particleSystem = new ParticleSystem();
-
-		// Normal emitter parameters
-		/* const emitterParams: EmitterParameters = {
-			maxDisplayParticles: 100,
-			maxEmission: 1000,
-			particleEmissionRate: 1.0
-			startNumParticles: 0,
-		} */
-
-		// Emitter parameters for having particles available on application start
-		const emitterParams = {
-			maxDisplayParticles: 1000,
-			maxEmission: 1000,
-			startNumParticles: 1000,
-			// Effectively irrelvant
-			particleEmissionRate: 1.0,
-		}
-		const emitter = new Emitter(emitterParams)
-		this.#particleSystem.addEmitter(emitter)
-
   }
 
 	#createPointsParticleSystem() {
 
-		const numParticles = this.#particleSystem.getEmitterParams(0).maxDisplayParticles;
+		this.#particleSystem = new ParticleSystem();
+
+		const numParticles = 1000;
 
 		const positions = new Float32Array(numParticles * 3);
 		const angles = new Float32Array(numParticles);
@@ -76,8 +50,6 @@ class ParticleProject extends App {
 				velocity: dir.multiplyScalar(50),
 			})
 		}
-
-		this.#particleSystem.assignEmitterParticles(particles, 0);
 
 		const textureLoader = new THREE.TextureLoader();
 		const starTexture = textureLoader.load('./resources/star.png')
@@ -106,6 +78,10 @@ class ParticleProject extends App {
 
 		const colorsOverLife = new MATH.ColorInterpolant([
 			{time: 0, value: new THREE.Color(0xFFFFFF)},
+			{time: 2, value: new THREE.Color(0xFF0000)},
+			{time: 4, value: new THREE.Color(0x00FF00)},
+			{time: 6, value: new THREE.Color(0x0000FF)},
+			{time: 8, value: new THREE.Color(0xFFFFFF)},
 			{time: 14, value: new THREE.Color(0xFFFFFF)},
 			{time: 15, value: new THREE.Color(0xFF0000)},
 			{time: 16, value: new THREE.Color(0x00FF00)},
@@ -145,41 +121,39 @@ class ParticleProject extends App {
 			blending: THREE.AdditiveBlending
 		} )
 
-		this.#particleRenderer = new ParticleRenderer(this.#particleMaterial, {
+		const particleRenderer = new ParticleRenderer(this.#particleMaterial, {
 			scene: this.Scene,
 			positions: positions,
 			lifes: lifes,
 			angles: angles,
 			numParticles: numParticles,
+			group: new THREE.Group()
 		})
 
-	}
-
-	#stepParticles(dt: number, totalTimeElapsed: number) {
-
-		if(!this.#particleMaterial) {
-
-			return;
-
+		// Emitter parameters for having particles available on application start
+		const emitterParams: EmitterParameters = {
+			maxDisplayParticles: 1000,
+			maxEmission: 1000,
+			startNumParticles: 1000,
+			// Effectively irrelvant
+			particleEmissionRate: 1.0,
+			// Passing the renderer as a reference to each emitter
+			particleRenderer: particleRenderer,
 		}
+		const emitter = new Emitter(emitterParams)
+		this.#particleSystem.addEmitter(emitter)
 
-		this.#particleSystem.step(dt);
-
-		const particles = this.#particleSystem.getEmitterParticles(0);
-
-		for (let i = 0; i < particles.length; i++) {
-
-			this.#particleRenderer.updateFromParticle(particles[i], i)
-
-		}
+		this.#particleSystem.assignEmitterParticles(particles, 0);
 
 	}
 
 	onStep(dt: number, totalTimeElapsed: number) {
 
-		this.#particleSystem.step(dt);
+		if (!this.#particleMaterial) {
+			return;
+		}
 
-		this.#stepParticles(dt, totalTimeElapsed)
+		this.#particleSystem.step(dt);
 
 	}
 	

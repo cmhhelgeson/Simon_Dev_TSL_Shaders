@@ -18,6 +18,7 @@ export interface EmitterParameters {
 	particleEmissionRate: number,
 	// Max number of particles emitted during the lifetime of the application
 	maxEmission: number,
+	particleRenderer: ParticleRenderer,
 }
 
 // Defines the shape of the volume where the particles are created.
@@ -109,6 +110,9 @@ export class Emitter {
 		// Update the particles this emitter has jurisdiction over
 		this.#updateParticles(dt);
 
+
+		this.params.particleRenderer.updateFromParticles(this.#particles)
+
 	}
 
 	#canCreateParticle() {
@@ -174,12 +178,12 @@ export class Emitter {
 			// Apply Gravity
 			const forces = Particle.GRAVITY.clone();
 			// Apply pseudo air resistance drag force that works against the velocity
-			forces.add(p.velocity.clone().multiplyScalar(0.1)); //DRAG
+			forces.add(p.velocity.clone().multiplyScalar(-0.25)); //DRAG
 
 			p.velocity.add(forces.multiplyScalar(dt));
 
 			const displacement = p.velocity.clone().multiplyScalar(dt);
-			//p.position.add(displacement)
+			p.position.add(displacement)
 
 	}
 
@@ -196,25 +200,12 @@ export class Emitter {
 
 }
 
-
 // Entry point for creating particles that contains emitters.
 export class ParticleSystem {
 
 	#emitters: Emitter[] = [];
 
 	constructor() {
-
-	}
-
-	getEmitterParams(index: number) {
-
-		return this.#emitters[index].params;
-
-	}
-
-	getEmitterParticles(index: number) {
-
-		return this.#emitters[index].getParticles();
 
 	}
 
@@ -244,12 +235,13 @@ export class ParticleSystem {
 
 // Renders the particles.
 
-interface ParticleRendererParams {
+export interface ParticleRendererParams {
 	positions: Float32Array<ArrayBuffer>,
 	lifes: Float32Array<ArrayBuffer>,
 	angles: Float32Array<ArrayBuffer>,
 	numParticles: number,
 	scene: THREE.Scene,
+	group: THREE.Group,
 }
 export class ParticleRenderer {
 	
@@ -270,7 +262,9 @@ export class ParticleRenderer {
 		this.#particlesSprite = new THREE.Sprite(material);
 		this.#particlesSprite.count = params.numParticles;
 
-		params.scene.add(this.#particlesSprite);
+		params.group.add(this.#particlesSprite)
+
+		params.scene.add(params.group);
 
 	}
 
@@ -278,14 +272,7 @@ export class ParticleRenderer {
 
 		for (let i = 0; i < particles.length; i++) {
 
-			const particle = particles[i]
-			this.#positions[i * 3 + 0] = particle.position.x
-			this.#positions[i * 3 + 1] = particle.position.y
-			this.#positions[i * 3 + 2] = particle.position.z;
-
-			this.#lifes[i] = particle.life / particle.maxLife;
-
-			this.#angles[i] = particle.angle;
+			this.updateFromParticle(particles[i], i)
 
 
 		}
