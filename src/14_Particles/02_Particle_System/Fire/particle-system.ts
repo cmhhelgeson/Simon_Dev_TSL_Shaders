@@ -47,10 +47,8 @@ export class PointEmitterShape extends EmitterShape {
     constructor(position?: THREE.Vector3) {
 
         super();
-        if (position === undefined) {
-
-            this.position = new THREE.Vector3();
-        } else {
+				this.position = new THREE.Vector3();
+        if (position !== undefined) {
             this.position.copy(position)
         }
 
@@ -118,18 +116,19 @@ export class Emitter {
 
 	}
 
-    setEmitterShape(shape: EmitterShape) {
+  setPointEmitterShape(position) {
 
+		const shape = this.#params.shape as PointEmitterShape;
+		shape.position.copy(position)
 
+  }
 
-    }
-
-	step(dt: number) {
+	step(dt: number, totalTime: number) {
 
 		// Update current emitter instance.
-		this.#updateEmission(dt);
+		this.#updateEmission(dt, totalTime);
 		// Update the particles this emitter has jurisdiction over
-		this.#updateParticles(dt);
+		this.#updateParticles(dt, totalTime);
 
 
 		this.#params.particleRenderer.updateFromParticlesNew(this.#particles)
@@ -155,7 +154,7 @@ export class Emitter {
 
 	#emitParticle() {
 
-        const p = this.#params.shape.emit()
+    const p = this.#params.shape.emit()
 		return p;
 
 	}
@@ -165,8 +164,9 @@ export class Emitter {
 	// Presumably, once a particle has reached a certain lifetime, it can then be emitted
 	// again, which replicates the effect of a steady stream of particles with a finite number
 	// of them.
-	#updateEmission(dt: number) {
+	#updateEmission(dt: number, totalTime: number) {
 
+		this.setPointEmitterShape(new THREE.Vector3(Math.cos(totalTime / 2) * 100, Math.sin(totalTime / 2) * 100, 0))
 		// Update time since last particle emission
 		this.#timeSinceLastEmit += dt;
 		const secondsPerParticle = 1.0 / this.#params.particleEmissionRate;
@@ -185,7 +185,7 @@ export class Emitter {
 
 	}
 
-	#updateParticle(p: Particle, dt: number) {
+	#updateParticle(p: Particle, dt: number, totalTime: number) {
 
 			p.life += dt;
 			p.life = Math.min(p.life, p.maxLife)
@@ -206,13 +206,15 @@ export class Emitter {
 
 	}
 
-	#updateParticles(dt: number) {
+	#updateParticles(dt: number, totalTime: number) {
 
 		for (const particle of this.#particles) {
 
-			this.#updateParticle(particle, dt);
+			this.#updateParticle(particle, dt, totalTime);
 
 		}
+
+		this.#particles = this.#particles.filter(p => p.life < p.maxLife);
 
 	}
 
@@ -234,11 +236,11 @@ export class ParticleSystem {
 
 	}
 
-	step(dt: number) {
+	step(dt: number, totalTime: number) {
 
 		for (const emitter of this.#emitters) {
 
-			emitter.step(dt);
+			emitter.step(dt, totalTime);
 
 		}
 

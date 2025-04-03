@@ -7,7 +7,7 @@ import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
 
 import MATH from '../../utils/math'
 
-import { ParticleRenderer, ParticleSystem, EmitterParameters, Emitter, Particle} from './particle-system';
+import { ParticleRenderer, ParticleSystem, EmitterParameters, Emitter, Particle, PointEmitterShape} from './particle-system';
 import { PointsNodeMaterial } from 'three/webgpu';
 
 const remap = (val, inLow, inHigh, outLow, outHigh) => {
@@ -132,13 +132,14 @@ class ParticleProject extends App {
 
 		// Emitter parameters for having particles available on application start
 		const emitterParams: EmitterParameters = {
-			maxDisplayParticles: 1000,
+			maxDisplayParticles: 100,
 			maxEmission: 1000,
 			startNumParticles: 0,
 			// Effectively irrelvant
 			particleEmissionRate: 10.0,
 			// Passing the renderer as a reference to each emitter
 			particleRenderer: particleRenderer,
+			shape: new PointEmitterShape(new THREE.Vector3(0, 0, 0))
 		}
 		const emitter = new Emitter(emitterParams);
 		this.#particleSystem.addEmitter(emitter);
@@ -151,7 +152,7 @@ class ParticleProject extends App {
 			return;
 		}
 
-		this.#particleSystem.step(dt);
+		this.#particleSystem.step(dt, totalTimeElapsed);
 
 	}
 	

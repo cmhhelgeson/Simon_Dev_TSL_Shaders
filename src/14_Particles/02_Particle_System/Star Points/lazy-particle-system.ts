@@ -20,6 +20,11 @@ export interface EmitterParameters {
 	maxEmission: number,
 	particleRenderer: ParticleRenderer,
 	shape?: EmitterShape,
+	//
+	maxLife: number,
+	velocityMagnitude: number,
+	rotation: THREE.Quaternion,
+	rotationAngularVariance: number
 }
 
 // Defines the shape of the volume where the particles are created.
