@@ -7,7 +7,7 @@ import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
 
 import MATH from '../../utils/math'
 
-import { ParticleRenderer, ParticleSystem, EmitterParameters, Emitter, Particle} from './lazy-particle-system';
+import { ParticleRenderer, ParticleSystem, EmitterParameters, Emitter, Particle} from './particle-system';
 import { PointsNodeMaterial } from 'three/webgpu';
 
 class ParticleProject extends App {
@@ -27,7 +27,6 @@ class ParticleProject extends App {
 		const numParticles = 1000;
 
 		const positions = new Float32Array(numParticles * 3);
-		const angles = new Float32Array(numParticles);
 		const lifes = new Float32Array(numParticles);
 
 		const particles: Particle[] = [];
@@ -36,7 +35,6 @@ class ParticleProject extends App {
 			const x = positions[i * 3] = ( MATH.random() * 2 - 1) * 100;
 			const y = positions[i * 3 + 1] = (MATH.random() * 2 - 1)* 100;
 			const z = positions[i * 3 + 2] = (MATH.random() * 2 - 1) * 100;
-			angles[i] = (Math.PI * ((i % 10) / 5 ));
 			lifes[i] = 0.0;
 
 			// Direction of velocity explosion will always emanate from the origin
@@ -45,7 +43,6 @@ class ParticleProject extends App {
 			particles.push({
 				life: 0,
 				maxLife: 18,
-				angle: angles[i],
 				position: new THREE.Vector3(x, y, z),
 				velocity: dir.multiplyScalar(50),
 			})
@@ -73,15 +70,12 @@ class ParticleProject extends App {
 			{time: 8, value: 1},
 			{time: 10, value: 0},
 			{time: 12, value: 1},
-			{time: 18, value: 1},
+			{time: 17, value: 1},
+			{time: 18, value: 0}
 		]);
 
 		const colorsOverLife = new MATH.ColorInterpolant([
 			{time: 0, value: new THREE.Color(0xFFFFFF)},
-			{time: 2, value: new THREE.Color(0xFF0000)},
-			{time: 4, value: new THREE.Color(0x00FF00)},
-			{time: 6, value: new THREE.Color(0x0000FF)},
-			{time: 8, value: new THREE.Color(0xFFFFFF)},
 			{time: 14, value: new THREE.Color(0xFFFFFF)},
 			{time: 15, value: new THREE.Color(0xFF0000)},
 			{time: 16, value: new THREE.Color(0x00FF00)},
@@ -94,16 +88,13 @@ class ParticleProject extends App {
 		const colorsOverLifeTexture: THREE.DataTexture = colorsOverLife.toTexture();
 
 		const positionAttribute = new THREE.InstancedBufferAttribute( positions, 3 );
-		const angleAttribute = new THREE.InstancedBufferAttribute( angles, 1)
 		const lifeAttribute = new THREE.InstancedBufferAttribute(lifes, 1);
 
 		const lifeNode = instancedDynamicBufferAttribute(lifeAttribute)
-		const angleNode = instancedDynamicBufferAttribute(angleAttribute)
 		const newPosition = instancedDynamicBufferAttribute(positionAttribute)
 		
 		this.#particleMaterial = new PointsNodeMaterial( {
 			color: 0xffffff,
-			rotationNode: angleNode,
 			positionNode: newPosition,
 			sizeNode: texture(sizeOverLifeTexture, vec2(lifeNode, 0.5)).x,
 			opacityNode: texture(alphasOverLifeTexture, vec2(lifeNode, 0.5)).x,
@@ -118,32 +109,32 @@ class ParticleProject extends App {
 			depthWrite: false,
 			depthTest: true,
 			transparent: true,
-			blending: THREE.AdditiveBlending
+			blending: THREE.AdditiveBlending,
+			rotationNode: time,
 		} )
 
 		const particleRenderer = new ParticleRenderer(this.#particleMaterial, {
 			scene: this.Scene,
 			positions: positions,
 			lifes: lifes,
-			angles: angles,
 			numParticles: numParticles,
-			group: new THREE.Group()
+			group: new THREE.Group(),
+			positionAttribute: positionAttribute,
+			lifeAttribute: lifeAttribute
 		})
 
 		// Emitter parameters for having particles available on application start
 		const emitterParams: EmitterParameters = {
 			maxDisplayParticles: 1000,
 			maxEmission: 1000,
-			startNumParticles: 1000,
+			startNumParticles: 0,
 			// Effectively irrelvant
-			particleEmissionRate: 1.0,
+			particleEmissionRate: 10.0,
 			// Passing the renderer as a reference to each emitter
 			particleRenderer: particleRenderer,
 		}
 		const emitter = new Emitter(emitterParams)
 		this.#particleSystem.addEmitter(emitter)
-
-		this.#particleSystem.assignEmitterParticles(particles, 0);
 
 	}
 

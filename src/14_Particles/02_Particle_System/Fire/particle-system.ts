@@ -19,21 +19,50 @@ export interface EmitterParameters {
 	// Max number of particles emitted during the lifetime of the application
 	maxEmission: number,
 	particleRenderer: ParticleRenderer,
-	shape?: EmitterShape,
+	shape: EmitterShape,
 }
 
 // Defines the shape of the volume where the particles are created.
 export class EmitterShape {
 
 	constructor(){
-
+        if (new.target == EmitterShape) {
+            throw new Error('Cannot instantiate abstract class EmitterShape.')
+        }
 	}
 
-	// Why do we do this
-	emit() {
-		return new Particle();
-	}
+	// A shape determines the location where a particle is emitted
+    // 
+    // Implement abstract class by setting return type but throwign error
+	emit(): Particle {
+        throw new Error(`${this.constructor.name} must implement emit()`);
+    }
 
+}
+
+export class PointEmitterShape extends EmitterShape {
+
+    position: THREE.Vector3
+
+    constructor(position?: THREE.Vector3) {
+
+        super();
+        if (position === undefined) {
+
+            this.position = new THREE.Vector3();
+        } else {
+            this.position.copy(position)
+        }
+
+    }
+
+    emit() {
+
+        const p = new Particle();
+        p.position.copy(this.position)
+        return p;
+
+    }
 
 }
 
@@ -64,15 +93,15 @@ export class Emitter {
 	#particles: Particle[] = [];
 	#timeSinceLastEmit: number = 0;
 	#numParticlesEmitted: number = 0;
-	params: EmitterParameters;
+	#params: EmitterParameters;
 
 	constructor(params) {
 
-		this.params = params;
+		this.#params = params;
 
-		if (this.params.startNumParticles) {
+		if (this.#params.startNumParticles) {
 
-			for (let i = 0; i < this.params.startNumParticles; i++) {
+			for (let i = 0; i < this.#params.startNumParticles; i++) {
 
 				this.#particles.push(this.#emitParticle());
 
@@ -89,7 +118,13 @@ export class Emitter {
 
 	}
 
-	step(dt) {
+    setEmitterShape(shape: EmitterShape) {
+
+
+
+    }
+
+	step(dt: number) {
 
 		// Update current emitter instance.
 		this.#updateEmission(dt);
@@ -97,41 +132,30 @@ export class Emitter {
 		this.#updateParticles(dt);
 
 
-		this.params.particleRenderer.updateFromParticlesNew(this.#particles)
+		this.#params.particleRenderer.updateFromParticlesNew(this.#particles)
 
 	}
 
-	#canCreateParticle() {
+	#canCreateParticle(): boolean {
 
 		// Time between each particle
-		const secondsPerParticle = 1.0 / this.params.particleEmissionRate;
+		const secondsPerParticle = 1.0 / this.#params.particleEmissionRate;
 
 		// Condtions for whether a new particle can be created
 		return (
 			// We are equal to are beyond the time per particle
 			this.#timeSinceLastEmit >= secondsPerParticle &&
 			// We are not tracking the maximum number of particles available at once.
-			this.#particles.length < this.params.maxDisplayParticles &&
+			this.#particles.length < this.#params.maxDisplayParticles &&
 			// We have created less than the total number of particles that can be created over an emitter's lifetime.
-			this.#numParticlesEmitted < this.params.maxEmission
+			this.#numParticlesEmitted < this.#params.maxEmission
 		);
 
 	}
 
 	#emitParticle() {
 
-		const x = ( MATH.random() * 2 - 1) * 100;
-		const y = (MATH.random() * 2 - 1)* 100;
-		const z  = (MATH.random() * 2 - 1) * 100;
-		
-		// Direction of velocity explosion will always emanate from the origin
-		const dir = new THREE.Vector3(x, y, z).normalize();
-
-		const p = new Particle();
-		p.life = 0;
-		p.maxLife = 18;
-		p.position = new THREE.Vector3(x, y, z);
-		p.velocity = dir.multiplyScalar(50)
+        const p = this.#params.shape.emit()
 		return p;
 
 	}
@@ -145,7 +169,7 @@ export class Emitter {
 
 		// Update time since last particle emission
 		this.#timeSinceLastEmit += dt;
-		const secondsPerParticle = 1.0 / this.params.particleEmissionRate;
+		const secondsPerParticle = 1.0 / this.#params.particleEmissionRate;
 		
 		if (this.#canCreateParticle()) {
 
@@ -238,6 +262,12 @@ export interface ParticleGeometryAttributes {
 	lifeAttribute: THREE.InstancedBufferAttribute,
 	positionAttribute: THREE.InstancedBufferAttribute,
 }
+
+// Contains particle geometry data and "renders" particles.
+// Not actually a draw call per se (that happens in the raf loop)
+// but more like a class that separates our CPU logic from our GPU logic.
+// We effectively "upload" CPU data to the GPU in this class, which is 
+// a nice bit of abstraction of "CPU" code from "GPU" code
 export class ParticleRenderer {
 	
 	// For purposes of the WebGPU version, particlesSprite is effectively the particle geometry.

@@ -140,8 +140,8 @@ class ParticleProject extends App {
 			// Passing the renderer as a reference to each emitter
 			particleRenderer: particleRenderer,
 		}
-		const emitter = new Emitter(emitterParams)
-		this.#particleSystem.addEmitter(emitter)
+		const emitter = new Emitter(emitterParams);
+		this.#particleSystem.addEmitter(emitter);
 
 	}
 
