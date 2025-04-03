@@ -14,6 +14,20 @@ type Frame<T> = {
 	value: T,
 }
 
+const remap = (
+	val: number,
+	inLow: number,
+	inHigh: number,
+	outLow: number,
+	outHigh: number
+) => {
+
+	const t = ( val - inLow ) / ( inHigh - inLow );
+	return t * ( outHigh - outLow ) + outLow;
+
+};
+
+
 type FloatFrame = Frame<number>
 
 class Interpolant<T> {
@@ -255,5 +269,6 @@ export default {
 	FloatInterpolant,
 	Vec2Interpolant,
 	Vec4Interpolant,
-	ColorInterpolant
+	ColorInterpolant,
+	remap
 };

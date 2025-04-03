@@ -19,7 +19,15 @@ export interface EmitterParameters {
 	// Max number of particles emitted during the lifetime of the application
 	maxEmission: number,
 	particleRenderer: ParticleRenderer,
+  // Volume or point determining where particles are generated
 	shape: EmitterShape,
+  // Particle constants
+  // The maximum life of each particle
+  maxLife: number,
+  velocityMagnitude: 0,
+  rotation: THREE.Quaternion,
+  rotationAngularVariance: number,
+
 }
 
 // Defines the shape of the volume where the particles are created.
@@ -72,6 +80,46 @@ export class PointEmitterShape extends EmitterShape {
 
 }
 
+interface VolumeEmiterShapeParams {
+  minBounds: THREE.Vector3,
+  maxBounds: THREE.Vector3,
+}
+
+export class VolumeEmitterShape extends EmitterShape {
+
+	minBounds: THREE.Vector3;
+	maxBounds: THREE.Vector3;
+
+	constructor( params: VolumeEmiterShapeParams ) {
+
+		super();
+
+		this.minBounds = new THREE.Vector3();
+		this.maxBounds = new THREE.Vector3();
+		this.minBounds.copy( params.minBounds );
+		this.maxBounds.copy( params.maxBounds );
+
+	}
+
+	emit() {
+
+		const p = new Particle();
+		const x = MATH.remap( Math.random(), 0, 1, this.minBounds.x, this.maxBounds.x );
+		const y = MATH.remap( Math.random(), 0, 1, this.minBounds.y, this.maxBounds.y );
+		const z = MATH.remap( Math.random(), 0, 1, this.minBounds.z, this.maxBounds.z );
+		const newPosition = new THREE.Vector3(
+			x,
+			y,
+			z
+		);
+
+		p.position.copy( newPosition );
+		return p;
+
+	}
+
+}
+
 export class Particle {
 
 	position: THREE.Vector3;
@@ -86,7 +134,7 @@ export class Particle {
 		this.position = new THREE.Vector3();
 		this.velocity = new THREE.Vector3();
 		this.life = 0;
-		this.maxLife = 18;
+		this.maxLife = 5;
 
 	}
 
@@ -163,6 +211,22 @@ export class Emitter {
 	#emitParticle() {
 
 		const p = this.#params.shape.emit();
+		p.maxLife = this.#params.maxLife;
+
+		// Define velocity using spherical coordinates
+		// phi essentially defines the angle up or down from the origin
+		// (think of an elephant stifening its trunk then pitching it up and down)
+		// theta defines the direction along the circumference
+		// (think of that same elephant maintaining the direction of its trunk while rotating its body in place)
+		const phi = MATH.random() * Math.PI * 2;
+		const theta = MATH.random() * this.#params.rotationAngularVariance;
+
+		// Variables assigned according to definitions of phi and theta here:
+		// https://math.libretexts.org/Courses/Mount_Royal_University/MATH_2200%3A_Calculus_for_Scientists_II/7%3A_Vector_Spaces/5.7%3A_Cylindrical_and_Spherical_Coordinates#:~:text=To%20convert%20a%20point%20from,y2%2Bz2).
+		p.velocity.x = Math.sin( phi ) * Math.cos( theta );
+		p.velocity.y = Math.sin( phi ) * Math.sin( theta );
+		p.velocity.z = Math.cos( phi );
+
 		return p;
 
 	}

@@ -10,13 +10,6 @@ import MATH from '../../utils/math';
 import { ParticleRenderer, ParticleSystem, EmitterParameters, Emitter, Particle, PointEmitterShape } from './particle-system';
 import { PointsNodeMaterial } from 'three/webgpu';
 
-const remap = ( val, inLow, inHigh, outLow, outHigh ) => {
-
-	const t = ( val - inLow ) / ( inHigh - inLow );
-	return t * ( outHigh - outLow ) + outLow;
-
-};
-
 class ParticleProject extends App {
 
 	// From 1 hr onwards, pass particle renderer as emitter params
@@ -137,14 +130,19 @@ class ParticleProject extends App {
 
 		// Emitter parameters for having particles available on application start
 		const emitterParams: EmitterParameters = {
+			// Emission parameters
 			maxDisplayParticles: 500,
 			maxEmission: 1000,
 			startNumParticles: 0,
-			// Effectively irrelvant
 			particleEmissionRate: 100.0,
-			// Passing the renderer as a reference to each emitter
+			// Render parameters
 			particleRenderer: particleRenderer,
-			shape: new PointEmitterShape( new THREE.Vector3( 0, 0, 0 ) )
+			shape: new PointEmitterShape( new THREE.Vector3( 0, 0, 0 ) ),
+			// Particle shared constants
+			maxLife: 10,
+			rotationAngularVariance: 0,
+			velocityMagnitude: 0,
+			rotation: new THREE.Quaternion(),
 		};
 		const emitter = new Emitter( emitterParams );
 		this.#particleSystem.addEmitter( emitter );
