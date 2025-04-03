@@ -7,61 +7,61 @@ let renderer, camera, scene, gui;
 
 const init = async () => {
 
-  camera = new THREE.OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
-  scene = new THREE.Scene();
-  const geometry = new THREE.PlaneGeometry( 2, 2 );
+	camera = new THREE.OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
+	scene = new THREE.Scene();
+	const geometry = new THREE.PlaneGeometry( 2, 2 );
 
-  const material = new THREE.MeshBasicNodeMaterial();
-  const textureLoader = new THREE.TextureLoader();
-  const map = textureLoader.load( './resources/uv_grid_opengl.jpg' );
+	const material = new THREE.MeshBasicNodeMaterial();
+	const textureLoader = new THREE.TextureLoader();
+	const map = textureLoader.load( './resources/uv_grid_opengl.jpg' );
 
-  const effectController = {
-    tint: uniform( new THREE.Color( 1.0, 1.0, 1.0 ) ),
-  };
+	const effectController = {
+		tint: uniform( new THREE.Color( 1.0, 1.0, 1.0 ) ),
+	};
 
-  material.colorNode = Fn( () => {
+	material.colorNode = Fn( () => {
 
-    const { tint } = effectController;
+		const { tint } = effectController;
 
-    const color = texture( map );
+		const color = texture( map );
 
-    const size = textureSize( color );
+		const size = textureSize( color );
 
-    return texture( map, viewportCoordinate.div( size ) ).mul( tint );
+		return texture( map, viewportCoordinate.div( size ) ).mul( tint );
 
-  } )();
+	} )();
 
-  const quad = new THREE.Mesh( geometry, material );
-  scene.add( quad );
+	const quad = new THREE.Mesh( geometry, material );
+	scene.add( quad );
 
-  renderer = new THREE.WebGPURenderer( { antialias: true } );
-  renderer.setSize( window.innerWidth, window.innerHeight );
-  renderer.setAnimationLoop( animate );
-  renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
-  document.body.appendChild( renderer.domElement );
+	renderer = new THREE.WebGPURenderer( { antialias: true } );
+	renderer.setSize( window.innerWidth, window.innerHeight );
+	renderer.setAnimationLoop( animate );
+	renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
+	document.body.appendChild( renderer.domElement );
 
-  window.addEventListener( 'resize', onWindowResize );
+	window.addEventListener( 'resize', onWindowResize );
 
-  gui = new GUI();
-  gui.addColor( { color: effectController.tint.value.getHex( THREE.SRGBColorSpace ) }, 'color' ).onChange( ( value ) => {
+	gui = new GUI();
+	gui.addColor( { color: effectController.tint.value.getHex( THREE.SRGBColorSpace ) }, 'color' ).onChange( ( value ) => {
 
-    effectController.tint.value.set( value );
+		effectController.tint.value.set( value );
 
-  } ).name( 'tint' );
+	} ).name( 'tint' );
 
 };
 
 const onWindowResize = () => {
 
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize( window.innerWidth, window.innerHeight );
+	camera.aspect = window.innerWidth / window.innerHeight;
+	camera.updateProjectionMatrix();
+	renderer.setSize( window.innerWidth, window.innerHeight );
 
 };
 
 function animate() {
 
-  renderer.render( scene, camera );
+	renderer.render( scene, camera );
 
 }
 

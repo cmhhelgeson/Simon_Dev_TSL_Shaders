@@ -7,7 +7,7 @@ const random = () => {
 
 	return MT_.random();
 
-}
+};
 
 type Frame<T> = {
 	time: number,
@@ -17,38 +17,40 @@ type Frame<T> = {
 type FloatFrame = Frame<number>
 
 class Interpolant<T> {
+
 	// Values which construct the interpolater.
 	Frames: Frame<T>[];
 	// Base THREE.Interpolater class.
 	#interpolater: THREE.Interpolant;
 	// Buffer where interpolation gets stored.
-	#resultBuffer: ArrayBuffer
+	#resultBuffer: ArrayBuffer;
 
-	constructor(frames: Frame<T>[], stride) {
+	constructor( frames: Frame<T>[], stride ) {
 
 
 		// Think of frames not as individual frames but as keyframes that define a value.
 
-		const times: number[] = frames.map(f => f.time);
-		const values: number[] = frames.flatMap(f => (f.value instanceof Array ? f.value : [f.value]));
+		const times: number[] = frames.map( f => f.time );
+		const values: number[] = frames.flatMap( f => ( f.value instanceof Array ? f.value : [ f.value ] ) );
 
 		// Result buffer get written over during interpolation.
-		this.#resultBuffer = new Float32Array(stride)
+		this.#resultBuffer = new Float32Array( stride );
 
 		this.Frames = frames;
-		this.#interpolater = new THREE.LinearInterpolant(times, values, stride, this.#resultBuffer)
+		this.#interpolater = new THREE.LinearInterpolant( times, values, stride, this.#resultBuffer );
+
 	}
 
 	// Pass in totalTimeElapsed, get interpolation value
-	evaluate(totalTimeElapsed) {
+	evaluate( totalTimeElapsed ) {
 
-		this.#interpolater.evaluate(totalTimeElapsed);
-		return this.onEvaluate(this.#resultBuffer);
+		this.#interpolater.evaluate( totalTimeElapsed );
+		return this.onEvaluate( this.#resultBuffer );
 
 	}
 
 	// Example Flow:
-	// Frames: 
+	// Frames:
 	// 	{	time: 0, value: 0 },
 	//  {	time: 4, value: 1 },
 	//  {	time: 7, value: 2 },
@@ -68,39 +70,43 @@ class Interpolant<T> {
 
 		const frames = this.Frames;
 
-		const maxFrameTime = frames[frames.length - 1].time;
-		let smallestStep = 0.5
+		const maxFrameTime = frames[ frames.length - 1 ].time;
+		let smallestStep = 0.5;
 
-		for (let i = 1; i < frames.length; ++i) {
+		for ( let i = 1; i < frames.length; ++ i ) {
 
-			const percentOfTime = (frames[i].time - frames[i - 1].time) / maxFrameTime;
-			smallestStep = Math.min(smallestStep, percentOfTime)
+			const percentOfTime = ( frames[ i ].time - frames[ i - 1 ].time ) / maxFrameTime;
+			smallestStep = Math.min( smallestStep, percentOfTime );
 
 		}
 
-		const recommendedSize = Math.ceil(1 /smallestStep);
+		const recommendedSize = Math.ceil( 1 / smallestStep );
 		return recommendedSize + 1;
 
 	}
 
 	// on functions indicate intended overridability
 	// Default behavior is to return the Float32ArrayBuffer
-	onEvaluate(result) {
+	onEvaluate( result ) {
+
 		return result;
+
 	}
-	
+
 }
 
 class Vec3Interpolant extends Interpolant<THREE.Vector3> {
 
-	constructor(frames) {
-		super(frames, 3);
+	constructor( frames ) {
+
+		super( frames, 3 );
+
 	}
 
 	// Repack evaluated values of the result buffer into the expected format.
-	onEvaluate(result) {
+	onEvaluate( result ) {
 
-		return new THREE.Vector3(result[0], result[1], result[2]);
+		return new THREE.Vector3( result[ 0 ], result[ 1 ], result[ 2 ] );
 
 	}
 
@@ -108,15 +114,15 @@ class Vec3Interpolant extends Interpolant<THREE.Vector3> {
 
 class Vec2Interpolant extends Interpolant<THREE.Vector2> {
 
-	constructor(frames) {
+	constructor( frames ) {
 
-		super(frames, 2);
+		super( frames, 2 );
 
 	}
 
-	onEvaluate(result) {
+	onEvaluate( result ) {
 
-		return new THREE.Vector2(result[0], result[1])
+		return new THREE.Vector2( result[ 0 ], result[ 1 ] );
 
 	}
 
@@ -124,15 +130,15 @@ class Vec2Interpolant extends Interpolant<THREE.Vector2> {
 
 class Vec4Interpolant extends Interpolant<THREE.Vector4> {
 
-	constructor(frames) {
+	constructor( frames ) {
 
-		super(frames, 4);
+		super( frames, 4 );
 
 	}
 
-	onEvaluate(result) {
+	onEvaluate( result ) {
 
-		return new THREE.Vector4(result[0], result[1], result[2], result[3])
+		return new THREE.Vector4( result[ 0 ], result[ 1 ], result[ 2 ], result[ 3 ] );
 
 	}
 
@@ -141,43 +147,43 @@ class Vec4Interpolant extends Interpolant<THREE.Vector4> {
 
 class FloatInterpolant extends Interpolant<number> {
 
-	constructor(frames) {
+	constructor( frames ) {
 
-		for (let i = 0; i < frames.length; i++) {
+		for ( let i = 0; i < frames.length; i ++ ) {
 
-			frames[i].value = [frames[i].value];
+			frames[ i ].value = [ frames[ i ].value ];
 
 		}
 
-		super(frames, 1);
+		super( frames, 1 );
 
 	}
 
-	onEvaluate(result) {
+	onEvaluate( result ) {
 
-		return result[0];
+		return result[ 0 ];
 
 	}
 
 	toTexture() {
 
 		const textureWidth = this.getTextureWidth();
-		const maxFrameTime = this.Frames[this.Frames.length - 1].time;
+		const maxFrameTime = this.Frames[ this.Frames.length - 1 ].time;
 
-		const data = new Float32Array(textureWidth);
+		const data = new Float32Array( textureWidth );
 
 		// 10 unit example texture:
 		// UV.X 0.0 -> this.evaluate(0.0)
 		// UV.X 1.0 -> this.evaluate(1.0)
-		for (let i = 0; i < textureWidth; ++i) {
+		for ( let i = 0; i < textureWidth; ++ i ) {
 
-			const t = i / (textureWidth - 1);
-			const value = this.evaluate(t * maxFrameTime);
-			data[i] = value;
+			const t = i / ( textureWidth - 1 );
+			const value = this.evaluate( t * maxFrameTime );
+			data[ i ] = value;
 
 		}
 
-		const dataTex = new THREE.DataTexture(data, textureWidth, 1, THREE.RedFormat, THREE.FloatType);
+		const dataTex = new THREE.DataTexture( data, textureWidth, 1, THREE.RedFormat, THREE.FloatType );
 		dataTex.minFilter = THREE.LinearFilter;
 		dataTex.magFilter = THREE.LinearFilter;
 		dataTex.wrapS = THREE.ClampToEdgeWrapping;
@@ -190,46 +196,47 @@ class FloatInterpolant extends Interpolant<number> {
 }
 class ColorInterpolant extends Interpolant<THREE.Color> {
 
-	constructor(frames) {
+	constructor( frames ) {
 
-		for (const frame of frames) {
+		for ( const frame of frames ) {
 
-			frame.value = [frame.value.r, frame.value.g, frame.value.b]
+			frame.value = [ frame.value.r, frame.value.g, frame.value.b ];
 
 		}
 
-		super(frames, 3)
+		super( frames, 3 );
+
 	}
 
-	onEvaluate(result) {
+	onEvaluate( result ) {
 
-		return new THREE.Color(result[0], result[1], result[2])
+		return new THREE.Color( result[ 0 ], result[ 1 ], result[ 2 ] );
 
 	}
 
 	toTexture() {
 
 		const textureWidth = this.getTextureWidth();
-		const maxFrameTime = this.Frames[this.Frames.length - 1].time;
+		const maxFrameTime = this.Frames[ this.Frames.length - 1 ].time;
 
-		const data = new Float32Array(textureWidth * 4);
+		const data = new Float32Array( textureWidth * 4 );
 
 		// 10 unit example texture:
 		// UV.X 0.0 -> this.evaluate(0.0)
 		// UV.X 1.0 -> this.evaluate(1.0)
-		for (let i = 0; i < textureWidth; ++i) {
+		for ( let i = 0; i < textureWidth; ++ i ) {
 
-			const t = i / (textureWidth - 1);
-			const value = this.evaluate(t * maxFrameTime);
-			console.log(value)
-			data[i * 4] = value.r;
-			data[i * 4 + 1] = value.g;
-			data[i * 4 + 2] = value.b;
-			data[i * 4 + 3] = 1.0;
+			const t = i / ( textureWidth - 1 );
+			const value = this.evaluate( t * maxFrameTime );
+			console.log( value );
+			data[ i * 4 ] = value.r;
+			data[ i * 4 + 1 ] = value.g;
+			data[ i * 4 + 2 ] = value.b;
+			data[ i * 4 + 3 ] = 1.0;
 
 		}
 
-		const dataTex = new THREE.DataTexture(data, textureWidth, 1, THREE.RGBAFormat, THREE.FloatType);
+		const dataTex = new THREE.DataTexture( data, textureWidth, 1, THREE.RGBAFormat, THREE.FloatType );
 		dataTex.minFilter = THREE.LinearFilter;
 		dataTex.magFilter = THREE.LinearFilter;
 		dataTex.wrapS = THREE.ClampToEdgeWrapping;
@@ -243,10 +250,10 @@ class ColorInterpolant extends Interpolant<THREE.Color> {
 
 
 export default {
-	random, 
-	Vec3Interpolant, 
-	FloatInterpolant, 
-	Vec2Interpolant, 
+	random,
+	Vec3Interpolant,
+	FloatInterpolant,
+	Vec2Interpolant,
 	Vec4Interpolant,
 	ColorInterpolant
 };

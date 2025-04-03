@@ -11,7 +11,8 @@
   },
   "extends": [
     "mdcs",
-    "plugin:compat/recommended"
+    "plugin:compat/recommended",
+    "plugin:@typescript-eslint/recommended"
   ],
   "plugins": [
     "html",

@@ -1,174 +1,174 @@
-import * as THREE from 'three'
+import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 class App {
 
-  // Private references to values shared across all single scene Threejs applications
-  #renderer_: WebGPURenderer //| THREE.WebGLRenderer
-  #camera_: THREE.PerspectiveCamera;
-  #scene_ : THREE.Scene;
-  #clock_: THREE.Clock;
-  #debugUI_: GUI;
+	// Private references to values shared across all single scene Threejs applications
+	#renderer_: WebGPURenderer; //| THREE.WebGLRenderer
+	#camera_: THREE.PerspectiveCamera;
+	#scene_ : THREE.Scene;
+	#clock_: THREE.Clock;
+	#debugUI_: GUI;
 
 
-  // Override these methods
-  async onSetupProject( projectFolder?: GUI ) {
-  }
+	// Override these methods
+	async onSetupProject( projectFolder?: GUI ) {
+	}
 
-  onRender() {
-  }
+	onRender() {
+	}
 
-  onStep( dt, totalTimeElapsed ) {
-  }
+	onStep( dt, totalTimeElapsed ) {
+	}
 
-  onResize() {
-  }
+	onResize() {
+	}
 
-  async #setupRenderer_() {
+	async #setupRenderer_() {
 
-    this.#renderer_ = new THREE.WebGPURenderer( { antialias: true } );
-    this.#renderer_.shadowMap.enabled = true;
-    this.#renderer_.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.#renderer_.toneMapping = THREE.ACESFilmicToneMapping;
-    this.#renderer_.setSize( window.innerWidth, window.innerHeight );
-    document.body.appendChild( this.#renderer_.domElement );
+		this.#renderer_ = new THREE.WebGPURenderer( { antialias: true } );
+		this.#renderer_.shadowMap.enabled = true;
+		this.#renderer_.shadowMap.type = THREE.PCFSoftShadowMap;
+		this.#renderer_.toneMapping = THREE.ACESFilmicToneMapping;
+		this.#renderer_.setSize( window.innerWidth, window.innerHeight );
+		document.body.appendChild( this.#renderer_.domElement );
 
-    this.#debugUI_ = new GUI();
+		this.#debugUI_ = new GUI();
 
-    const fov = 60;
-    const aspect = window.innerWidth / window.innerHeight;
-    const near = 0.1;
-    const far = 2000;
-    this.#camera_ = new THREE.PerspectiveCamera( fov, aspect, near, far );
-    this.#camera_.position.set( 400, 200, 400 );
-    this.#camera_.position.set( - 408.5944710487976, 259.17825010251136, - 354.7917599129882 );
-    this.#camera_.lookAt( new THREE.Vector3( 0, 0, 0 ) );
+		const fov = 60;
+		const aspect = window.innerWidth / window.innerHeight;
+		const near = 0.1;
+		const far = 2000;
+		this.#camera_ = new THREE.PerspectiveCamera( fov, aspect, near, far );
+		this.#camera_.position.set( 400, 200, 400 );
+		this.#camera_.position.set( - 408.5944710487976, 259.17825010251136, - 354.7917599129882 );
+		this.#camera_.lookAt( new THREE.Vector3( 0, 0, 0 ) );
 
-    const controls = new OrbitControls( this.#camera_, this.#renderer_.domElement );
-    controls.enableDamping = true;
-    controls.target.set( 0, 0, 0 );
-    controls.update();
+		const controls = new OrbitControls( this.#camera_, this.#renderer_.domElement );
+		controls.enableDamping = true;
+		controls.target.set( 0, 0, 0 );
+		controls.update();
 
-    this.#scene_ = new THREE.Scene();
-    this.#scene_.background = new THREE.Color( 0x000000 );
+		this.#scene_ = new THREE.Scene();
+		this.#scene_.background = new THREE.Color( 0x000000 );
 
-    // Scene tweaks
-    this.#scene_.backgroundBlurriness = 0.0;
-    this.#scene_.backgroundIntensity = 0.2;
-    this.#scene_.environmentIntensity = 1.0;
-    // Apply general parameters to the scene
-    const sceneFolder = this.#debugUI_.addFolder( 'Scene' );
-    sceneFolder.add( this.#scene_, 'backgroundBlurriness', 0.0, 1.0 );
-    sceneFolder.add( this.#scene_, 'backgroundIntensity', 0.0, 1.0 );
-    sceneFolder.add( this.#scene_, 'environmentIntensity', 0.0, 1.0 );
+		// Scene tweaks
+		this.#scene_.backgroundBlurriness = 0.0;
+		this.#scene_.backgroundIntensity = 0.2;
+		this.#scene_.environmentIntensity = 1.0;
+		// Apply general parameters to the scene
+		const sceneFolder = this.#debugUI_.addFolder( 'Scene' );
+		sceneFolder.add( this.#scene_, 'backgroundBlurriness', 0.0, 1.0 );
+		sceneFolder.add( this.#scene_, 'backgroundIntensity', 0.0, 1.0 );
+		sceneFolder.add( this.#scene_, 'environmentIntensity', 0.0, 1.0 );
 
-  }
-
-
-  async #setupProject_() {
-
-    await this.#setupRenderer_();
-
-    // Initialize project
-    const projectFolder = this.#debugUI_.addFolder( 'Project' );
-
-    // Apply project specific parameters to the scene
-    await this.onSetupProject( projectFolder );
-
-  }
+	}
 
 
-  #onWindowResize_() {
+	async #setupProject_() {
 
-    // Intentionally ignoring DPR for now
-    // const dpr = window.devicePixelRatio;
-    const dpr = 1;
+		await this.#setupRenderer_();
 
-    const canvas = this.#renderer_.domElement;
-    canvas.style.width = window.innerWidth + 'px';
-    canvas.style.height = window.innerHeight + 'px';
-    const w = canvas.clientWidth;
-    const h = canvas.clientHeight;
+		// Initialize project
+		const projectFolder = this.#debugUI_.addFolder( 'Project' );
 
-    const aspect = w / h;
+		// Apply project specific parameters to the scene
+		await this.onSetupProject( projectFolder );
 
-    this.#renderer_.setSize( w, h, false );
-    this.#camera_.aspect = aspect;
-    this.#camera_.updateProjectionMatrix();
+	}
 
-  }
 
-  #raf_() {
+	#onWindowResize_() {
 
-    requestAnimationFrame( ( t ) => {
+		// Intentionally ignoring DPR for now
+		// const dpr = window.devicePixelRatio;
+		const dpr = 1;
 
-      // Calculate and compute
-      this.#step_( this.#clock_.getDelta() );
-      // Render
-      this.#render_();
-      // Call next animation frame
-      this.#raf_();
+		const canvas = this.#renderer_.domElement;
+		canvas.style.width = window.innerWidth + 'px';
+		canvas.style.height = window.innerHeight + 'px';
+		const w = canvas.clientWidth;
+		const h = canvas.clientHeight;
 
-    } );
+		const aspect = w / h;
 
-  }
+		this.#renderer_.setSize( w, h, false );
+		this.#camera_.aspect = aspect;
+		this.#camera_.updateProjectionMatrix();
 
-  #render_() {
+	}
 
-    this.onRender();
-    this.#renderer_.renderAsync( this.#scene_, this.#camera_ );
+	#raf_() {
 
-  }
+		requestAnimationFrame( ( t ) => {
 
-  #step_( dt: number ) {
+			// Calculate and compute
+			this.#step_( this.#clock_.getDelta() );
+			// Render
+			this.#render_();
+			// Call next animation frame
+			this.#raf_();
 
-    this.onStep( dt, this.#clock_.getElapsedTime() );
+		} );
 
-  }
+	}
 
-  loadRGBE( path ) {
+	#render_() {
 
-    const rgbeLoader = new RGBELoader();
-    rgbeLoader.load( path, ( hdrTexture ) => {
+		this.onRender();
+		this.#renderer_.renderAsync( this.#scene_, this.#camera_ );
 
-      hdrTexture.mapping = THREE.EquirectangularReflectionMapping;
+	}
 
-      this.#scene_.background = hdrTexture;
-      this.#scene_.environment = hdrTexture;
+	#step_( dt: number ) {
 
-    } );
+		this.onStep( dt, this.#clock_.getElapsedTime() );
 
-  }
+	}
 
-  async initialize() {
+	loadRGBE( path ) {
 
-    this.#clock_ = new THREE.Clock( true );
+		const rgbeLoader = new RGBELoader();
+		rgbeLoader.load( path, ( hdrTexture ) => {
 
-    // Setup event listeners before render loop
-    window.addEventListener( 'resize', () => {
+			hdrTexture.mapping = THREE.EquirectangularReflectionMapping;
 
-      this.#onWindowResize_();
+			this.#scene_.background = hdrTexture;
+			this.#scene_.environment = hdrTexture;
 
-    }, false );
+		} );
 
-    // Setup Project and call App specific onSetupProject
-    await this.#setupProject_();
+	}
 
-    // Resize window to meet current canvas dimensions
-    this.#onWindowResize_();
-    // Start render loop
-    this.#raf_();
+	async initialize() {
 
-  }
+		this.#clock_ = new THREE.Clock( true );
 
-  // Getters
-  get Scene() {
+		// Setup event listeners before render loop
+		window.addEventListener( 'resize', () => {
 
-    return this.#scene_;
+			this.#onWindowResize_();
 
-  }
+		}, false );
+
+		// Setup Project and call App specific onSetupProject
+		await this.#setupProject_();
+
+		// Resize window to meet current canvas dimensions
+		this.#onWindowResize_();
+		// Start render loop
+		this.#raf_();
+
+	}
+
+	// Getters
+	get Scene() {
+
+		return this.#scene_;
+
+	}
 
 }
 

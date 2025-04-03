@@ -5,25 +5,25 @@ let renderer, camera, scene;
 
 const init = () => {
 
-  camera = new THREE.OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
-  scene = new THREE.Scene();
-  const geometry = new THREE.PlaneGeometry( 2, 2 );
+	camera = new THREE.OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
+	scene = new THREE.Scene();
+	const geometry = new THREE.PlaneGeometry( 2, 2 );
 
-  const colors = [
-    new THREE.Color( 0xFF0000 ),
-    new THREE.Color( 0x00FF00 ),
-    new THREE.Color( 0x0000FF ),
-    new THREE.Color( 0x00FFFF ),
-  ];
+	const colors = [
+		new THREE.Color( 0xFF0000 ),
+		new THREE.Color( 0x00FF00 ),
+		new THREE.Color( 0x0000FF ),
+		new THREE.Color( 0x00FFFF ),
+	];
 
-  const colorFloats = colors.map( c => c.toArray() ).flat();
+	const colorFloats = colors.map( c => c.toArray() ).flat();
 
-  geometry.setAttribute( 'vColor', new THREE.Float32BufferAttribute( colorFloats, 3 ) );
+	geometry.setAttribute( 'vColor', new THREE.Float32BufferAttribute( colorFloats, 3 ) );
 
-  const material = new THREE.MeshBasicNodeMaterial();
+	const material = new THREE.MeshBasicNodeMaterial();
 
-  // three/src/nodes/core/AttributeNode.js
-  /*
+	// three/src/nodes/core/AttributeNode.js
+	/*
     // If in the vertex stage, build the attribute.
     if ( builder.shaderStage === 'vertex' ) {
 
@@ -40,36 +40,36 @@ const init = () => {
     }
   */
 
-  material.colorNode = Fn( () => {
+	material.colorNode = Fn( () => {
 
-    return attribute( 'vColor' );
+		return attribute( 'vColor' );
 
-  } )();
+	} )();
 
-  const quad = new THREE.Mesh( geometry, material );
-  scene.add( quad );
+	const quad = new THREE.Mesh( geometry, material );
+	scene.add( quad );
 
-  renderer = new THREE.WebGPURenderer( { antialias: true } );
-  renderer.setSize( window.innerWidth, window.innerHeight );
-  renderer.setAnimationLoop( animate );
-  renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
-  document.body.appendChild( renderer.domElement );
+	renderer = new THREE.WebGPURenderer( { antialias: true } );
+	renderer.setSize( window.innerWidth, window.innerHeight );
+	renderer.setAnimationLoop( animate );
+	renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
+	document.body.appendChild( renderer.domElement );
 
-  window.addEventListener( 'resize', onWindowResize );
+	window.addEventListener( 'resize', onWindowResize );
 
 };
 
 const onWindowResize = () => {
 
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize( window.innerWidth, window.innerHeight );
+	camera.aspect = window.innerWidth / window.innerHeight;
+	camera.updateProjectionMatrix();
+	renderer.setSize( window.innerWidth, window.innerHeight );
 
 };
 
 function animate() {
 
-  renderer.render( scene, camera );
+	renderer.render( scene, camera );
 
 }
 

@@ -5,47 +5,47 @@ let renderer, camera, scene;
 
 const init = () => {
 
-  camera = new THREE.OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
-  scene = new THREE.Scene();
-  const geometry = new THREE.PlaneGeometry( 2, 2 );
-  const material = new THREE.MeshBasicNodeMaterial();
+	camera = new THREE.OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
+	scene = new THREE.Scene();
+	const geometry = new THREE.PlaneGeometry( 2, 2 );
+	const material = new THREE.MeshBasicNodeMaterial();
 
-  const getColorUsingOut = ( color ) => {
+	const getColorUsingOut = ( color ) => {
 
-    return color.mul( vec4( 0.5 ) );
+		return color.mul( vec4( 0.5 ) );
 
-  };
+	};
 
-  material.colorNode = Fn( () => {
+	material.colorNode = Fn( () => {
 
-    return getColorUsingOut( vec4( 1.0 ) );
+		return getColorUsingOut( vec4( 1.0 ) );
 
-  } )();
+	} )();
 
-  const quad = new THREE.Mesh( geometry, material );
-  scene.add( quad );
+	const quad = new THREE.Mesh( geometry, material );
+	scene.add( quad );
 
-  renderer = new THREE.WebGPURenderer( { antialias: true } );
-  renderer.setSize( window.innerWidth, window.innerHeight );
-  renderer.setAnimationLoop( animate );
-  renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
-  document.body.appendChild( renderer.domElement );
+	renderer = new THREE.WebGPURenderer( { antialias: true } );
+	renderer.setSize( window.innerWidth, window.innerHeight );
+	renderer.setAnimationLoop( animate );
+	renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
+	document.body.appendChild( renderer.domElement );
 
-  window.addEventListener( 'resize', onWindowResize );
+	window.addEventListener( 'resize', onWindowResize );
 
 };
 
 const onWindowResize = () => {
 
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize( window.innerWidth, window.innerHeight );
+	camera.aspect = window.innerWidth / window.innerHeight;
+	camera.updateProjectionMatrix();
+	renderer.setSize( window.innerWidth, window.innerHeight );
 
 };
 
 function animate() {
 
-  renderer.render( scene, camera );
+	renderer.render( scene, camera );
 
 }
 

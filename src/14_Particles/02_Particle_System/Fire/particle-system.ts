@@ -25,59 +25,67 @@ export interface EmitterParameters {
 // Defines the shape of the volume where the particles are created.
 export class EmitterShape {
 
-	constructor(){
-        if (new.target == EmitterShape) {
-            throw new Error('Cannot instantiate abstract class EmitterShape.')
-        }
+	constructor() {
+
+		if ( new.target == EmitterShape ) {
+
+			throw new Error( 'Cannot instantiate abstract class EmitterShape.' );
+
+		}
+
 	}
 
 	// A shape determines the location where a particle is emitted
-    // 
-    // Implement abstract class by setting return type but throwign error
+	//
+	// Implement abstract class by setting return type but throwign error
 	emit(): Particle {
-        throw new Error(`${this.constructor.name} must implement emit()`);
-    }
+
+		throw new Error( `${this.constructor.name} must implement emit()` );
+
+	}
 
 }
 
 export class PointEmitterShape extends EmitterShape {
 
-    position: THREE.Vector3
+	position: THREE.Vector3;
 
-    constructor(position?: THREE.Vector3) {
+	constructor( position?: THREE.Vector3 ) {
 
-        super();
-				this.position = new THREE.Vector3();
-        if (position !== undefined) {
-            this.position.copy(position)
-        }
+		super();
+		this.position = new THREE.Vector3();
+		if ( position !== undefined ) {
 
-    }
+			this.position.copy( position );
 
-    emit() {
+		}
 
-        const p = new Particle();
-        p.position.copy(this.position)
-        return p;
+	}
 
-    }
+	emit() {
+
+		const p = new Particle();
+		p.position.copy( this.position );
+		return p;
+
+	}
 
 }
 
 export class Particle {
 
-	position: THREE.Vector3
-	velocity: THREE.Vector3
-	life: number
-	maxLife: number
+	position: THREE.Vector3;
+	velocity: THREE.Vector3;
+	life: number;
+	maxLife: number;
 
-	static GRAVITY = new THREE.Vector3(0.0, -9.8, 0.0)
-	
+	static GRAVITY = new THREE.Vector3( 0.0, - 9.8, 0.0 );
+
 	constructor() {
 
 		this.position = new THREE.Vector3();
 		this.velocity = new THREE.Vector3();
-		this.life = 0
+		this.life = 0;
 		this.maxLife = 18;
 
 	}
@@ -85,7 +93,7 @@ export class Particle {
 }
 
 // Emitter will create particles.
-// Rather than creating particles randomly, 
+// Rather than creating particles randomly,
 export class Emitter {
 
 	#particles: Particle[] = [];
@@ -93,22 +101,22 @@ export class Emitter {
 	#numParticlesEmitted: number = 0;
 	#params: EmitterParameters;
 
-	constructor(params) {
+	constructor( params ) {
 
 		this.#params = params;
 
-		if (this.#params.startNumParticles) {
+		if ( this.#params.startNumParticles ) {
 
-			for (let i = 0; i < this.#params.startNumParticles; i++) {
+			for ( let i = 0; i < this.#params.startNumParticles; i ++ ) {
 
-				this.#particles.push(this.#emitParticle());
+				this.#particles.push( this.#emitParticle() );
 
 			}
 
 		}
 
 	}
-	
+
 
 	getParticles() {
 
@@ -116,22 +124,22 @@ export class Emitter {
 
 	}
 
-  setPointEmitterShape(position) {
+	setPointEmitterShape( position ) {
 
 		const shape = this.#params.shape as PointEmitterShape;
-		shape.position.copy(position)
+		shape.position.copy( position );
 
-  }
+	}
 
-	step(dt: number, totalTime: number) {
+	step( dt: number, totalTime: number ) {
 
 		// Update current emitter instance.
-		this.#updateEmission(dt, totalTime);
+		this.#updateEmission( dt, totalTime );
 		// Update the particles this emitter has jurisdiction over
-		this.#updateParticles(dt, totalTime);
+		this.#updateParticles( dt, totalTime );
 
 
-		this.#params.particleRenderer.updateFromParticlesNew(this.#particles)
+		this.#params.particleRenderer.updateFromParticlesNew( this.#particles );
 
 	}
 
@@ -154,7 +162,7 @@ export class Emitter {
 
 	#emitParticle() {
 
-    const p = this.#params.shape.emit()
+		const p = this.#params.shape.emit();
 		return p;
 
 	}
@@ -164,57 +172,57 @@ export class Emitter {
 	// Presumably, once a particle has reached a certain lifetime, it can then be emitted
 	// again, which replicates the effect of a steady stream of particles with a finite number
 	// of them.
-	#updateEmission(dt: number, totalTime: number) {
+	#updateEmission( dt: number, totalTime: number ) {
 
-		this.setPointEmitterShape(new THREE.Vector3(Math.cos(totalTime / 2) * 100, Math.sin(totalTime / 2) * 100, 0))
+		this.setPointEmitterShape( new THREE.Vector3( Math.cos( totalTime / 2 ) * 100, Math.sin( totalTime / 2 ) * 100, 0 ) );
 		// Update time since last particle emission
 		this.#timeSinceLastEmit += dt;
 		const secondsPerParticle = 1.0 / this.#params.particleEmissionRate;
-		
-		if (this.#canCreateParticle()) {
+
+		if ( this.#canCreateParticle() ) {
 
 			// Reset time since last emission
-			this.#timeSinceLastEmit -= secondsPerParticle
+			this.#timeSinceLastEmit -= secondsPerParticle;
 
 			this.#numParticlesEmitted += 1;
 
-			this.#particles.push(this.#emitParticle())
+			this.#particles.push( this.#emitParticle() );
 
 
 		}
 
 	}
 
-	#updateParticle(p: Particle, dt: number, totalTime: number) {
+	#updateParticle( p: Particle, dt: number, totalTime: number ) {
 
-			p.life += dt;
-			p.life = Math.min(p.life, p.maxLife)
-			
-			const rotationFactor = 100.0;
-			const minDistance = 0.1;
-			const rotationSpeed = rotationFactor / (p.position.length() + minDistance);
+		p.life += dt;
+		p.life = Math.min( p.life, p.maxLife );
 
-			// Apply Gravity
-			const forces = Particle.GRAVITY.clone();
-			// Apply pseudo air resistance drag force that works against the velocity
-			forces.add(p.velocity.clone().multiplyScalar(0.1)); //DRAG
+		const rotationFactor = 100.0;
+		const minDistance = 0.1;
+		const rotationSpeed = rotationFactor / ( p.position.length() + minDistance );
 
-			p.velocity.add(forces.multiplyScalar(dt));
+		// Apply Gravity
+		const forces = Particle.GRAVITY.clone();
+		// Apply pseudo air resistance drag force that works against the velocity
+		forces.add( p.velocity.clone().multiplyScalar( 0.1 ) ); //DRAG
 
-			const displacement = p.velocity.clone().multiplyScalar(dt);
-			//p.position.add(displacement)
+		p.velocity.add( forces.multiplyScalar( dt ) );
+
+		const displacement = p.velocity.clone().multiplyScalar( dt );
+		//p.position.add(displacement)
 
 	}
 
-	#updateParticles(dt: number, totalTime: number) {
+	#updateParticles( dt: number, totalTime: number ) {
 
-		for (const particle of this.#particles) {
+		for ( const particle of this.#particles ) {
 
-			this.#updateParticle(particle, dt, totalTime);
+			this.#updateParticle( particle, dt, totalTime );
 
 		}
 
-		this.#particles = this.#particles.filter(p => p.life < p.maxLife);
+		this.#particles = this.#particles.filter( p => p.life < p.maxLife );
 
 	}
 
@@ -230,17 +238,17 @@ export class ParticleSystem {
 
 	}
 
-	addEmitter(emitter: Emitter) {
+	addEmitter( emitter: Emitter ) {
 
-		this.#emitters.push(emitter);
+		this.#emitters.push( emitter );
 
 	}
 
-	step(dt: number, totalTime: number) {
+	step( dt: number, totalTime: number ) {
 
-		for (const emitter of this.#emitters) {
+		for ( const emitter of this.#emitters ) {
 
-			emitter.step(dt, totalTime);
+			emitter.step( dt, totalTime );
 
 		}
 
@@ -268,78 +276,81 @@ export interface ParticleGeometryAttributes {
 // Contains particle geometry data and "renders" particles.
 // Not actually a draw call per se (that happens in the raf loop)
 // but more like a class that separates our CPU logic from our GPU logic.
-// We effectively "upload" CPU data to the GPU in this class, which is 
+// We effectively "upload" CPU data to the GPU in this class, which is
 // a nice bit of abstraction of "CPU" code from "GPU" code
 export class ParticleRenderer {
-	
+
 	// For purposes of the WebGPU version, particlesSprite is effectively the particle geometry.
-	// Though it's an inelegant analogue given that the "geometry" returned already has a material 
+	// Though it's an inelegant analogue given that the "geometry" returned already has a material
 	// attached to it.
 	#particlesSprite: THREE.Sprite;
 	#geometryAttributes: ParticleGeometryAttributes;
 	#positions: Float32Array<ArrayBuffer>;
 	#lifes: Float32Array<ArrayBuffer>;
 
-	constructor(material: SpriteNodeMaterial, params: ParticleRendererParams) {
+	constructor( material: SpriteNodeMaterial, params: ParticleRendererParams ) {
 
 		this.#positions = params.positions;
 		this.#lifes = params.lifes;
-		console.log(params.positionAttribute)
+		console.log( params.positionAttribute );
 		this.#geometryAttributes = {
 			positionAttribute: params.positionAttribute,
 			lifeAttribute: params.lifeAttribute
-		}
+		};
 
-		this.#particlesSprite = new THREE.Sprite(material);
+		this.#particlesSprite = new THREE.Sprite( material );
 		this.#particlesSprite.count = params.numParticles;
 
-		params.group.add(this.#particlesSprite)
+		params.group.add( this.#particlesSprite );
 
-		params.scene.add(params.group);
+		params.scene.add( params.group );
 
 	}
 
 
 
-	updateFromParticles(particles: Particle[]) {
+	updateFromParticles( particles: Particle[] ) {
 
-		for (let i = 0; i < particles.length; i++) {
+		for ( let i = 0; i < particles.length; i ++ ) {
 
-			this.updateFromParticle(particles[i], i)
+			this.updateFromParticle( particles[ i ], i );
 
 		}
 
 	}
 
-	updateFromParticlesNew(particles) {
+	updateFromParticlesNew( particles ) {
 
-    const positions = new Float32Array(particles.length * 3);
-    const lifes = new Float32Array(particles.length);
+		const positions = new Float32Array( particles.length * 3 );
+		const lifes = new Float32Array( particles.length );
 
-    for (let i = 0; i < particles.length; ++i) {
-      const p = particles[i];
-      positions[i * 3 + 0] = p.position.x;
-      positions[i * 3 + 1] = p.position.y;
-      positions[i * 3 + 2] = p.position.z;
-      lifes[i] = p.life / p.maxLife;
-    }
-    
-    this.#geometryAttributes.positionAttribute.copyArray(positions);
-    this.#geometryAttributes.lifeAttribute.copyArray(lifes);
+		for ( let i = 0; i < particles.length; ++ i ) {
 
-    this.#geometryAttributes.positionAttribute.needsUpdate = true;
-    this.#geometryAttributes.lifeAttribute.needsUpdate = true;
+			const p = particles[ i ];
+			positions[ i * 3 + 0 ] = p.position.x;
+			positions[ i * 3 + 1 ] = p.position.y;
+			positions[ i * 3 + 2 ] = p.position.z;
+			lifes[ i ] = p.life / p.maxLife;
 
-    this.#particlesSprite.count = particles.length;
-  }
+		}
 
-	updateFromParticle(particle: Particle, index: number) {
+		this.#geometryAttributes.positionAttribute.copyArray( positions );
+		this.#geometryAttributes.lifeAttribute.copyArray( lifes );
 
-		this.#positions[index * 3 + 0] = particle.position.x;
-		this.#positions[index * 3 + 1] = particle.position.y;
-		this.#positions[index * 3 + 2] = particle.position.z;
+		this.#geometryAttributes.positionAttribute.needsUpdate = true;
+		this.#geometryAttributes.lifeAttribute.needsUpdate = true;
 
-		this.#lifes[index] = particle.life / particle.maxLife;
+		this.#particlesSprite.count = particles.length;
+
+	}
+
+	updateFromParticle( particle: Particle, index: number ) {
+
+		this.#positions[ index * 3 + 0 ] = particle.position.x;
+		this.#positions[ index * 3 + 1 ] = particle.position.y;
+		this.#positions[ index * 3 + 2 ] = particle.position.z;
+
+		this.#lifes[ index ] = particle.life / particle.maxLife;
 
 	}
 

@@ -10,78 +10,78 @@ import * as THREE from 'three';
 let PostProcessInstance = 0;
 class PostProcessing {
 
-  constructor( renderer, outputNode = vec4( 0, 0, 1, 1 ) ) {
+	constructor( renderer, outputNode = vec4( 0, 0, 1, 1 ) ) {
 
-    this.renderer = renderer;
-    this.outputNode = outputNode;
-    this.outputColorTransform = true;
-    this.needsUpdate = true;
-    this._material = new THREE.NodeMaterial();
-    this._quadMesh = new THREE.QuadMesh( this._material );
-    this._material.name = `PostProcessing${PostProcessInstance}`;
-    PostProcessInstance += 1;
+		this.renderer = renderer;
+		this.outputNode = outputNode;
+		this.outputColorTransform = true;
+		this.needsUpdate = true;
+		this._material = new THREE.NodeMaterial();
+		this._quadMesh = new THREE.QuadMesh( this._material );
+		this._material.name = `PostProcessing${PostProcessInstance}`;
+		PostProcessInstance += 1;
 
-  }
+	}
 
-  render() {
+	render() {
 
-    this._update();
+		this._update();
 
-    const renderer = this.renderer;
+		const renderer = this.renderer;
 
-    const toneMapping = renderer.toneMapping;
-    const outputColorSpace = renderer.outputColorSpace;
+		const toneMapping = renderer.toneMapping;
+		const outputColorSpace = renderer.outputColorSpace;
 
-    renderer.toneMapping = NoToneMapping;
-    renderer.outputColorSpace = LinearSRGBColorSpace;
+		renderer.toneMapping = NoToneMapping;
+		renderer.outputColorSpace = LinearSRGBColorSpace;
 
-    //
+		//
 
-    this._quadMesh.render( renderer );
+		this._quadMesh.render( renderer );
 
-    //
+		//
 
-    renderer.toneMapping = toneMapping;
-    renderer.outputColorSpace = outputColorSpace;
+		renderer.toneMapping = toneMapping;
+		renderer.outputColorSpace = outputColorSpace;
 
-  }
+	}
 
-  _update() {
+	_update() {
 
-    if ( this.needsUpdate === true ) {
+		if ( this.needsUpdate === true ) {
 
-      const renderer = this.renderer;
+			const renderer = this.renderer;
 
-      const toneMapping = renderer.toneMapping;
-      const outputColorSpace = renderer.outputColorSpace;
+			const toneMapping = renderer.toneMapping;
+			const outputColorSpace = renderer.outputColorSpace;
 
-      this._quadMesh.material.fragmentNode = this.outputColorTransform === true ? renderOutput( this.outputNode, toneMapping, outputColorSpace ) : this.outputNode.context( { toneMapping, outputColorSpace } );
-      this._quadMesh.material.needsUpdate = true;
+			this._quadMesh.material.fragmentNode = this.outputColorTransform === true ? renderOutput( this.outputNode, toneMapping, outputColorSpace ) : this.outputNode.context( { toneMapping, outputColorSpace } );
+			this._quadMesh.material.needsUpdate = true;
 
-      this.needsUpdate = false;
+			this.needsUpdate = false;
 
-    }
+		}
 
-  }
+	}
 
-  async renderAsync() {
+	async renderAsync() {
 
-    this._update();
+		this._update();
 
-    const renderer = this.renderer;
+		const renderer = this.renderer;
 
-    const toneMapping = renderer.toneMapping;
-    const outputColorSpace = renderer.outputColorSpace;
+		const toneMapping = renderer.toneMapping;
+		const outputColorSpace = renderer.outputColorSpace;
 
-    renderer.toneMapping = NoToneMapping;
-    renderer.outputColorSpace = LinearSRGBColorSpace;
+		renderer.toneMapping = NoToneMapping;
+		renderer.outputColorSpace = LinearSRGBColorSpace;
 
-    await this._quadMesh.renderAsync( renderer );
+		await this._quadMesh.renderAsync( renderer );
 
-    renderer.toneMapping = toneMapping;
-    renderer.outputColorSpace = outputColorSpace;
+		renderer.toneMapping = toneMapping;
+		renderer.outputColorSpace = outputColorSpace;
 
-  }
+	}
 
 }
 

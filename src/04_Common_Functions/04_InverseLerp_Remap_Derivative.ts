@@ -48,55 +48,55 @@ enum ShaderMode {
 
 const init = async () => {
 
-  camera = new THREE.OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
-  scene = new THREE.Scene();
-  const geometry = new THREE.PlaneGeometry( 2, 2 );
+	camera = new THREE.OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
+	scene = new THREE.Scene();
+	const geometry = new THREE.PlaneGeometry( 2, 2 );
 
-  const material = new THREE.MeshBasicNodeMaterial();
-  const textureLoader = new THREE.TextureLoader();
-  const map = textureLoader.load( './resources/uv_grid_opengl.jpg' );
+	const material = new THREE.MeshBasicNodeMaterial();
+	const textureLoader = new THREE.TextureLoader();
+	const map = textureLoader.load( './resources/uv_grid_opengl.jpg' );
 
-  const effectController = {
-    tint: uniform( new THREE.Color( 1.0, 0.0, 0.0 ) ),
-  };
+	const effectController = {
+		tint: uniform( new THREE.Color( 1.0, 0.0, 0.0 ) ),
+	};
 
-  // Grid shaders succintly demonstrate the functionality of dFdx due to the harsh
-  // changes between grid lines and the rest of the grid space.
-  material.colorNode = Fn( () => {
+	// Grid shaders succintly demonstrate the functionality of dFdx due to the harsh
+	// changes between grid lines and the rest of the grid space.
+	material.colorNode = Fn( () => {
 
-    const color = texture( map );
-    color.assign( mix( dFdx( color ), dFdy( color ), sin( time ) ) );
+		const color = texture( map );
+		color.assign( mix( dFdx( color ), dFdy( color ), sin( time ) ) );
 
-    return color;
+		return color;
 
-  } )();
+	} )();
 
-  const quad = new THREE.Mesh( geometry, material );
-  scene.add( quad );
+	const quad = new THREE.Mesh( geometry, material );
+	scene.add( quad );
 
-  renderer = new THREE.WebGPURenderer( { antialias: true } );
-  renderer.setSize( window.innerWidth, window.innerHeight );
-  renderer.setAnimationLoop( animate );
-  renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
-  document.body.appendChild( renderer.domElement );
+	renderer = new THREE.WebGPURenderer( { antialias: true } );
+	renderer.setSize( window.innerWidth, window.innerHeight );
+	renderer.setAnimationLoop( animate );
+	renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
+	document.body.appendChild( renderer.domElement );
 
-  window.addEventListener( 'resize', onWindowResize );
+	window.addEventListener( 'resize', onWindowResize );
 
-  gui = new GUI();
+	gui = new GUI();
 
 };
 
 const onWindowResize = () => {
 
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize( window.innerWidth, window.innerHeight );
+	camera.aspect = window.innerWidth / window.innerHeight;
+	camera.updateProjectionMatrix();
+	renderer.setSize( window.innerWidth, window.innerHeight );
 
 };
 
 function animate() {
 
-  renderer.render( scene, camera );
+	renderer.render( scene, camera );
 
 }
 

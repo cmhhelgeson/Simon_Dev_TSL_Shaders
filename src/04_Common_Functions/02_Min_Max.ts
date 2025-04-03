@@ -24,96 +24,96 @@ type ShaderType = 'Lines';
 
 const init = async () => {
 
-  camera = new THREE.OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
-  scene = new THREE.Scene();
-  const geometry = new THREE.PlaneGeometry( 2, 2 );
+	camera = new THREE.OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
+	scene = new THREE.Scene();
+	const geometry = new THREE.PlaneGeometry( 2, 2 );
 
-  const material = new THREE.MeshBasicNodeMaterial();
-  const textureLoader = new THREE.TextureLoader();
-  const map = textureLoader.load( './resources/uv_grid_opengl.jpg' );
+	const material = new THREE.MeshBasicNodeMaterial();
+	const textureLoader = new THREE.TextureLoader();
+	const map = textureLoader.load( './resources/uv_grid_opengl.jpg' );
 
-  const effectController = {
-    currentShader: 'Lines',
-    // Step uniforms
-    clampMin: uniform( 0.25 ),
-    clampMax: uniform( 0.75 )
+	const effectController = {
+		currentShader: 'Lines',
+		// Step uniforms
+		clampMin: uniform( 0.25 ),
+		clampMax: uniform( 0.75 )
 
-  };
+	};
 
-  const red = vec3( 1.0, 0.0, 0.0 );
-  const blue = vec3( 0.0, 0.0, 1.0 );
-  const white = vec3( 1.0, 1.0, 1.0 );
+	const red = vec3( 1.0, 0.0, 0.0 );
+	const blue = vec3( 0.0, 0.0, 1.0 );
+	const white = vec3( 1.0, 1.0, 1.0 );
 
-  const fakeClamp = ( val, minVal, maxVal ) => {
+	const fakeClamp = ( val, minVal, maxVal ) => {
 
-    return min( maxVal, max( minVal, val ) );
+		return min( maxVal, max( minVal, val ) );
 
-  };
+	};
 
-  const shaders: Record<ShaderType, ShaderNodeObject<Node>> = {
+	const shaders: Record<ShaderType, ShaderNodeObject<Node>> = {
 
-    'Lines': Fn( () => {
+		'Lines': Fn( () => {
 
-      const { clampMin, clampMax } = effectController;
+			const { clampMin, clampMax } = effectController;
 
-      const vUv = uv();
-      // Create line exactly as we did in last shader
-      const line = smoothstep( 0.0, 0.005, abs( vUv.y.sub( 0.5 ) ) );
-      const value1 = clamp( vUv.x, clampMin, clampMax );
-      const value2 = fakeClamp( smoothstep( 0.0, 1.0, vUv.x ), clampMin, clampMax );
-      const linearLine = smoothstep( 0.0, 0.005, abs( vUv.y.sub( mix( 0.5, 1.0, value1 ) ) ) );
-      const smoothstepLine = smoothstep( 0.0, 0.005, abs( vUv.y.sub( mix( 0.0, 0.5, value2 ) ) ) );
+			const vUv = uv();
+			// Create line exactly as we did in last shader
+			const line = smoothstep( 0.0, 0.005, abs( vUv.y.sub( 0.5 ) ) );
+			const value1 = clamp( vUv.x, clampMin, clampMax );
+			const value2 = fakeClamp( smoothstep( 0.0, 1.0, vUv.x ), clampMin, clampMax );
+			const linearLine = smoothstep( 0.0, 0.005, abs( vUv.y.sub( mix( 0.5, 1.0, value1 ) ) ) );
+			const smoothstepLine = smoothstep( 0.0, 0.005, abs( vUv.y.sub( mix( 0.0, 0.5, value2 ) ) ) );
 
-      const color = select( vUv.y.greaterThan( 0.5 ), mix( red, blue, vUv.x ), mix( blue, red, vUv.x ) ).toVar( 'color' );
-      color.assign( mix( white, color, line ) );
-      color.assign( mix( white, color, linearLine ) );
-      color.assign( mix( white, color, smoothstepLine ) );
+			const color = select( vUv.y.greaterThan( 0.5 ), mix( red, blue, vUv.x ), mix( blue, red, vUv.x ) ).toVar( 'color' );
+			color.assign( mix( white, color, line ) );
+			color.assign( mix( white, color, linearLine ) );
+			color.assign( mix( white, color, smoothstepLine ) );
 
-      return color;
-
-
-    } )(),
+			return color;
 
 
-  };
+		} )(),
 
-  material.colorNode = shaders[ effectController.currentShader ];
 
-  const quad = new THREE.Mesh( geometry, material );
-  scene.add( quad );
+	};
 
-  renderer = new THREE.WebGPURenderer( { antialias: true } );
-  renderer.setSize( window.innerWidth, window.innerHeight );
-  renderer.setAnimationLoop( animate );
-  renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
-  document.body.appendChild( renderer.domElement );
+	material.colorNode = shaders[ effectController.currentShader ];
 
-  window.addEventListener( 'resize', onWindowResize );
+	const quad = new THREE.Mesh( geometry, material );
+	scene.add( quad );
 
-  gui = new GUI();
-  gui.add( effectController, 'currentShader', Object.keys( shaders ) ).onChange( () => {
+	renderer = new THREE.WebGPURenderer( { antialias: true } );
+	renderer.setSize( window.innerWidth, window.innerHeight );
+	renderer.setAnimationLoop( animate );
+	renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
+	document.body.appendChild( renderer.domElement );
 
-    material.colorNode = shaders[ effectController.currentShader ];
-    material.needsUpdate = true;
+	window.addEventListener( 'resize', onWindowResize );
 
-  } );
+	gui = new GUI();
+	gui.add( effectController, 'currentShader', Object.keys( shaders ) ).onChange( () => {
 
-  gui.add( effectController.clampMin, 'value', 0.0, 1.0 ).name( 'clampMin' );
-  gui.add( effectController.clampMax, 'value', 0.0, 1.0 ).name( 'clampMax' );
+		material.colorNode = shaders[ effectController.currentShader ];
+		material.needsUpdate = true;
+
+	} );
+
+	gui.add( effectController.clampMin, 'value', 0.0, 1.0 ).name( 'clampMin' );
+	gui.add( effectController.clampMax, 'value', 0.0, 1.0 ).name( 'clampMax' );
 
 };
 
 const onWindowResize = () => {
 
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize( window.innerWidth, window.innerHeight );
+	camera.aspect = window.innerWidth / window.innerHeight;
+	camera.updateProjectionMatrix();
+	renderer.setSize( window.innerWidth, window.innerHeight );
 
 };
 
 function animate() {
 
-  renderer.render( scene, camera );
+	renderer.render( scene, camera );
 
 }
 
