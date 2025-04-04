@@ -208,6 +208,28 @@ export class Emitter {
 
 	}
 
+	#assignVelocityCoordPhysics( vel: THREE.Vector3, phi: number, theta: number ) {
+
+		vel.set(
+			Math.sin( phi ) * Math.cos( theta ),
+			Math.sin( phi ) * Math.sin( theta ),
+			Math.cos( phi ),
+		);
+
+	}
+
+	#assignVelocityCoordMath( vel: THREE.Vector3, phi: number, theta: number ) {
+
+		// Variables assigned according to definitions of phi and theta here:
+		// https://math.libretexts.org/Courses/Mount_Royal_University/MATH_2200%3A_Calculus_for_Scientists_II/7%3A_Vector_Spaces/5.7%3A_Cylindrical_and_Spherical_Coordinates#:~:text=To%20convert%20a%20point%20from,y2%2Bz2).
+		vel.set(
+			Math.sin( phi ) * Math.cos( theta ),
+			Math.sin( phi ) * Math.sin( theta ),
+			Math.cos( phi ),
+		);
+
+	}
+
 	#emitParticle() {
 
 		const p = this.#params.shape.emit();
@@ -220,6 +242,8 @@ export class Emitter {
 		// (think of that same elephant maintaining the direction of its trunk while rotating its body in place)
 		const phi = MATH.random() * Math.PI * 2;
 		const theta = MATH.random() * this.#params.rotationAngularVariance;
+
+		this.#assignVelocityCoordPhysics( p.velocity, phi, theta );
 
 		// Variables assigned according to definitions of phi and theta here:
 		// https://math.libretexts.org/Courses/Mount_Royal_University/MATH_2200%3A_Calculus_for_Scientists_II/7%3A_Vector_Spaces/5.7%3A_Cylindrical_and_Spherical_Coordinates#:~:text=To%20convert%20a%20point%20from,y2%2Bz2).
