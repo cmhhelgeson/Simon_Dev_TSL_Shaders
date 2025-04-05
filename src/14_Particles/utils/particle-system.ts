@@ -1,10 +1,12 @@
 
 
 import * as THREE from 'three';
-import MATH from '../../utils/math';
+import MATH from './math';
 import { instancedBufferAttribute, texture, vec2, Fn, vec3 } from 'three/tsl';
 
 import { NodeMaterial, PointsNodeMaterial, SpriteNodeMaterial } from 'three/webgpu';
+
+const GRAVITY = new THREE.Vector3( 0.0, - 9.8, 0.0 );
 
 export interface EmitterParameters {
 	// Max number of particles being displayed at once
@@ -21,13 +23,19 @@ export interface EmitterParameters {
 	particleRenderer: ParticleRenderer,
   // Volume or point determining where particles are generated
 	shape: EmitterShape,
-  // Particle constants
+  // SHARED PARTICLE CONSTANTS
   // The maximum life of each particle
   maxLife: number,
-  velocityMagnitude: 0,
+  velocityMagnitude: number,
   rotation: THREE.Quaternion,
   rotationAngularVariance: number,
-
+	gravity: boolean,
+	gravityStrength?: number,
+	dragCoefficient?: number,
+	spinSpeed?: number,
+	onCreated?: ( p: Particle ) => void;
+	onStep?: ( p: Particle ) => void;
+	onDestroy?: ( p: Particle ) => void;
 }
 
 // Defines the shape of the volume where the particles are created.
@@ -172,6 +180,24 @@ export class Emitter {
 
 	}
 
+	reset() {
+
+		this.#timeSinceLastEmit = 0;
+		this.#numParticlesEmitted = 0;
+		this.#particles.length = 0;
+
+		if ( this.#params.startNumParticles ) {
+
+			for ( let i = 0; i < this.#params.startNumParticles; i ++ ) {
+
+				this.#particles.push( this.#emitParticle() );
+
+			}
+
+		}
+
+	}
+
 	setPointEmitterShape( position ) {
 
 		const shape = this.#params.shape as PointEmitterShape;
@@ -208,17 +234,17 @@ export class Emitter {
 
 	}
 
-	#assignVelocityCoordPhysics( vel: THREE.Vector3, phi: number, theta: number ) {
+	#assignVelocityCoordSimon( vel: THREE.Vector3, phi: number, theta: number ) {
 
 		vel.set(
-			Math.sin( phi ) * Math.cos( theta ),
-			Math.sin( phi ) * Math.sin( theta ),
-			Math.cos( phi ),
+			Math.sin( theta ) * Math.cos( phi ),
+			Math.cos( theta ),
+			Math.sin( theta ) * Math.sin( phi )
 		);
 
 	}
 
-	#assignVelocityCoordMath( vel: THREE.Vector3, phi: number, theta: number ) {
+	#assignVelocityCoord( vel: THREE.Vector3, phi: number, theta: number ) {
 
 		// Variables assigned according to definitions of phi and theta here:
 		// https://math.libretexts.org/Courses/Mount_Royal_University/MATH_2200%3A_Calculus_for_Scientists_II/7%3A_Vector_Spaces/5.7%3A_Cylindrical_and_Spherical_Coordinates#:~:text=To%20convert%20a%20point%20from,y2%2Bz2).
@@ -243,13 +269,16 @@ export class Emitter {
 		const phi = MATH.random() * Math.PI * 2;
 		const theta = MATH.random() * this.#params.rotationAngularVariance;
 
-		this.#assignVelocityCoordPhysics( p.velocity, phi, theta );
+		this.#assignVelocityCoord( p.velocity, phi, theta );
 
 		// Variables assigned according to definitions of phi and theta here:
 		// https://math.libretexts.org/Courses/Mount_Royal_University/MATH_2200%3A_Calculus_for_Scientists_II/7%3A_Vector_Spaces/5.7%3A_Cylindrical_and_Spherical_Coordinates#:~:text=To%20convert%20a%20point%20from,y2%2Bz2).
 		p.velocity.x = Math.sin( phi ) * Math.cos( theta );
 		p.velocity.y = Math.sin( phi ) * Math.sin( theta );
 		p.velocity.z = Math.cos( phi );
+
+		p.velocity.multiplyScalar( this.#params.velocityMagnitude );
+		p.velocity.applyQuaternion( this.#params.rotation );
 
 		return p;
 
@@ -262,7 +291,7 @@ export class Emitter {
 	// of them.
 	#updateEmission( dt: number, totalTime: number ) {
 
-		this.setPointEmitterShape( new THREE.Vector3( Math.cos( totalTime / 2 ) * 100, Math.sin( totalTime / 2 ) * 100, 0 ) );
+		this.setPointEmitterShape( new THREE.Vector3( 0, Math.sin( totalTime / 2 ) * 100, 0 ) );
 		// Update time since last particle emission
 		this.#timeSinceLastEmit += dt;
 		const secondsPerParticle = 1.0 / this.#params.particleEmissionRate;
@@ -286,21 +315,34 @@ export class Emitter {
 		p.life += dt;
 		p.life = Math.min( p.life, p.maxLife );
 
-		const rotationFactor = 100.0;
-		const minDistance = 0.1;
-		const rotationSpeed = rotationFactor / ( p.position.length() + minDistance );
-
-		// Apply Gravity
-		const forces = Particle.GRAVITY.clone();
-		// Apply pseudo air resistance drag force that works against the velocity
-		forces.add( p.velocity.clone().multiplyScalar( 0.1 ) ); //DRAG
+		// Update position based on velocity and gravity
+		const forces = this.#params.gravity ? GRAVITY.clone() : new THREE.Vector3();
+		forces.multiplyScalar( this.#params.gravityStrength ? this.#params.gravityStrength : 1 );
+		forces.add( p.velocity.clone().multiplyScalar( - 0.9 ) );
 
 		p.velocity.add( forces.multiplyScalar( dt ) );
 
 		const displacement = p.velocity.clone().multiplyScalar( dt );
-		//p.position.add(displacement)
+		p.position.add( displacement );
+
+		if ( this.#params.onStep ) {
+
+			this.#params.onStep( p );
+
+		}
+
+		if ( p.life >= p.maxLife ) {
+
+			if ( this.#params.onDestroy ) {
+
+				this.#params.onDestroy( p );
+
+			}
+
+		}
 
 	}
+
 
 	#updateParticles( dt: number, totalTime: number ) {
 
@@ -329,6 +371,12 @@ export class ParticleSystem {
 	addEmitter( emitter: Emitter ) {
 
 		this.#emitters.push( emitter );
+
+	}
+
+	resetEmitter( index: number ) {
+
+		this.#emitters[ index ].reset();
 
 	}
 

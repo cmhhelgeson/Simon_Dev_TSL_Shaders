@@ -7,7 +7,7 @@ import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
 
 import MATH from '../../utils/math';
 
-import { ParticleRenderer, ParticleSystem, EmitterParameters, Emitter, Particle } from './particle-system';
+import { ParticleRenderer, ParticleSystem, EmitterParameters, Emitter, Particle, PointEmitterShape } from '../../utils/particle-system';
 import { PointsNodeMaterial } from 'three/webgpu';
 
 class ParticleProject extends App {
@@ -68,6 +68,7 @@ class ParticleProject extends App {
 			{ time: 5, value: 0.0 },
 			{ time: 6, value: 100.0 },
 			{ time: 18, value: 100.0 },
+			{ time: 20, value: 200.0 }
 		] );
 
 		const alphasOverLife = new MATH.FloatInterpolant( [
@@ -130,14 +131,22 @@ class ParticleProject extends App {
 
 		// Emitter parameters for having particles available on application start
 		const emitterParams: EmitterParameters = {
-			maxDisplayParticles: 1000,
-			maxEmission: 1000,
+			// Emission parameters
+			maxDisplayParticles: 100,
+			maxEmission: 100,
 			startNumParticles: 0,
-			// Effectively irrelvant
-			particleEmissionRate: 10.0,
-			// Passing the renderer as a reference to each emitter
+			particleEmissionRate: 100.0,
+			// Render parametersd
 			particleRenderer: particleRenderer,
+			shape: new PointEmitterShape( new THREE.Vector3( 0, 0, 0 ) ),
+			// Particle shared constants
+			maxLife: 2,
+			rotationAngularVariance: Math.PI * 2,
+			velocityMagnitude: 100,
+			rotation: new THREE.Quaternion(),
+			gravity: false,
 		};
+		// NOTE: Velocity animation and color animation are not on the same lifecycle
 		const emitter = new Emitter( emitterParams );
 		this.#particleSystem.addEmitter( emitter );
 
@@ -151,7 +160,7 @@ class ParticleProject extends App {
 
 		}
 
-		this.#particleSystem.step( dt );
+		this.#particleSystem.step( dt, totalTimeElapsed );
 
 	}
 
@@ -160,6 +169,8 @@ class ParticleProject extends App {
 		this.loadRGBE( './resources/moonless_golf_2k.hdr' );
 
 		this.#createPointsParticleSystem();
+
+		projectFolder?.add( { 'Reset Sim': () => this.#particleSystem.resetEmitter( 0 ) }, 'Reset Sim' ).name( 'Reset Sim' );
 
 	}
 

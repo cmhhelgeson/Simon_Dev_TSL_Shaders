@@ -7,7 +7,7 @@ import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
 
 import MATH from '../../utils/math';
 
-import { ParticleRenderer, ParticleSystem, EmitterParameters, Emitter, Particle, PointEmitterShape } from './particle-system';
+import { ParticleRenderer, ParticleSystem, EmitterParameters, Emitter, Particle } from './lazy-particle-system';
 import { PointsNodeMaterial } from 'three/webgpu';
 
 class ParticleProject extends App {
@@ -130,19 +130,13 @@ class ParticleProject extends App {
 
 		// Emitter parameters for having particles available on application start
 		const emitterParams: EmitterParameters = {
-			// Emission parameters
-			maxDisplayParticles: 500,
+			maxDisplayParticles: 1000,
 			maxEmission: 1000,
 			startNumParticles: 0,
-			particleEmissionRate: 100.0,
-			// Render parameters
+			// Effectively irrelvant
+			particleEmissionRate: 10.0,
+			// Passing the renderer as a reference to each emitter
 			particleRenderer: particleRenderer,
-			shape: new PointEmitterShape( new THREE.Vector3( 0, 0, 0 ) ),
-			// Particle shared constants
-			maxLife: 10,
-			rotationAngularVariance: 0,
-			velocityMagnitude: 0,
-			rotation: new THREE.Quaternion(),
 		};
 		const emitter = new Emitter( emitterParams );
 		this.#particleSystem.addEmitter( emitter );
@@ -157,7 +151,7 @@ class ParticleProject extends App {
 
 		}
 
-		this.#particleSystem.step( dt, totalTimeElapsed );
+		this.#particleSystem.step( dt );
 
 	}
 
