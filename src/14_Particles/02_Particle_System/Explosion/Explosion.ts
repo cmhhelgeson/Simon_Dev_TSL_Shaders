@@ -1,6 +1,6 @@
 
 import * as THREE from 'three';
-import { float, texture, vec3, sin, instanceIndex, time, instance, instancedBufferAttribute, instancedDynamicBufferAttribute, vec2, Fn } from 'three/tsl';
+import { float, texture, vec3, sin, instanceIndex, time, instance, instancedBufferAttribute, instancedDynamicBufferAttribute, vec2, Fn, mix } from 'three/tsl';
 
 import { App } from '../../utils/App';
 import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
@@ -27,20 +27,23 @@ class ParticleProject extends App {
 
 		this.#particleSystem = new ParticleSystem();
 
-		const numParticles = 1000;
+		// Maximum number of particles in memory/displayed at once
+		const maxDisplayParticles = 500;
+		const maxEmission = 500;
 
-		const positions = new Float32Array( numParticles * 3 );
-		const lifes = new Float32Array( numParticles );
-		const ids = new Float32Array( numParticles );
+		const positions = new Float32Array( maxDisplayParticles * 3 );
+		const lifes = new Float32Array( maxDisplayParticles );
+		const ids = new Float32Array( maxDisplayParticles );
 
 		const particles: Particle[] = [];
 
-		for ( let i = 0; i < numParticles; i ++ ) {
+		for ( let i = 0; i < maxDisplayParticles; i ++ ) {
 
 			const x = positions[ i * 3 ] = ( MATH.random() * 2 - 1 ) * 100;
 			const y = positions[ i * 3 + 1 ] = ( MATH.random() * 2 - 1 ) * 100;
 			const z = positions[ i * 3 + 2 ] = ( MATH.random() * 2 - 1 ) * 100;
 			lifes[ i ] = 0.0;
+			ids[ i ] = MATH.random();
 
 			// Direction of velocity explosion will always emanate from the origin
 			const dir = new THREE.Vector3( x, y, z ).normalize();
@@ -50,7 +53,7 @@ class ParticleProject extends App {
 				maxLife: 18,
 				position: new THREE.Vector3( x, y, z ),
 				velocity: dir.multiplyScalar( 50 ),
-				id: ids[ i ]
+				id: ids[ i ],
 			} );
 
 		}
@@ -91,9 +94,15 @@ class ParticleProject extends App {
 			{ time: 18, value: new THREE.Color( 0xFFFFFF ) },
 		] );
 
+		const twinkleOverLife = new MATH.FloatInterpolant( [
+			{ time: 0, value: 0 },
+			{ time: 3, value: 1 },
+			{ time: 4, value: 1 },
+		] );
+
 		const sizeOverLifeTexture: THREE.DataTexture = sizesOverLife.toTexture();
-		const alphasOverLifeTexture: THREE.DataTexture = alphasOverLife.toTexture();
 		const colorsOverLifeTexture: THREE.DataTexture = colorsOverLife.toTexture();
+		const twinkleOverLifeTexture: THREE.DataTexture = twinkleOverLife.toTexture();
 
 		const positionAttribute = new THREE.InstancedBufferAttribute( positions, 3 );
 		const lifeAttribute = new THREE.InstancedBufferAttribute( lifes, 1 );
@@ -101,12 +110,13 @@ class ParticleProject extends App {
 
 		const lifeNode = instancedDynamicBufferAttribute( lifeAttribute );
 		const newPosition = instancedDynamicBufferAttribute( positionAttribute );
+		const idNode = instancedBufferAttribute( idAttribute );
 
 		this.#particleMaterial = new PointsNodeMaterial( {
 			color: 0xffffff,
 			positionNode: newPosition,
 			sizeNode: texture( sizeOverLifeTexture, vec2( lifeNode, 0.5 ) ).x,
-			opacityNode: texture( alphasOverLifeTexture, vec2( lifeNode, 0.5 ) ).x,
+			//opacityNode: texture( alphasOverLifeTexture, vec2( lifeNode, 0.5 ) ).x,
 			colorNode: Fn( () => {
 
 				const starMap = texture( starTexture );
@@ -126,27 +136,29 @@ class ParticleProject extends App {
 			scene: this.Scene,
 			positions: positions,
 			lifes: lifes,
-			numParticles: numParticles,
+			maxDisplayParticles: maxDisplayParticles,
 			group: new THREE.Group(),
 			positionAttribute: positionAttribute,
 			lifeAttribute: lifeAttribute,
-			idAttribute: idAttribute
+			idAttribute: idAttribute,
 		} );
 
 		// Emitter parameters for having particles available on application start
 		const emitterParams: EmitterParameters = {
 			// Emission parameters
-			maxDisplayParticles: 100,
-			maxEmission: 100,
+			maxDisplayParticles: maxDisplayParticles,
+			// Maximum number of particles that can be emitted over the lifetime of the simulation
+			maxEmission: maxEmission,
 			startNumParticles: 0,
-			particleEmissionRate: 100.0,
+			// Make particle emission rate way faster than maxEmission to basically generate all particles at once
+			particleEmissionRate: 5000.0,
 			// Render parametersd
 			particleRenderer: particleRenderer,
 			shape: new PointEmitterShape( new THREE.Vector3( 0, 0, 0 ) ),
 			// Particle shared constants
-			maxLife: 2,
+			maxLife: 5,
 			rotationAngularVariance: Math.PI * 2,
-			velocityMagnitude: 100,
+			velocityMagnitude: 200,
 			rotation: new THREE.Quaternion(),
 			gravity: false,
 		};

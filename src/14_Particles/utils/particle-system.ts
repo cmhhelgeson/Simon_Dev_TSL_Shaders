@@ -467,14 +467,12 @@ export class ParticleRenderer {
 		this.#geometryAttributes.positionAttribute.copyArray( positions );
 		this.#geometryAttributes.lifeAttribute.copyArray( lifes );
 
-		console.log( positions );
-		console.log( particles.length );
-		console.log( particles );
-
 		// Don't necessarily need this if positionAttribute and lifeAttribute
 		// are already defined as instancedDynamicBufferAttributes() in TSL
 		//this.#geometryAttributes.positionAttribute.needsUpdate = true;
 		//this.#geometryAttributes.lifeAttribute.needsUpdate = true;
+
+		console.log(particles.length)
 
 		this.#particlesSprite.count = particles.length;
 

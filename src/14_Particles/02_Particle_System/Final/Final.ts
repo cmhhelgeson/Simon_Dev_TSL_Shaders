@@ -116,20 +116,6 @@ class ParticleProject extends App {
 			color: 0xffffff,
 			positionNode: newPosition,
 			sizeNode: texture( sizeOverLifeTexture, vec2( lifeNode, 0.5 ) ).x,
-			opacityNode: Fn( () => {
-
-				// Can't use version below because every particle, irrespective of its age
-				// will blink at the same time
-				// const twinkleValue = texture( twinkleOverLifeTexture, vec2( lifeNode, 0.5 ) ).x;
-				// return mix( 1.0, sin( time.mul( 20.0 ) ).mul( 0.5 ).add( 0.5 ), twinkleValue );
-
-
-				// Accordingly we need to access a random per particle value and modify time by that value
-				const twinkleValue = texture( twinkleOverLifeTexture, vec2( lifeNode, 0.5 ) ).x;
-				return mix( 1.0, sin( time.mul( 20.0 ).add( idNode.mul( 6.28 ) ) ).mul( 0.5 ).add( 0.5 ), twinkleValue );
-
-
-			} )(),
 			//opacityNode: texture( alphasOverLifeTexture, vec2( lifeNode, 0.5 ) ).x,
 			colorNode: Fn( () => {
 
@@ -170,7 +156,7 @@ class ParticleProject extends App {
 			particleRenderer: particleRenderer,
 			shape: new PointEmitterShape( new THREE.Vector3( 0, 0, 0 ) ),
 			// Particle shared constants
-			maxLife: 3,
+			maxLife: 5,
 			rotationAngularVariance: Math.PI * 2,
 			velocityMagnitude: 200,
 			rotation: new THREE.Quaternion(),
