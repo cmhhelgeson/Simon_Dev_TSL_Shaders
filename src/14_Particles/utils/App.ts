@@ -171,6 +171,12 @@ class App {
 
 	}
 
+	get Camera() {
+
+		return this.Camera;
+
+	}
+
 }
 
 

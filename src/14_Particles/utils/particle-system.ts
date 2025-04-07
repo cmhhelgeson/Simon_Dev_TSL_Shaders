@@ -134,6 +134,7 @@ export class Particle {
 	velocity: THREE.Vector3;
 	life: number;
 	maxLife: number;
+	id: number;
 
 	static GRAVITY = new THREE.Vector3( 0.0, - 9.8, 0.0 );
 
@@ -143,6 +144,7 @@ export class Particle {
 		this.velocity = new THREE.Vector3();
 		this.life = 0;
 		this.maxLife = 5;
+		this.id = MATH.random();
 
 	}
 
@@ -213,11 +215,11 @@ export class Emitter {
 		this.#updateParticles( dt, totalTime );
 
 
-		this.#params.particleRenderer.updateFromParticlesNew( this.#particles );
+		this.#params.particleRenderer.updateFromParticles( this.#particles );
 
 	}
 
-	#canCreateParticle(): boolean {
+	#canEmitParticle(): boolean {
 
 		// Time between each particle
 		const secondsPerParticle = 1.0 / this.#params.particleEmissionRate;
@@ -296,15 +298,15 @@ export class Emitter {
 		this.#timeSinceLastEmit += dt;
 		const secondsPerParticle = 1.0 / this.#params.particleEmissionRate;
 
-		if ( this.#canCreateParticle() ) {
+		if ( this.#canEmitParticle() ) {
 
 			// Reset time since last emission
 			this.#timeSinceLastEmit -= secondsPerParticle;
 
 			this.#numParticlesEmitted += 1;
+			const particle = this.#emitParticle();
 
-			this.#particles.push( this.#emitParticle() );
-
+			this.#particles.push( particle );
 
 		}
 
@@ -346,9 +348,9 @@ export class Emitter {
 
 	#updateParticles( dt: number, totalTime: number ) {
 
-		for ( const particle of this.#particles ) {
+		for ( let i = 0; i < this.#particles.length; i ++ ) {
 
-			this.#updateParticle( particle, dt, totalTime );
+			this.#updateParticle( this.#particles[ i ], dt, totalTime );
 
 		}
 
@@ -399,13 +401,15 @@ export interface ParticleRendererParams {
 	lifes: Float32Array<ArrayBuffer>,
 	positionAttribute: THREE.InstancedBufferAttribute,
 	lifeAttribute: THREE.InstancedBufferAttribute,
-	numParticles: number,
+	idAttribute: THREE.InstancedBufferAttribute,
+	maxDisplayParticles: number,
 	scene: THREE.Scene,
 	group: THREE.Group,
 }
 
 export interface ParticleGeometryAttributes {
 	lifeAttribute: THREE.InstancedBufferAttribute,
+	idAttribute: THREE.InstancedBufferAttribute,
 	positionAttribute: THREE.InstancedBufferAttribute,
 }
 
@@ -426,36 +430,26 @@ export class ParticleRenderer {
 
 	constructor( material: SpriteNodeMaterial, params: ParticleRendererParams ) {
 
+		// These will be updated per frame
 		this.#positions = params.positions;
 		this.#lifes = params.lifes;
-		console.log( params.positionAttribute );
+
+		// Both static and dynamic geometry attributes
 		this.#geometryAttributes = {
 			positionAttribute: params.positionAttribute,
-			lifeAttribute: params.lifeAttribute
+			lifeAttribute: params.lifeAttribute,
+			idAttribute: params.idAttribute,
 		};
 
 		this.#particlesSprite = new THREE.Sprite( material );
-		this.#particlesSprite.count = params.numParticles;
+		this.#particlesSprite.count = params.maxDisplayParticles;
 
 		params.group.add( this.#particlesSprite );
-
 		params.scene.add( params.group );
 
 	}
 
-
-
-	updateFromParticles( particles: Particle[] ) {
-
-		for ( let i = 0; i < particles.length; i ++ ) {
-
-			this.updateFromParticle( particles[ i ], i );
-
-		}
-
-	}
-
-	updateFromParticlesNew( particles ) {
+	updateFromParticles( particles ) {
 
 		const positions = new Float32Array( particles.length * 3 );
 		const lifes = new Float32Array( particles.length );
@@ -473,20 +467,16 @@ export class ParticleRenderer {
 		this.#geometryAttributes.positionAttribute.copyArray( positions );
 		this.#geometryAttributes.lifeAttribute.copyArray( lifes );
 
-		this.#geometryAttributes.positionAttribute.needsUpdate = true;
-		this.#geometryAttributes.lifeAttribute.needsUpdate = true;
+		console.log( positions );
+		console.log( particles.length );
+		console.log( particles );
+
+		// Don't necessarily need this if positionAttribute and lifeAttribute
+		// are already defined as instancedDynamicBufferAttributes() in TSL
+		//this.#geometryAttributes.positionAttribute.needsUpdate = true;
+		//this.#geometryAttributes.lifeAttribute.needsUpdate = true;
 
 		this.#particlesSprite.count = particles.length;
-
-	}
-
-	updateFromParticle( particle: Particle, index: number ) {
-
-		this.#positions[ index * 3 + 0 ] = particle.position.x;
-		this.#positions[ index * 3 + 1 ] = particle.position.y;
-		this.#positions[ index * 3 + 2 ] = particle.position.z;
-
-		this.#lifes[ index ] = particle.life / particle.maxLife;
 
 	}
 
