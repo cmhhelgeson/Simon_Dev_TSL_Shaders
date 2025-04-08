@@ -171,6 +171,8 @@ export class Emitter {
 
 			}
 
+			this.#numParticlesEmitted = this.#params.startNumParticles;
+
 		}
 
 	}
@@ -471,8 +473,6 @@ export class ParticleRenderer {
 		// are already defined as instancedDynamicBufferAttributes() in TSL
 		//this.#geometryAttributes.positionAttribute.needsUpdate = true;
 		//this.#geometryAttributes.lifeAttribute.needsUpdate = true;
-
-		console.log(particles.length)
 
 		this.#particlesSprite.count = particles.length;
 

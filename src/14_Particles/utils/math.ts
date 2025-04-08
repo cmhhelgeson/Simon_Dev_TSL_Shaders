@@ -242,7 +242,6 @@ class ColorInterpolant extends Interpolant<THREE.Color> {
 
 			const t = i / ( textureWidth - 1 );
 			const value = this.evaluate( t * maxFrameTime );
-			console.log( value );
 			data[ i * 4 ] = value.r;
 			data[ i * 4 + 1 ] = value.g;
 			data[ i * 4 + 2 ] = value.b;

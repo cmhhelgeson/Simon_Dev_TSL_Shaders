@@ -64,7 +64,7 @@ class ParticleProject extends App {
 		// All particles use one life value (p.life / p.maxLife) so each interpolant has to cover
 		// the same length of time, irrespective of whether it is doing anything during
 		// large stretches of time.
-		const sizesOverLife = new MATH.FloatInterpolant( [
+		/*const sizesOverLife = new MATH.FloatInterpolant( [
 			{ time: 0, value: 100.0 },
 			{ time: 1, value: 0.0 },
 			{ time: 2, value: 100.0 },
@@ -98,6 +98,30 @@ class ParticleProject extends App {
 			{ time: 0, value: 0 },
 			{ time: 3, value: 1 },
 			{ time: 4, value: 1 },
+		] ); */
+
+		const sizesOverLife = new MATH.FloatInterpolant( [
+			{ time: 0, value: 20 },
+			{ time: 5, value: 20 },
+		] );
+
+		const alphaOverLife = new MATH.FloatInterpolant( [
+			{ time: 0, value: 0 },
+			{ time: 0.25, value: 1 },
+			{ time: 4.5, value: 1 },
+			{ time: 5, value: 0 },
+		] );
+
+		const colorsOverLife = new MATH.ColorInterpolant( [
+			{ time: 0, value: new THREE.Color().setHSL( 0, 1, 0.75 ) },
+			{ time: 2, value: new THREE.Color().setHSL( 0.5, 1, 0.5 ) },
+			{ time: 5, value: new THREE.Color().setHSL( 1, 1, 0.5 ) },
+		] );
+
+		const twinkleOverLife = new MATH.FloatInterpolant( [
+			{ time: 0, value: 0 },
+			{ time: 3, value: 1 },
+			{ time: 4, value: 1 },
 		] );
 
 		const sizeOverLifeTexture: THREE.DataTexture = sizesOverLife.toTexture();
@@ -116,7 +140,10 @@ class ParticleProject extends App {
 			color: 0xffffff,
 			positionNode: newPosition,
 			sizeNode: texture( sizeOverLifeTexture, vec2( lifeNode, 0.5 ) ).x,
-			//opacityNode: texture( alphasOverLifeTexture, vec2( lifeNode, 0.5 ) ).x,
+			opacityNode: Fn(() => {
+				const twinkleValue = texture( alphasOverLifeTexture, vec2( lifeNode, 0.5 ) ).x,
+
+			}(),
 			colorNode: Fn( () => {
 
 				const starMap = texture( starTexture );
@@ -149,16 +176,16 @@ class ParticleProject extends App {
 			maxDisplayParticles: maxDisplayParticles,
 			// Maximum number of particles that can be emitted over the lifetime of the simulation
 			maxEmission: maxEmission,
-			startNumParticles: 0,
+			startNumParticles: maxDisplayParticles,
 			// Make particle emission rate way faster than maxEmission to basically generate all particles at once
-			particleEmissionRate: 5000.0,
+			particleEmissionRate: 20.0,
 			// Render parametersd
 			particleRenderer: particleRenderer,
 			shape: new PointEmitterShape( new THREE.Vector3( 0, 0, 0 ) ),
 			// Particle shared constants
 			maxLife: 5,
 			rotationAngularVariance: Math.PI * 2,
-			velocityMagnitude: 200,
+			velocityMagnitude: 20,
 			rotation: new THREE.Quaternion(),
 			gravity: false,
 		};
@@ -183,6 +210,8 @@ class ParticleProject extends App {
 	async onSetupProject( projectFolder?: GUI ): Promise<void> {
 
 		this.loadRGBE( './resources/moonless_golf_2k.hdr' );
+
+		this.Camera.position.set( 100, 25, 100 );
 
 		this.#createPointsParticleSystem();
 
