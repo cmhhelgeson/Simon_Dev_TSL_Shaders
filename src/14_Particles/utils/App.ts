@@ -4,6 +4,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+import { WebGPURenderer } from 'three/webgpu';
 class App {
 
 	// Private references to values shared across all single scene Threejs applications
@@ -41,15 +42,14 @@ class App {
 		const fov = 60;
 		const aspect = window.innerWidth / window.innerHeight;
 		const near = 0.1;
-		const far = 2000;
+		const far = 1000;
 		this.#camera_ = new THREE.PerspectiveCamera( fov, aspect, near, far );
-		this.#camera_.position.set( 400, 200, 400 );
-		this.#camera_.position.set( 100, 25, 100 );
-		this.#camera_.lookAt( new THREE.Vector3( 0, 0, 0 ) );
+		this.#camera_.position.set( 80, 20, 80 );
+		//this.#camera_.lookAt( new THREE.Vector3( 0, 0, 0 ) );
 
 		const controls = new OrbitControls( this.#camera_, this.#renderer_.domElement );
 		controls.enableDamping = true;
-		controls.target.set( 0, 0, 0 );
+		controls.target.set( 0, 20, 0 );
 		controls.update();
 
 		this.#scene_ = new THREE.Scene();

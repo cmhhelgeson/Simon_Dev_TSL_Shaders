@@ -23,7 +23,9 @@ class ParticleProject extends App {
 
 	}
 
-	#createPointsParticleSystem() {
+
+
+	#createTrailParticleSystem() {
 
 		this.#particleSystem = new ParticleSystem();
 
@@ -35,72 +37,191 @@ class ParticleProject extends App {
 		const lifes = new Float32Array( maxDisplayParticles );
 		const ids = new Float32Array( maxDisplayParticles );
 
-		const particles: Particle[] = [];
-
 		for ( let i = 0; i < maxDisplayParticles; i ++ ) {
 
-			const x = positions[ i * 3 ] = ( MATH.random() * 2 - 1 ) * 100;
-			const y = positions[ i * 3 + 1 ] = ( MATH.random() * 2 - 1 ) * 100;
-			const z = positions[ i * 3 + 2 ] = ( MATH.random() * 2 - 1 ) * 100;
+			positions[ i * 3 ] = 0.0;
+			positions[ i * 3 + 1 ] = 0.0;
+			positions[ i * 3 + 2 ] = 0.0;
 			lifes[ i ] = 0.0;
 			ids[ i ] = MATH.random();
 
-			// Direction of velocity explosion will always emanate from the origin
-			const dir = new THREE.Vector3( x, y, z ).normalize();
-
-			particles.push( {
-				life: 0,
-				maxLife: 18,
-				position: new THREE.Vector3( x, y, z ),
-				velocity: dir.multiplyScalar( 50 ),
-				id: ids[ i ],
-			} );
-
 		}
+
+		// Create an events system for the emitter.
+		// Whenver a particle is created, destroyed, etc, we h
 
 		const textureLoader = new THREE.TextureLoader();
 		const starTexture = textureLoader.load( './resources/star.png' );
 
-		// All particles use one life value (p.life / p.maxLife) so each interpolant has to cover
-		// the same length of time, irrespective of whether it is doing anything during
-		// large stretches of time.
-
-		// Alt parameters
-		/*const sizesOverLife = new MATH.FloatInterpolant( [
-			{ time: 0, value: 100.0 },
-			{ time: 1, value: 0.0 },
-			{ time: 2, value: 100.0 },
-			{ time: 3, value: 0.0 },
-			{ time: 4, value: 200.0 },
-			{ time: 5, value: 0.0 },
-			{ time: 6, value: 100.0 },
-			{ time: 18, value: 100.0 },
-			{ time: 20, value: 200.0 }
+		const sizesOverLife = new MATH.FloatInterpolant( [
+			{ time: 0, value: 15 },
+			{ time: 5, value: 30 },
 		] );
 
-		const alphasOverLife = new MATH.FloatInterpolant( [
-			{ time: 0, value: 1 },
-			{ time: 8, value: 1 },
-			{ time: 10, value: 0 },
-			{ time: 12, value: 1 },
-			{ time: 17, value: 1 },
-			{ time: 18, value: 0 }
+		const alphaOverLife = new MATH.FloatInterpolant( [
+			{ time: 0, value: 0 },
+			{ time: 0.25, value: 1 },
+			{ time: 4.5, value: 1 },
+			{ time: 5, value: 0 },
 		] );
 
 		const colorsOverLife = new MATH.ColorInterpolant( [
-			{ time: 0, value: new THREE.Color( 0xFFFFFF ) },
-			{ time: 14, value: new THREE.Color( 0xFFFFFF ) },
-			{ time: 15, value: new THREE.Color( 0xFF0000 ) },
-			{ time: 16, value: new THREE.Color( 0x00FF00 ) },
-			{ time: 17, value: new THREE.Color( 0x0000FF ) },
-			{ time: 18, value: new THREE.Color( 0xFFFFFF ) },
+			{ time: 0, value: new THREE.Color().setHSL( 0, 1, 0.75 ) },
+			{ time: 2, value: new THREE.Color().setHSL( 0.5, 1, 0.5 ) },
+			{ time: 5, value: new THREE.Color().setHSL( 1, 1, 0.5 ) },
 		] );
 
 		const twinkleOverLife = new MATH.FloatInterpolant( [
 			{ time: 0, value: 0 },
 			{ time: 3, value: 1 },
 			{ time: 4, value: 1 },
-		] ); */
+		] );
+
+		const sizeOverLifeTexture: THREE.DataTexture = sizesOverLife.toTexture();
+		const colorsOverLifeTexture: THREE.DataTexture = colorsOverLife.toTexture();
+		const twinkleOverLifeTexture: THREE.DataTexture = twinkleOverLife.toTexture();
+
+		const positionAttribute = new THREE.InstancedBufferAttribute( positions, 3 );
+		const lifeAttribute = new THREE.InstancedBufferAttribute( lifes, 1 );
+		const idAttribute = new THREE.InstancedBufferAttribute( ids, 1 );
+
+		const lifeNode = instancedDynamicBufferAttribute( lifeAttribute );
+		const newPosition = instancedDynamicBufferAttribute( positionAttribute );
+		const idNode = instancedBufferAttribute( idAttribute );
+
+		const uniforms = {
+			cpuTime: uniform( 0 ),
+			spinSpeed: uniform( 0 )
+		};
+
+		this.#particleMaterial = new PointsNodeMaterial( {
+			color: 0xffffff,
+			positionNode: newPosition,
+			sizeNode: texture( sizeOverLifeTexture, vec2( lifeNode, 0.5 ) ).x,
+			colorNode: Fn( () => {
+
+				const starMap = texture( starTexture );
+				const color = texture( colorsOverLifeTexture, vec2( lifeNode, 0.5 ) ).rgb;
+				return vec3( starMap.mul( color ) );
+
+			} )(),
+			sizeAttenuation: true,
+			depthWrite: false,
+			depthTest: true,
+			transparent: true,
+			blending: THREE.AdditiveBlending,
+			rotationNode: time,
+		} );
+
+		const emitterParams = new EmitterParameters();
+		emitterParams.shape = new PointEmitterShape();
+		//emitterParams.shape.position.copy( pos );
+		emitterParams.particleEmissionRate = 1;
+		emitterParams.maxDisplayParticles = 500;
+		//emitterParams.startNumParticles = 500;
+		emitterParams.maxEmission = 1;
+		emitterParams.maxLife = 3;
+		emitterParams.gravity = true;
+		emitterParams.dragCoefficient = 4;
+		emitterParams.velocityMagnitude = 75;
+		emitterParams.rotation = new THREE.Quaternion();
+		emitterParams.rotationAngularVariance = Math.PI / 8;
+		emitterParams.spinSpeed = Math.PI;
+
+		// When a particle on the trail emitter is created,
+		// we create a new emitter that creates particles in
+		// the wake of that trail.
+		emitterParams.onCreated = ( particle ) => {
+
+			/*const smokeEmitterParams = new EmitterParameters();
+			smokeEmitterParams.shape = new PointEmitterShape();
+			smokeEmitterParams.shape = new PointEmitterShape();
+			//emitterParams.shape.position.copy( pos );
+			smokeEmitterParams.particleEmissionRate = 100;
+			smokeEmitterParams.maxDisplayParticles = 500;
+			//emitterParams.startNumParticles = 500;
+			smokeEmitterParams.maxEmission = Number.MAX_SAFE_INTEGER;
+			smokeEmitterParams.maxLife = 2;
+			smokeEmitterParams.spinSpeed = Math.PI / 8;
+
+			smokeEmitterParams.particleRenderer = new ParticleRenderer();
+			smokeEmitterParams.particleRenderer.initialize( this.#particleMaterial, {
+				scene: this.Scene,
+				positions: positions,
+				lifes: lifes,
+				maxDisplayParticles: maxDisplayParticles,
+				group: new THREE.Group(),
+				positionAttribute: positionAttribute,
+				lifeAttribute: lifeAttribute,
+				idAttribute: idAttribute,
+				uniforms: uniforms,
+			} );
+
+			// NOTE: Velocity animation and color animation are not on the same lifecycle
+			const smokeEmitter = new Emitter( smokeEmitterParams );
+			this.#particleSystem?.addEmitter( smokeEmitter );
+
+
+			console.log( 'test particle created' ); */
+
+		};
+
+		// When a particle is updated, we can update the position of the
+		// shape on the emitterParameters, to emit particles along the
+		//
+		emitterParams.onStep = ( particle ) => {
+
+			//console.log( 'test particle' );
+
+		};
+
+		emitterParams.onDestroy = ( particle ) => {
+
+		};
+
+		emitterParams.particleRenderer = new ParticleRenderer();
+		emitterParams.particleRenderer.initialize( this.#particleMaterial, {
+			scene: this.Scene,
+			positions: positions,
+			lifes: lifes,
+			maxDisplayParticles: maxDisplayParticles,
+			group: new THREE.Group(),
+			positionAttribute: positionAttribute,
+			lifeAttribute: lifeAttribute,
+			idAttribute: idAttribute,
+			uniforms: uniforms,
+		} );
+
+		// NOTE: Velocity animation and color animation are not on the same lifecycle
+		const emitter = new Emitter( emitterParams );
+		this.#particleSystem.addEmitter( emitter );
+
+	}
+
+	#createPopParticleSystem() {
+
+		this.#particleSystem = new ParticleSystem();
+
+		// Maximum number of particles in memory/displayed at once
+		const maxDisplayParticles = 500;
+		const maxEmission = 500;
+
+		const positions = new Float32Array( maxDisplayParticles * 3 );
+		const lifes = new Float32Array( maxDisplayParticles );
+		const ids = new Float32Array( maxDisplayParticles );
+
+		for ( let i = 0; i < maxDisplayParticles; i ++ ) {
+
+			positions[ i * 3 ] = ( MATH.random() * 2 - 1 ) * 100;
+			positions[ i * 3 + 1 ] = ( MATH.random() * 2 - 1 ) * 100;
+			positions[ i * 3 + 2 ] = ( MATH.random() * 2 - 1 ) * 100;
+			lifes[ i ] = 0.0;
+			ids[ i ] = MATH.random();
+
+		}
+
+		const textureLoader = new THREE.TextureLoader();
+		const starTexture = textureLoader.load( './resources/star.png' );
 
 		const sizesOverLife = new MATH.FloatInterpolant( [
 			{ time: 0, value: 20 },
@@ -210,7 +331,7 @@ class ParticleProject extends App {
 
 			this.#particleSystem?.dispose();
 			this.#particleSystem = null;
-			this.#createPointsParticleSystem();
+			this.#createTrailParticleSystem();
 
 		}
 
@@ -220,9 +341,7 @@ class ParticleProject extends App {
 
 		this.loadRGBE( './resources/moonless_golf_2k.hdr' );
 
-		this.Camera.position.set( 100, 25, 100 );
-
-		this.#createPointsParticleSystem();
+		this.#createTrailParticleSystem();
 
 		// Currently it seems like the particles can only be reset when they are still active
 		// Even if the dispose method is commented out

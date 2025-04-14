@@ -164,8 +164,12 @@ export class EmitterParameters {
 	gravityStrength = 1;
 	dragCoefficient = 0.5;
 	spinSpeed: number | string = 0;
+
+	// Callback for when a particle is created
 	onCreated: ParticleFunction | null = null;
+	// Callback for when a partcile is steped
 	onStep: ParticleFunction | null = null;
+	// Callback for when a partcile is destroyed
 	onDestroy: ParticleFunction | null = null;
 
 	constructor() {
@@ -226,7 +230,7 @@ export class Emitter {
 		// If there is a renderer, dispose of the renderer
 		if ( this.#params.particleRenderer ) {
 
-			//this.#params.particleRenderer.dispose();
+			this.#params.particleRenderer.dispose();
 
 		}
 
@@ -611,6 +615,8 @@ export class ParticleRenderer {
 
 		params.group.add( this.#particlesSprite );
 		params.scene.add( params.group );
+
+		params.scene.add( new THREE.Mesh( new THREE.BoxGeometry( 20, 20, 20 ) ) );
 
 	}
 
