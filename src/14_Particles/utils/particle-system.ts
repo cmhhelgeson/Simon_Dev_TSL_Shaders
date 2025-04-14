@@ -2,41 +2,11 @@
 
 import * as THREE from 'three';
 import MATH from './math';
-import { instancedBufferAttribute, texture, vec2, Fn, vec3 } from 'three/tsl';
+import { instancedBufferAttribute, texture, vec2, Fn, vec3, ShaderNodeObject } from 'three/tsl';
 
-import { NodeMaterial, PointsNodeMaterial, SpriteNodeMaterial } from 'three/webgpu';
+import { NodeMaterial, PointsNodeMaterial, SpriteNodeMaterial, UniformNode } from 'three/webgpu';
 
 const GRAVITY = new THREE.Vector3( 0.0, - 9.8, 0.0 );
-
-export interface EmitterParameters {
-	// Max number of particles being displayed at once
-	// Or the maximum amount of particle data we can hold.
-	// For instance, though we may "emit" 1000 particles over the lifetime of the application
-	// We'll only store data for 100 particles. When the lives of particles 0 - 99 ends,
-	// their memory will be reset and used for the emitted particles 100 - 199
-	maxDisplayParticles: number,
-	startNumParticles?: number,
-	// Number of particles emitted per second
-	particleEmissionRate: number,
-	// Max number of particles emitted during the lifetime of the application
-	maxEmission: number,
-	particleRenderer: ParticleRenderer,
-  // Volume or point determining where particles are generated
-	shape: EmitterShape,
-  // SHARED PARTICLE CONSTANTS
-  // The maximum life of each particle
-  maxLife: number,
-  velocityMagnitude: number,
-  rotation: THREE.Quaternion,
-  rotationAngularVariance: number,
-	gravity: boolean,
-	gravityStrength?: number,
-	dragCoefficient?: number,
-	spinSpeed?: number,
-	onCreated?: ( p: Particle ) => void;
-	onStep?: ( p: Particle ) => void;
-	onDestroy?: ( p: Particle ) => void;
-}
 
 // Defines the shape of the volume where the particles are created.
 export class EmitterShape {
@@ -65,11 +35,13 @@ export class EmitterShape {
 export class PointEmitterShape extends EmitterShape {
 
 	position: THREE.Vector3;
+	positionRadiusVariance: number;
 
 	constructor( position?: THREE.Vector3 ) {
 
 		super();
 		this.position = new THREE.Vector3();
+		this.positionRadiusVariance = 1;
 		if ( position !== undefined ) {
 
 			this.position.copy( position );
@@ -82,6 +54,19 @@ export class PointEmitterShape extends EmitterShape {
 
 		const p = new Particle();
 		p.position.copy( this.position );
+
+		/* const phi = MATH.random() * Math.PI * 2;
+		const theta = MATH.random() * Math.PI;
+		const radius = MATH.random() * this.positionRadiusVariance;
+
+		const dir = new THREE.Vector3(
+			Math.sin( theta ) * Math.cos( phi ),
+			Math.cos( theta ),
+			Math.sin( theta ) * Math.sin( phi )
+		);
+		dir.multiplyScalar( radius );
+		p.position.add( dir ); */
+
 		return p;
 
 	}
@@ -150,6 +135,45 @@ export class Particle {
 
 }
 
+type VoidFunction = ( () => void )
+type ParticleFunction = ( ( p: Particle ) => void );
+export class EmitterParameters {
+
+	// Max number of particles being displayed at once
+	// Or the maximum amount of particle data we can hold.
+	// For instance, though we may "emit" 1000 particles over the lifetime of the application
+	// We'll only store data for 100 particles. When the lives of particles 0 - 99 ends,
+	// their memory will be reset and used for the emitted particles 100 - 199
+	maxDisplayParticles = 100;
+	startNumParticles = 0;
+	// Number of particles emitted per second
+	particleEmissionRate = 1;
+	// Max number of particles emitted during the lifetime of the application
+	maxEmission = 100;
+	particleRenderer: ParticleRenderer;
+	// Volume or point determining where particles are generated
+	shape = new PointEmitterShape();
+	// SHARED PARTICLE CONSTANTS
+	// The maximum life of each particle
+	maxLife = 5;
+	velocityMagnitude = 0;
+	velocityMagnitudeVariance = 0;
+	rotation = new THREE.Quaternion();
+	rotationAngularVariance = 0;
+	gravity = false;
+	gravityStrength = 1;
+	dragCoefficient = 0.5;
+	spinSpeed: number | string = 0;
+	onCreated: ParticleFunction | null = null;
+	onStep: ParticleFunction | null = null;
+	onDestroy: ParticleFunction | null = null;
+
+	constructor() {
+
+	}
+
+}
+
 // Emitter will create particles.
 // Rather than creating particles randomly,
 export class Emitter {
@@ -158,8 +182,13 @@ export class Emitter {
 	#timeSinceLastEmit: number = 0;
 	#numParticlesEmitted: number = 0;
 	#params: EmitterParameters;
+	// Dead does not necessarily mean that the emitter is not working
+	// Just means it's no longer emitting particles.
+	// Difference between dead and onDestroy is like the difference
+	// between a decomposing corpse and a completely dissolved corpse.
+	#dead: boolean = false;
 
-	constructor( params ) {
+	constructor( params: EmitterParameters ) {
 
 		this.#params = params;
 
@@ -174,6 +203,59 @@ export class Emitter {
 			this.#numParticlesEmitted = this.#params.startNumParticles;
 
 		}
+
+	}
+
+	dispose() {
+
+		// If there is an on destroy function
+		if ( this.#params.onDestroy ) {
+
+			// Destroy each of the emitter's particles
+			for ( let i = 0; i < this.#particles.length; ++ i ) {
+
+				this.#params.onDestroy( this.#particles[ i ] );
+
+
+			}
+
+		}
+
+		this.#particles = [];
+
+		// If there is a renderer, dispose of the renderer
+		if ( this.#params.particleRenderer ) {
+
+			//this.#params.particleRenderer.dispose();
+
+		}
+
+	}
+
+	get StillActive() {
+
+		if ( this.#dead ) {
+
+			return false;
+
+		}
+
+		return (
+			this.#numParticlesEmitted < this.#params.maxEmission ||
+			this.#particles.length > 0
+		);
+
+	}
+
+	stop() {
+
+		this.#params.maxEmission = 0;
+
+	}
+
+	kill() {
+
+		this.#dead = true;
 
 	}
 
@@ -216,12 +298,21 @@ export class Emitter {
 		// Update the particles this emitter has jurisdiction over
 		this.#updateParticles( dt, totalTime );
 
+		if ( this.#params.particleRenderer ) {
 
-		this.#params.particleRenderer.updateFromParticles( this.#particles );
+			this.#params.particleRenderer.updateFromParticles( this.#particles );
+
+		}
 
 	}
 
 	#canEmitParticle(): boolean {
+
+		if ( this.#dead ) {
+
+			return false;
+
+		}
 
 		// Time between each particle
 		const secondsPerParticle = 1.0 / this.#params.particleEmissionRate;
@@ -262,7 +353,10 @@ export class Emitter {
 
 	#emitParticle() {
 
+		// Create a Particle with a position determined by the Emitter's EmitterShape
 		const p = this.#params.shape.emit();
+
+		// Assign the global max life for all particles to the particle
 		p.maxLife = this.#params.maxLife;
 
 		// Define velocity using spherical coordinates
@@ -273,16 +367,28 @@ export class Emitter {
 		const phi = MATH.random() * Math.PI * 2;
 		const theta = MATH.random() * this.#params.rotationAngularVariance;
 
-		this.#assignVelocityCoord( p.velocity, phi, theta );
+		// Not really a velocity assignation here, but an assignation of the direction of the particle (direction)
+		p.velocity = new THREE.Vector3(
+			Math.sin( theta ) * Math.cos( phi ),
+			Math.cos( theta ),
+			Math.sin( theta ) * Math.sin( phi )
+		);
 
-		// Variables assigned according to definitions of phi and theta here:
-		// https://math.libretexts.org/Courses/Mount_Royal_University/MATH_2200%3A_Calculus_for_Scientists_II/7%3A_Vector_Spaces/5.7%3A_Cylindrical_and_Spherical_Coordinates#:~:text=To%20convert%20a%20point%20from,y2%2Bz2).
-		p.velocity.x = Math.sin( phi ) * Math.cos( theta );
-		p.velocity.y = Math.sin( phi ) * Math.sin( theta );
-		p.velocity.z = Math.cos( phi );
+		// Vary the velocity within a range determined by velocityMagnitudeVariance (magnitude)
+		const velocity = (
+			this.#params.velocityMagnitude +
+        ( MATH.random() * 2 - 1 ) * this.#params.velocityMagnitudeVariance );
 
-		p.velocity.multiplyScalar( this.#params.velocityMagnitude );
+		// Multiply direction by magnitude (oh yeah!)
+		p.velocity.multiplyScalar( velocity );
+		// Apply rotation
 		p.velocity.applyQuaternion( this.#params.rotation );
+
+		if ( this.#params.onCreated ) {
+
+			this.#params.onCreated( p );
+
+		}
 
 		return p;
 
@@ -295,7 +401,14 @@ export class Emitter {
 	// of them.
 	#updateEmission( dt: number, totalTime: number ) {
 
-		this.setPointEmitterShape( new THREE.Vector3( 0, Math.sin( totalTime / 2 ) * 100, 0 ) );
+		// If Emitter is killed do nothing
+		if ( this.#dead ) {
+
+			return;
+
+		}
+
+		this.setPointEmitterShape( new THREE.Vector3( 0, 0, 0 ) );
 		// Update time since last particle emission
 		this.#timeSinceLastEmit += dt;
 		const secondsPerParticle = 1.0 / this.#params.particleEmissionRate;
@@ -321,8 +434,8 @@ export class Emitter {
 
 		// Update position based on velocity and gravity
 		const forces = this.#params.gravity ? GRAVITY.clone() : new THREE.Vector3();
-		forces.multiplyScalar( this.#params.gravityStrength ? this.#params.gravityStrength : 1 );
-		forces.add( p.velocity.clone().multiplyScalar( - 0.9 ) );
+		forces.multiplyScalar( this.#params.gravityStrength ?? 100 );
+		forces.add( p.velocity.clone().multiplyScalar( - ( this.#params.dragCoefficient ?? 0.1 ) ) );
 
 		p.velocity.add( forces.multiplyScalar( dt ) );
 
@@ -352,7 +465,8 @@ export class Emitter {
 
 		for ( let i = 0; i < this.#particles.length; i ++ ) {
 
-			this.#updateParticle( this.#particles[ i ], dt, totalTime );
+			const p = this.#particles[ i ];
+			this.#updateParticle( p, dt, totalTime );
 
 		}
 
@@ -372,6 +486,34 @@ export class ParticleSystem {
 
 	}
 
+	dispose() {
+
+		for ( let i = 0; i < this.#emitters.length; ++ i ) {
+
+			this.#emitters[ i ].dispose();
+
+		}
+
+
+	}
+
+	// Sim is still active if any of its emitters are not dead
+	get StillActive() {
+
+		for ( let i = 0; i < this.#emitters.length; i ++ ) {
+
+			if ( this.#emitters[ i ].StillActive ) {
+
+				return true;
+
+			}
+
+		}
+
+		return false;
+
+	}
+
 	addEmitter( emitter: Emitter ) {
 
 		this.#emitters.push( emitter );
@@ -386,11 +528,21 @@ export class ParticleSystem {
 
 	step( dt: number, totalTime: number ) {
 
-		for ( const emitter of this.#emitters ) {
+		for ( let i = 0; i < this.#emitters.length; ++ i ) {
 
-			emitter.step( dt, totalTime );
+			const e = this.#emitters[ i ];
+
+			e.step( dt, totalTime );
+
+			if ( ! e.StillActive ) {
+
+				e.dispose();
+
+			}
 
 		}
+
+		this.#emitters = this.#emitters.filter( e => e.StillActive );
 
 	}
 
@@ -407,6 +559,7 @@ export interface ParticleRendererParams {
 	maxDisplayParticles: number,
 	scene: THREE.Scene,
 	group: THREE.Group,
+	uniforms: Record<string, ShaderNodeObject<UniformNode<number>>>
 }
 
 export interface ParticleGeometryAttributes {
@@ -425,17 +578,27 @@ export class ParticleRenderer {
 	// For purposes of the WebGPU version, particlesSprite is effectively the particle geometry.
 	// Though it's an inelegant analogue given that the "geometry" returned already has a material
 	// attached to it.
-	#particlesSprite: THREE.Sprite;
-	#geometryAttributes: ParticleGeometryAttributes;
-	#positions: Float32Array<ArrayBuffer>;
-	#lifes: Float32Array<ArrayBuffer>;
+	#particlesSprite: THREE.Sprite | null = null;
+	#geometryAttributes: ParticleGeometryAttributes | null = null;
+	#particleMaterial: SpriteNodeMaterial | null = null;
 
-	constructor( material: SpriteNodeMaterial, params: ParticleRendererParams ) {
+	constructor( ) {
+	}
 
-		// These will be updated per frame
-		this.#positions = params.positions;
-		this.#lifes = params.lifes;
+	dispose() {
 
+		console.log( 'Particle Renderer disposed' );
+
+		this.#particlesSprite?.removeFromParent();
+		this.#geometryAttributes = null;
+		this.#particleMaterial?.dispose();
+		this.#particlesSprite = null;
+
+	}
+
+	initialize( material: SpriteNodeMaterial, params: ParticleRendererParams ) {
+
+		this.#particleMaterial = material;
 		// Both static and dynamic geometry attributes
 		this.#geometryAttributes = {
 			positionAttribute: params.positionAttribute,
@@ -466,15 +629,23 @@ export class ParticleRenderer {
 
 		}
 
-		this.#geometryAttributes.positionAttribute.copyArray( positions );
-		this.#geometryAttributes.lifeAttribute.copyArray( lifes );
+		this.#geometryAttributes?.positionAttribute.copyArray( positions );
+		if ( this.#geometryAttributes?.lifeAttribute ) {
+
+			this.#geometryAttributes.lifeAttribute.copyArray( lifes );
+
+		}
 
 		// Don't necessarily need this if positionAttribute and lifeAttribute
 		// are already defined as instancedDynamicBufferAttributes() in TSL
 		//this.#geometryAttributes.positionAttribute.needsUpdate = true;
 		//this.#geometryAttributes.lifeAttribute.needsUpdate = true;
 
-		this.#particlesSprite.count = particles.length;
+		if ( this.#particlesSprite ) {
+
+			this.#particlesSprite.count = particles.length;
+
+		}
 
 	}
 

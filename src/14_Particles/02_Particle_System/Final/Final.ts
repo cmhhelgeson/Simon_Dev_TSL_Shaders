@@ -1,6 +1,6 @@
 
 import * as THREE from 'three';
-import { float, texture, vec3, sin, instanceIndex, time, instance, instancedBufferAttribute, instancedDynamicBufferAttribute, vec2, Fn, mix } from 'three/tsl';
+import { texture, vec3, time, instancedBufferAttribute, instancedDynamicBufferAttribute, vec2, Fn, uniform } from 'three/tsl';
 
 import { App } from '../../utils/App';
 import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
@@ -15,7 +15,7 @@ class ParticleProject extends App {
 	// From 1 hr onwards, pass particle renderer as emitter params
 	// Each emitter will now be responsible for its own rendering
 	#particleMaterial: PointsNodeMaterial;
-	#particleSystem: ParticleSystem;
+	#particleSystem: ParticleSystem | null = null;
 
 	constructor() {
 
@@ -64,6 +64,8 @@ class ParticleProject extends App {
 		// All particles use one life value (p.life / p.maxLife) so each interpolant has to cover
 		// the same length of time, irrespective of whether it is doing anything during
 		// large stretches of time.
+
+		// Alt parameters
 		/*const sizesOverLife = new MATH.FloatInterpolant( [
 			{ time: 0, value: 100.0 },
 			{ time: 1, value: 0.0 },
@@ -136,14 +138,15 @@ class ParticleProject extends App {
 		const newPosition = instancedDynamicBufferAttribute( positionAttribute );
 		const idNode = instancedBufferAttribute( idAttribute );
 
+		const uniforms = {
+			cpuTime: uniform( 0 ),
+			spinSpeed: uniform( 0 )
+		};
+
 		this.#particleMaterial = new PointsNodeMaterial( {
 			color: 0xffffff,
 			positionNode: newPosition,
 			sizeNode: texture( sizeOverLifeTexture, vec2( lifeNode, 0.5 ) ).x,
-			opacityNode: Fn(() => {
-				const twinkleValue = texture( alphasOverLifeTexture, vec2( lifeNode, 0.5 ) ).x,
-
-			}(),
 			colorNode: Fn( () => {
 
 				const starMap = texture( starTexture );
@@ -159,7 +162,23 @@ class ParticleProject extends App {
 			rotationNode: time,
 		} );
 
-		const particleRenderer = new ParticleRenderer( this.#particleMaterial, {
+		const emitterParams = new EmitterParameters();
+		emitterParams.shape = new PointEmitterShape();
+		//emitterParams.shape.position.copy( pos );
+		emitterParams.particleEmissionRate = 5000;
+		emitterParams.maxDisplayParticles = 500;
+		emitterParams.startNumParticles = 500;
+		emitterParams.maxEmission = 500;
+		emitterParams.maxLife = 3;
+		emitterParams.gravity = true;
+		emitterParams.dragCoefficient = 4;
+		emitterParams.velocityMagnitude = 75;
+		emitterParams.velocityMagnitudeVariance = 10;
+		emitterParams.rotationAngularVariance = 2 * Math.PI;
+		emitterParams.spinSpeed = Math.PI;
+
+		emitterParams.particleRenderer = new ParticleRenderer();
+		emitterParams.particleRenderer.initialize( this.#particleMaterial, {
 			scene: this.Scene,
 			positions: positions,
 			lifes: lifes,
@@ -168,27 +187,9 @@ class ParticleProject extends App {
 			positionAttribute: positionAttribute,
 			lifeAttribute: lifeAttribute,
 			idAttribute: idAttribute,
+			uniforms: uniforms,
 		} );
 
-		// Emitter parameters for having particles available on application start
-		const emitterParams: EmitterParameters = {
-			// Emission parameters
-			maxDisplayParticles: maxDisplayParticles,
-			// Maximum number of particles that can be emitted over the lifetime of the simulation
-			maxEmission: maxEmission,
-			startNumParticles: maxDisplayParticles,
-			// Make particle emission rate way faster than maxEmission to basically generate all particles at once
-			particleEmissionRate: 20.0,
-			// Render parametersd
-			particleRenderer: particleRenderer,
-			shape: new PointEmitterShape( new THREE.Vector3( 0, 0, 0 ) ),
-			// Particle shared constants
-			maxLife: 5,
-			rotationAngularVariance: Math.PI * 2,
-			velocityMagnitude: 20,
-			rotation: new THREE.Quaternion(),
-			gravity: false,
-		};
 		// NOTE: Velocity animation and color animation are not on the same lifecycle
 		const emitter = new Emitter( emitterParams );
 		this.#particleSystem.addEmitter( emitter );
@@ -203,7 +204,15 @@ class ParticleProject extends App {
 
 		}
 
-		this.#particleSystem.step( dt, totalTimeElapsed );
+		this.#particleSystem?.step( dt, totalTimeElapsed );
+
+		if ( ! this.#particleSystem?.StillActive ) {
+
+			this.#particleSystem?.dispose();
+			this.#particleSystem = null;
+			this.#createPointsParticleSystem();
+
+		}
 
 	}
 
@@ -215,7 +224,9 @@ class ParticleProject extends App {
 
 		this.#createPointsParticleSystem();
 
-		projectFolder?.add( { 'Reset Sim': () => this.#particleSystem.resetEmitter( 0 ) }, 'Reset Sim' ).name( 'Reset Sim' );
+		// Currently it seems like the particles can only be reset when they are still active
+		// Even if the dispose method is commented out
+		projectFolder?.add( { 'Reset Sim': () => this.#particleSystem?.resetEmitter( 0 ) }, 'Reset Sim' ).name( 'Reset Sim' );
 
 	}
 

@@ -21,7 +21,7 @@ class App {
 	onRender() {
 	}
 
-	onStep( dt, totalTimeElapsed ) {
+	onStep( dt: number, totalTimeElapsed: number ) {
 	}
 
 	onResize() {
@@ -103,10 +103,12 @@ class App {
 
 	#raf_() {
 
-		requestAnimationFrame( ( t ) => {
+		requestAnimationFrame( ( t: number ) => {
+
+			const timeElapsed = Math.min( this.#clock_.getDelta(), 0.1 );
 
 			// Calculate and compute
-			this.#step_( this.#clock_.getDelta() );
+			this.#step_( timeElapsed );
 			// Render
 			this.#render_();
 			// Call next animation frame
