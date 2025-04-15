@@ -2,7 +2,7 @@
 
 import * as THREE from 'three';
 import MATH from './math';
-import { instancedBufferAttribute, texture, vec2, Fn, vec3, ShaderNodeObject } from 'three/tsl';
+import { instancedBufferAttribute, texture, vec2, Fn, vec3, ShaderNodeObject, instancedDynamicBufferAttribute, time } from 'three/tsl';
 
 import { NodeMaterial, PointsNodeMaterial, SpriteNodeMaterial, UniformNode } from 'three/webgpu';
 
@@ -359,6 +359,7 @@ export class Emitter {
 
 		// Create a Particle with a position determined by the Emitter's EmitterShape
 		const p = this.#params.shape.emit();
+		console.log( p );
 
 		// Assign the global max life for all particles to the particle
 		p.maxLife = this.#params.maxLife;
@@ -600,23 +601,70 @@ export class ParticleRenderer {
 
 	}
 
-	initialize( material: SpriteNodeMaterial, params: ParticleRendererParams ) {
+	initialize( uniforms, params ) {
 
-		this.#particleMaterial = material;
+		const positions = new Float32Array( params.maxDisplayParticles * 3 );
+		const lifes = new Float32Array( params.maxDisplayParticles );
+		const ids = new Float32Array( params.maxDisplayParticles );
+
+		for ( let i = 0; i < params.maxDisplayParticles; i ++ ) {
+
+			ids[ i ] = MATH.random();
+
+		}
+
+		const positionAttribute = new THREE.InstancedBufferAttribute( positions, 3 );
+		const lifeAttribute = new THREE.InstancedBufferAttribute( lifes, 1 );
+		const idAttribute = new THREE.InstancedBufferAttribute( ids, 1 );
+
+		// Using instancedDynamicBufferAttributes obivates the need to execute these lines
+		// of code in our updateFromParticles function
+		// ... this.#geometryAttributes.positionAttribute.needsUpdate = true;
+		// ... this.#geometryAttributes.lifeAttribute.needsUpdate = true;
+
+		const lifeNode = instancedDynamicBufferAttribute( lifeAttribute );
+		const newPosition = instancedDynamicBufferAttribute( positionAttribute );
+		const idNode = instancedBufferAttribute( idAttribute );
+
 		// Both static and dynamic geometry attributes
 		this.#geometryAttributes = {
-			positionAttribute: params.positionAttribute,
-			lifeAttribute: params.lifeAttribute,
-			idAttribute: params.idAttribute,
+			positionAttribute: positionAttribute,
+			lifeAttribute: lifeAttribute,
+			idAttribute: idAttribute,
 		};
 
-		this.#particlesSprite = new THREE.Sprite( material );
+		const {
+			sizeOverLifeTexture,
+			colorOverLifeTexture,
+			map
+		} = uniforms;
+
+		this.#particleMaterial = new PointsNodeMaterial( {
+			//color: 0xffffff,
+			positionNode: newPosition,
+			sizeNode: texture( sizeOverLifeTexture, vec2( lifeNode, 0.5 ) ).x,
+			colorNode: Fn( () => {
+
+				const starMap = texture( map );
+				const color = texture( colorOverLifeTexture, vec2( lifeNode, 0.5 ) ).rgb;
+				return vec3( starMap.mul( color ) );
+
+			} )(),
+			sizeAttenuation: true,
+			depthWrite: false,
+			depthTest: true,
+			transparent: true,
+			blending: THREE.AdditiveBlending,
+			rotationNode: time,
+		} );
+
+		this.#particlesSprite = new THREE.Sprite( this.#particleMaterial );
 		this.#particlesSprite.count = params.maxDisplayParticles;
 
 		params.group.add( this.#particlesSprite );
 		params.scene.add( params.group );
 
-		params.scene.add( new THREE.Mesh( new THREE.BoxGeometry( 20, 20, 20 ) ) );
+		return this.#particleMaterial;
 
 	}
 

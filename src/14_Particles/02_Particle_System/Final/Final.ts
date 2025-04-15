@@ -33,7 +33,8 @@ class ParticleProject extends App {
 		const maxDisplayParticles = 500;
 		const maxEmission = 500;
 
-		const positions = new Float32Array( maxDisplayParticles * 3 );
+		// TODO: Move positions into particle renderer
+		/* const positions = new Float32Array( maxDisplayParticles * 3 );
 		const lifes = new Float32Array( maxDisplayParticles );
 		const ids = new Float32Array( maxDisplayParticles );
 
@@ -45,7 +46,7 @@ class ParticleProject extends App {
 			lifes[ i ] = 0.0;
 			ids[ i ] = MATH.random();
 
-		}
+		} */
 
 		// Create an events system for the emitter.
 		// Whenver a particle is created, destroyed, etc, we h
@@ -78,24 +79,27 @@ class ParticleProject extends App {
 		] );
 
 		const sizeOverLifeTexture: THREE.DataTexture = sizesOverLife.toTexture();
-		const colorsOverLifeTexture: THREE.DataTexture = colorsOverLife.toTexture();
+		const colorOverLifeTexture: THREE.DataTexture = colorsOverLife.toTexture();
 		const twinkleOverLifeTexture: THREE.DataTexture = twinkleOverLife.toTexture();
 
-		const positionAttribute = new THREE.InstancedBufferAttribute( positions, 3 );
-		const lifeAttribute = new THREE.InstancedBufferAttribute( lifes, 1 );
-		const idAttribute = new THREE.InstancedBufferAttribute( ids, 1 );
+		//const positionAttribute = new THREE.InstancedBufferAttribute( positions, 3 );
+		//const lifeAttribute = new THREE.InstancedBufferAttribute( lifes, 1 );
+		//const idAttribute = new THREE.InstancedBufferAttribute( ids, 1 );
 
-		const lifeNode = instancedDynamicBufferAttribute( lifeAttribute );
-		const newPosition = instancedDynamicBufferAttribute( positionAttribute );
-		const idNode = instancedBufferAttribute( idAttribute );
+		//const lifeNode = instancedDynamicBufferAttribute( lifeAttribute );
+		//const newPosition = instancedDynamicBufferAttribute( positionAttribute );
+		//const idNode = instancedBufferAttribute( idAttribute );
 
-		const uniforms = {
-			cpuTime: uniform( 0 ),
-			spinSpeed: uniform( 0 )
+		const baseMaterial = {
+			sizeAttenuation: true,
+			depthWrite: false,
+			depthTest: true,
+			transparent: true,
+			blending: THREE.AdditiveBlending,
 		};
 
-		this.#particleMaterial = new PointsNodeMaterial( {
-			color: 0xffffff,
+		/* this.#particleMaterial = new PointsNodeMaterial( {
+			//color: 0xffffff,
 			positionNode: newPosition,
 			sizeNode: texture( sizeOverLifeTexture, vec2( lifeNode, 0.5 ) ).x,
 			colorNode: Fn( () => {
@@ -111,7 +115,7 @@ class ParticleProject extends App {
 			transparent: true,
 			blending: THREE.AdditiveBlending,
 			rotationNode: time,
-		} );
+		} ); */
 
 		const emitterParams = new EmitterParameters();
 		emitterParams.shape = new PointEmitterShape();
@@ -132,6 +136,8 @@ class ParticleProject extends App {
 		// we create a new emitter that creates particles in
 		// the wake of that trail.
 		emitterParams.onCreated = ( particle ) => {
+
+			console.log( this.Camera );
 
 			/*const smokeEmitterParams = new EmitterParameters();
 			smokeEmitterParams.shape = new PointEmitterShape();
@@ -180,17 +186,21 @@ class ParticleProject extends App {
 		};
 
 		emitterParams.particleRenderer = new ParticleRenderer();
-		emitterParams.particleRenderer.initialize( this.#particleMaterial, {
+
+		const uniforms = {
+			sizeOverLifeTexture: sizeOverLifeTexture,
+			colorOverLifeTexture: colorOverLifeTexture,
+			twinkleOverLifeTexture: twinkleOverLifeTexture,
+			map: starTexture
+		};
+
+		const particleMaterial = emitterParams.particleRenderer.initialize( uniforms, {
 			scene: this.Scene,
-			positions: positions,
-			lifes: lifes,
 			maxDisplayParticles: maxDisplayParticles,
 			group: new THREE.Group(),
-			positionAttribute: positionAttribute,
-			lifeAttribute: lifeAttribute,
-			idAttribute: idAttribute,
-			uniforms: uniforms,
 		} );
+
+		this.#particleMaterial = particleMaterial;
 
 		// NOTE: Velocity animation and color animation are not on the same lifecycle
 		const emitter = new Emitter( emitterParams );
@@ -342,6 +352,8 @@ class ParticleProject extends App {
 		this.loadRGBE( './resources/moonless_golf_2k.hdr' );
 
 		this.#createTrailParticleSystem();
+		this.Camera.position.set( 0, 0, 20 );
+		this.Camera.lookAt( new THREE.Vector3( 0, 0, 0 ) );
 
 		// Currently it seems like the particles can only be reset when they are still active
 		// Even if the dispose method is commented out

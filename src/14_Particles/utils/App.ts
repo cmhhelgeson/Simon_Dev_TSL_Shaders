@@ -44,8 +44,7 @@ class App {
 		const near = 0.1;
 		const far = 1000;
 		this.#camera_ = new THREE.PerspectiveCamera( fov, aspect, near, far );
-		this.#camera_.position.set( 80, 20, 80 );
-		//this.#camera_.lookAt( new THREE.Vector3( 0, 0, 0 ) );
+		this.#camera_.lookAt( new THREE.Vector3( 0, 0, 0 ) );
 
 		const controls = new OrbitControls( this.#camera_, this.#renderer_.domElement );
 		controls.enableDamping = true;

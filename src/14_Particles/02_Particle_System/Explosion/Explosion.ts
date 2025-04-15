@@ -29,34 +29,6 @@ class ParticleProject extends App {
 
 		// Maximum number of particles in memory/displayed at once
 		const maxDisplayParticles = 500;
-		const maxEmission = 500;
-
-		const positions = new Float32Array( maxDisplayParticles * 3 );
-		const lifes = new Float32Array( maxDisplayParticles );
-		const ids = new Float32Array( maxDisplayParticles );
-
-		const particles: Particle[] = [];
-
-		for ( let i = 0; i < maxDisplayParticles; i ++ ) {
-
-			const x = positions[ i * 3 ] = ( MATH.random() * 2 - 1 ) * 100;
-			const y = positions[ i * 3 + 1 ] = ( MATH.random() * 2 - 1 ) * 100;
-			const z = positions[ i * 3 + 2 ] = ( MATH.random() * 2 - 1 ) * 100;
-			lifes[ i ] = 0.0;
-			ids[ i ] = MATH.random();
-
-			// Direction of velocity explosion will always emanate from the origin
-			const dir = new THREE.Vector3( x, y, z ).normalize();
-
-			particles.push( {
-				life: 0,
-				maxLife: 18,
-				position: new THREE.Vector3( x, y, z ),
-				velocity: dir.multiplyScalar( 50 ),
-				id: ids[ i ],
-			} );
-
-		}
 
 		const textureLoader = new THREE.TextureLoader();
 		const starTexture = textureLoader.load( './resources/star.png' );
@@ -130,37 +102,14 @@ class ParticleProject extends App {
 		const colorsOverLifeTexture: THREE.DataTexture = colorsOverLife.toTexture();
 		const twinkleOverLifeTexture: THREE.DataTexture = twinkleOverLife.toTexture();
 
-		const positionAttribute = new THREE.InstancedBufferAttribute( positions, 3 );
-		const lifeAttribute = new THREE.InstancedBufferAttribute( lifes, 1 );
-		const idAttribute = new THREE.InstancedBufferAttribute( ids, 1 );
-
-		const lifeNode = instancedDynamicBufferAttribute( lifeAttribute );
-		const newPosition = instancedDynamicBufferAttribute( positionAttribute );
-		const idNode = instancedBufferAttribute( idAttribute );
-
 		const uniforms = {
-			cpuTime: uniform( 0 ),
-			spinSpeed: uniform( 0 )
+			sizeOverLifeTexture: sizeOverLifeTexture,
+			colorOverLifeTexture: colorsOverLifeTexture,
+			twinkleOverLifeTexture: twinkleOverLifeTexture,
+			map: starTexture,
 		};
 
-		this.#particleMaterial = new PointsNodeMaterial( {
-			color: 0xffffff,
-			positionNode: newPosition,
-			sizeNode: texture( sizeOverLifeTexture, vec2( lifeNode, 0.5 ) ).x,
-			colorNode: Fn( () => {
 
-				const starMap = texture( starTexture );
-				const color = texture( colorsOverLifeTexture, vec2( lifeNode, 0.5 ) ).rgb;
-				return vec3( starMap.mul( color ) );
-
-			} )(),
-			sizeAttenuation: true,
-			depthWrite: false,
-			depthTest: true,
-			transparent: true,
-			blending: THREE.AdditiveBlending,
-			rotationNode: time,
-		} );
 
 		const emitterParams = new EmitterParameters();
 		emitterParams.shape = new PointEmitterShape();
@@ -178,16 +127,10 @@ class ParticleProject extends App {
 		emitterParams.spinSpeed = Math.PI;
 
 		emitterParams.particleRenderer = new ParticleRenderer();
-		emitterParams.particleRenderer.initialize( this.#particleMaterial, {
+		this.#particleMaterial = emitterParams.particleRenderer.initialize( uniforms, {
 			scene: this.Scene,
-			positions: positions,
-			lifes: lifes,
 			maxDisplayParticles: maxDisplayParticles,
 			group: new THREE.Group(),
-			positionAttribute: positionAttribute,
-			lifeAttribute: lifeAttribute,
-			idAttribute: idAttribute,
-			uniforms: uniforms,
 		} );
 
 		// NOTE: Velocity animation and color animation are not on the same lifecycle
@@ -220,7 +163,7 @@ class ParticleProject extends App {
 
 		this.loadRGBE( './resources/moonless_golf_2k.hdr' );
 
-		this.Camera.position.set( 100, 25, 100 );
+		this.Camera.position.set( 100, 0, 100 );
 
 		this.#createPointsParticleSystem();
 
