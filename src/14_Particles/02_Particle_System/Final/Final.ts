@@ -23,8 +23,6 @@ class ParticleProject extends App {
 
 	}
 
-
-
 	#createTrailParticleSystem() {
 
 		this.#particleSystem = new ParticleSystem();
@@ -32,21 +30,6 @@ class ParticleProject extends App {
 		// Maximum number of particles in memory/displayed at once
 		const maxDisplayParticles = 500;
 		const maxEmission = 500;
-
-		// TODO: Move positions into particle renderer
-		/* const positions = new Float32Array( maxDisplayParticles * 3 );
-		const lifes = new Float32Array( maxDisplayParticles );
-		const ids = new Float32Array( maxDisplayParticles );
-
-		for ( let i = 0; i < maxDisplayParticles; i ++ ) {
-
-			positions[ i * 3 ] = 0.0;
-			positions[ i * 3 + 1 ] = 0.0;
-			positions[ i * 3 + 2 ] = 0.0;
-			lifes[ i ] = 0.0;
-			ids[ i ] = MATH.random();
-
-		} */
 
 		// Create an events system for the emitter.
 		// Whenver a particle is created, destroyed, etc, we h
@@ -82,14 +65,6 @@ class ParticleProject extends App {
 		const colorOverLifeTexture: THREE.DataTexture = colorsOverLife.toTexture();
 		const twinkleOverLifeTexture: THREE.DataTexture = twinkleOverLife.toTexture();
 
-		//const positionAttribute = new THREE.InstancedBufferAttribute( positions, 3 );
-		//const lifeAttribute = new THREE.InstancedBufferAttribute( lifes, 1 );
-		//const idAttribute = new THREE.InstancedBufferAttribute( ids, 1 );
-
-		//const lifeNode = instancedDynamicBufferAttribute( lifeAttribute );
-		//const newPosition = instancedDynamicBufferAttribute( positionAttribute );
-		//const idNode = instancedBufferAttribute( idAttribute );
-
 		const baseMaterial = {
 			sizeAttenuation: true,
 			depthWrite: false,
@@ -97,25 +72,6 @@ class ParticleProject extends App {
 			transparent: true,
 			blending: THREE.AdditiveBlending,
 		};
-
-		/* this.#particleMaterial = new PointsNodeMaterial( {
-			//color: 0xffffff,
-			positionNode: newPosition,
-			sizeNode: texture( sizeOverLifeTexture, vec2( lifeNode, 0.5 ) ).x,
-			colorNode: Fn( () => {
-
-				const starMap = texture( starTexture );
-				const color = texture( colorsOverLifeTexture, vec2( lifeNode, 0.5 ) ).rgb;
-				return vec3( starMap.mul( color ) );
-
-			} )(),
-			sizeAttenuation: true,
-			depthWrite: false,
-			depthTest: true,
-			transparent: true,
-			blending: THREE.AdditiveBlending,
-			rotationNode: time,
-		} ); */
 
 		const emitterParams = new EmitterParameters();
 		emitterParams.shape = new PointEmitterShape();
@@ -214,21 +170,6 @@ class ParticleProject extends App {
 
 		// Maximum number of particles in memory/displayed at once
 		const maxDisplayParticles = 500;
-		const maxEmission = 500;
-
-		const positions = new Float32Array( maxDisplayParticles * 3 );
-		const lifes = new Float32Array( maxDisplayParticles );
-		const ids = new Float32Array( maxDisplayParticles );
-
-		for ( let i = 0; i < maxDisplayParticles; i ++ ) {
-
-			positions[ i * 3 ] = ( MATH.random() * 2 - 1 ) * 100;
-			positions[ i * 3 + 1 ] = ( MATH.random() * 2 - 1 ) * 100;
-			positions[ i * 3 + 2 ] = ( MATH.random() * 2 - 1 ) * 100;
-			lifes[ i ] = 0.0;
-			ids[ i ] = MATH.random();
-
-		}
 
 		const textureLoader = new THREE.TextureLoader();
 		const starTexture = textureLoader.load( './resources/star.png' );
@@ -261,37 +202,13 @@ class ParticleProject extends App {
 		const colorsOverLifeTexture: THREE.DataTexture = colorsOverLife.toTexture();
 		const twinkleOverLifeTexture: THREE.DataTexture = twinkleOverLife.toTexture();
 
-		const positionAttribute = new THREE.InstancedBufferAttribute( positions, 3 );
-		const lifeAttribute = new THREE.InstancedBufferAttribute( lifes, 1 );
-		const idAttribute = new THREE.InstancedBufferAttribute( ids, 1 );
-
-		const lifeNode = instancedDynamicBufferAttribute( lifeAttribute );
-		const newPosition = instancedDynamicBufferAttribute( positionAttribute );
-		const idNode = instancedBufferAttribute( idAttribute );
-
 		const uniforms = {
-			cpuTime: uniform( 0 ),
+			sizeOverLifeTexture: sizeOverLifeTexture,
+			colorOverLifeTexture: colorsOverLifeTexture,
+			twinkleOverLifeTexture: twinkleOverLifeTexture,
 			spinSpeed: uniform( 0 )
 		};
 
-		this.#particleMaterial = new PointsNodeMaterial( {
-			color: 0xffffff,
-			positionNode: newPosition,
-			sizeNode: texture( sizeOverLifeTexture, vec2( lifeNode, 0.5 ) ).x,
-			colorNode: Fn( () => {
-
-				const starMap = texture( starTexture );
-				const color = texture( colorsOverLifeTexture, vec2( lifeNode, 0.5 ) ).rgb;
-				return vec3( starMap.mul( color ) );
-
-			} )(),
-			sizeAttenuation: true,
-			depthWrite: false,
-			depthTest: true,
-			transparent: true,
-			blending: THREE.AdditiveBlending,
-			rotationNode: time,
-		} );
 
 		const emitterParams = new EmitterParameters();
 		emitterParams.shape = new PointEmitterShape();
@@ -309,16 +226,10 @@ class ParticleProject extends App {
 		emitterParams.spinSpeed = Math.PI;
 
 		emitterParams.particleRenderer = new ParticleRenderer();
-		emitterParams.particleRenderer.initialize( this.#particleMaterial, {
+		this.#particleMaterial = emitterParams.particleRenderer.initialize( uniforms, {
 			scene: this.Scene,
-			positions: positions,
-			lifes: lifes,
 			maxDisplayParticles: maxDisplayParticles,
 			group: new THREE.Group(),
-			positionAttribute: positionAttribute,
-			lifeAttribute: lifeAttribute,
-			idAttribute: idAttribute,
-			uniforms: uniforms,
 		} );
 
 		// NOTE: Velocity animation and color animation are not on the same lifecycle

@@ -1,6 +1,6 @@
 
 import * as THREE from 'three';
-import { texture, vec3, time, instancedBufferAttribute, instancedDynamicBufferAttribute, vec2, Fn, uniform } from 'three/tsl';
+import { uniform } from 'three/tsl';
 
 import { App } from '../../utils/App';
 import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
@@ -16,6 +16,7 @@ class ParticleProject extends App {
 	// Each emitter will now be responsible for its own rendering
 	#particleMaterial: PointsNodeMaterial;
 	#particleSystem: ParticleSystem | null = null;
+	#uniformTypes = {};
 
 	constructor() {
 
@@ -37,8 +38,8 @@ class ParticleProject extends App {
 		// the same length of time, irrespective of whether it is doing anything during
 		// large stretches of time.
 
-		// Alt parameters
-		/*const sizesOverLife = new MATH.FloatInterpolant( [
+		// Pucnh parameters
+		const punchSizeOverLife = new MATH.FloatInterpolant( [
 			{ time: 0, value: 100.0 },
 			{ time: 1, value: 0.0 },
 			{ time: 2, value: 100.0 },
@@ -50,7 +51,7 @@ class ParticleProject extends App {
 			{ time: 20, value: 200.0 }
 		] );
 
-		const alphasOverLife = new MATH.FloatInterpolant( [
+		const punchAlphaOverLife = new MATH.FloatInterpolant( [
 			{ time: 0, value: 1 },
 			{ time: 8, value: 1 },
 			{ time: 10, value: 0 },
@@ -59,7 +60,7 @@ class ParticleProject extends App {
 			{ time: 18, value: 0 }
 		] );
 
-		const colorsOverLife = new MATH.ColorInterpolant( [
+		const punchColorOverLife = new MATH.ColorInterpolant( [
 			{ time: 0, value: new THREE.Color( 0xFFFFFF ) },
 			{ time: 14, value: new THREE.Color( 0xFFFFFF ) },
 			{ time: 15, value: new THREE.Color( 0xFF0000 ) },
@@ -68,54 +69,57 @@ class ParticleProject extends App {
 			{ time: 18, value: new THREE.Color( 0xFFFFFF ) },
 		] );
 
-		const twinkleOverLife = new MATH.FloatInterpolant( [
+		const punchTwinkleOverLife = new MATH.FloatInterpolant( [
 			{ time: 0, value: 0 },
 			{ time: 3, value: 1 },
 			{ time: 4, value: 1 },
-		] ); */
+		] );
 
-		const sizesOverLife = new MATH.FloatInterpolant( [
+		// Generic Firework Explosion Parameters
+		const explosionSizeOverLife = new MATH.FloatInterpolant( [
 			{ time: 0, value: 30 },
 			{ time: 5, value: 40 },
 		] );
 
-		const alphaOverLife = new MATH.FloatInterpolant( [
+		const explosionAlphaOverLife = new MATH.FloatInterpolant( [
 			{ time: 0, value: 0 },
 			{ time: 0.25, value: 1 },
 			{ time: 4.5, value: 1 },
 			{ time: 5, value: 0 },
 		] );
 
-		const colorsOverLife = new MATH.ColorInterpolant( [
+		const explosionColorOverLife = new MATH.ColorInterpolant( [
 			{ time: 0, value: new THREE.Color().setHSL( 0, 1, 0.75 ) },
 			{ time: 2, value: new THREE.Color().setHSL( 0.5, 1, 0.5 ) },
 			{ time: 5, value: new THREE.Color().setHSL( 1, 1, 0.5 ) },
 		] );
 
-		const twinkleOverLife = new MATH.FloatInterpolant( [
+		const explosionTwinkleOverLife = new MATH.FloatInterpolant( [
 			{ time: 0, value: 0 },
 			{ time: 3, value: 1 },
 			{ time: 4, value: 1 },
 		] );
 
-		const sizeOverLifeTexture: THREE.DataTexture = sizesOverLife.toTexture();
-		const colorsOverLifeTexture: THREE.DataTexture = colorsOverLife.toTexture();
-		const twinkleOverLifeTexture: THREE.DataTexture = twinkleOverLife.toTexture();
-		const alphaOverLifeTexture: THREE.DataTexture = alphaOverLife.toTexture();
-
-		const uniforms = {
-			sizeOverLifeTexture: sizeOverLifeTexture,
-			colorOverLifeTexture: colorsOverLifeTexture,
-			twinkleOverLifeTexture: twinkleOverLifeTexture,
-			alphaOverLifeTexture: alphaOverLifeTexture,
+		this.#uniformTypes[ 'Explosion' ] = {
+			sizeOverLifeTexture: explosionSizeOverLife.toTexture(),
+			colorOverLifeTexture: explosionColorOverLife.toTexture(),
+			twinkleOverLifeTexture: explosionTwinkleOverLife.toTexture(),
+			alphaOverLifeTexture: explosionAlphaOverLife.toTexture(),
 			map: starTexture,
+			spinSpeed: uniform( Math.PI )
 		};
 
-
+		this.#uniformTypes[ 'Punch' ] = {
+			sizeOverLifeTexture: punchSizeOverLife.toTexture(),
+			colorOverLifeTexture: punchColorOverLife.toTexture(),
+			twinkleOverLifeTexture: punchTwinkleOverLife.toTexture(),
+			alphaOverLifeTexture: punchAlphaOverLife.toTexture(),
+			map: starTexture,
+			spinSpeed: uniform( Math.PI )
+		};
 
 		const emitterParams = new EmitterParameters();
 		emitterParams.shape = new PointEmitterShape( new THREE.Vector3( 0, 25, 0 ) );
-		//emitterParams.shape.position.copy( pos );
 		emitterParams.particleEmissionRate = 5000;
 		emitterParams.maxDisplayParticles = 500;
 		emitterParams.startNumParticles = 500;
@@ -129,7 +133,7 @@ class ParticleProject extends App {
 		emitterParams.spinSpeed = Math.PI;
 
 		emitterParams.particleRenderer = new ParticleRenderer();
-		this.#particleMaterial = emitterParams.particleRenderer.initialize( uniforms, {
+		this.#particleMaterial = emitterParams.particleRenderer.initialize( this.#uniformTypes[ 'Explosion' ], {
 			scene: this.Scene,
 			maxDisplayParticles: maxDisplayParticles,
 			group: new THREE.Group(),
@@ -172,6 +176,7 @@ class ParticleProject extends App {
 		// Currently it seems like the particles can only be reset when they are still active
 		// Even if the dispose method is commented out
 		projectFolder?.add( { 'Reset Sim': () => this.#particleSystem?.resetEmitter( 0 ) }, 'Reset Sim' ).name( 'Reset Sim' );
+		//projectFolder?.add({'Switch Sim Type'}: () => this.#particleSystem.switchUniforms)
 
 	}
 

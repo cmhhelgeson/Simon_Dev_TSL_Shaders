@@ -333,6 +333,13 @@ export class Emitter {
 
 	}
 
+	setUniforms() {
+
+		this.#params.particleRenderer;
+
+
+	}
+
 	#assignVelocityCoordSimon( vel: THREE.Vector3, phi: number, theta: number ) {
 
 		vel.set(
@@ -531,6 +538,12 @@ export class ParticleSystem {
 
 	}
 
+	setEmitterUniforms = ( index: number ) => {
+
+		this.#emitters[ index ].setUniforms();
+
+	};
+
 	step( dt: number, totalTime: number ) {
 
 		for ( let i = 0; i < this.#emitters.length; ++ i ) {
@@ -586,6 +599,7 @@ export class ParticleRenderer {
 	#particlesSprite: THREE.Sprite | null = null;
 	#geometryAttributes: ParticleGeometryAttributes | null = null;
 	#particleMaterial: SpriteNodeMaterial | null = null;
+	#uniforms = null;
 
 	constructor( ) {
 	}
@@ -633,13 +647,18 @@ export class ParticleRenderer {
 			idAttribute: idAttribute,
 		};
 
+		this.#uniforms = uniforms;
+
 		const {
 			sizeOverLifeTexture,
 			colorOverLifeTexture,
 			map,
 			alphaOverLifeTexture,
 			twinkleOverLifeTexture,
+			spinSpeed,
 		} = uniforms;
+
+		const idNodeOffset = idNode.mul( 6.28 );
 
 		this.#particleMaterial = new PointsNodeMaterial( {
 			//color: 0xffffff,
@@ -656,7 +675,7 @@ export class ParticleRenderer {
 
 				const twinkleSample = texture( twinkleOverLifeTexture, vec2( lifeNode, 0.5 ) ).x;
   			const twinkle = mix( 1.0, sin(
-					time.mul( 20.0 ).add( idNode.mul( 6.28 ) )
+					time.mul( 20.0 ).add( idNodeOffset )
 				).mul( 0.5 ).add( 0.5 ), twinkleSample
 				);
 
@@ -669,7 +688,7 @@ export class ParticleRenderer {
 			depthTest: true,
 			transparent: true,
 			blending: THREE.AdditiveBlending,
-			rotationNode: time,
+			rotationNode: time.mul( spinSpeed ).add( idNodeOffset ),
 		} );
 
 		this.#particlesSprite = new THREE.Sprite( this.#particleMaterial );
