@@ -7,7 +7,7 @@ import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
 
 import MATH from '../../utils/math';
 
-import { ParticleRenderer, ParticleSystem, EmitterParameters, Emitter, Particle, PointEmitterShape } from '../../utils/particle-system';
+import { ParticleRenderer, ParticleSystem, EmitterParameters, Emitter, PointEmitterShape } from '../../utils/particle-system';
 import { PointsNodeMaterial } from 'three/webgpu';
 
 class ParticleProject extends App {
@@ -25,7 +25,7 @@ class ParticleProject extends App {
 
 	}
 
-	#createPointsParticleSystem( uniformPackage: string = 'Explosion' ) {
+	#createPointsParticleSystem() {
 
 		this.#particleSystem = new ParticleSystem();
 

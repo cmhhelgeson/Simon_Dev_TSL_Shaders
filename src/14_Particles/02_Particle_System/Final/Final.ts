@@ -1,13 +1,13 @@
 
 import * as THREE from 'three';
-import { texture, vec3, time, instancedBufferAttribute, instancedDynamicBufferAttribute, vec2, Fn, uniform } from 'three/tsl';
+import { uniform } from 'three/tsl';
 
 import { App } from '../../utils/App';
 import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
 
 import MATH from '../../utils/math';
 
-import { ParticleRenderer, ParticleSystem, EmitterParameters, Emitter, Particle, PointEmitterShape } from '../../utils/particle-system';
+import { ParticleRenderer, ParticleSystem, EmitterParameters, Emitter, PointEmitterShape } from '../../utils/particle-system';
 import { PointsNodeMaterial } from 'three/webgpu';
 
 class ParticleProject extends App {
@@ -37,44 +37,92 @@ class ParticleProject extends App {
 		const textureLoader = new THREE.TextureLoader();
 		const starTexture = textureLoader.load( './resources/star.png' );
 
-		const sizesOverLife = new MATH.FloatInterpolant( [
-			{ time: 0, value: 15 },
-			{ time: 5, value: 30 },
-		] );
+		let smokeUniforms = {};
+		let leadUniforms = {};
 
-		const alphaOverLife = new MATH.FloatInterpolant( [
-			{ time: 0, value: 0 },
-			{ time: 0.25, value: 1 },
-			{ time: 4.5, value: 1 },
-			{ time: 5, value: 0 },
-		] );
+		{
 
-		const colorsOverLife = new MATH.ColorInterpolant( [
-			{ time: 0, value: new THREE.Color().setHSL( 0, 1, 0.75 ) },
-			{ time: 2, value: new THREE.Color().setHSL( 0.5, 1, 0.5 ) },
-			{ time: 5, value: new THREE.Color().setHSL( 1, 1, 0.5 ) },
-		] );
+			const smokeSizeOverLife = new MATH.FloatInterpolant( [
+				{ time: 0, value: 5 },
+				{ time: 5, value: 15 },
+			] );
 
-		const twinkleOverLife = new MATH.FloatInterpolant( [
-			{ time: 0, value: 0 },
-			{ time: 3, value: 1 },
-			{ time: 4, value: 1 },
-		] );
+			const smokeAlphaOverLife = new MATH.FloatInterpolant( [
+				{ time: 0, value: 0 },
+				{ time: 1, value: 1 },
+				{ time: 4, value: 1 },
+				{ time: 5, value: 0 },
+			] );
 
-		const sizeOverLifeTexture: THREE.DataTexture = sizesOverLife.toTexture();
-		const colorOverLifeTexture: THREE.DataTexture = colorsOverLife.toTexture();
-		const twinkleOverLifeTexture: THREE.DataTexture = twinkleOverLife.toTexture();
+			const smokeColorOverLife = new MATH.ColorInterpolant( [
+				// { time: 0, value: new THREE.Color(0x808080) },
+				// { time: 1, value: new THREE.Color(0x404040) },
+				{ time: 0, value: new THREE.Color().setHSL( 0, 1, 0.5 ) },
+				{ time: 1, value: new THREE.Color().setHSL( 0.25, 1, 0.5 ) },
+				{ time: 2, value: new THREE.Color().setHSL( 0.5, 1, 0.5 ) },
+				{ time: 3, value: new THREE.Color().setHSL( 0.75, 1, 0.5 ) },
+				{ time: 4, value: new THREE.Color().setHSL( 1, 1, 0.5 ) },
+			] );
 
-		const baseMaterial = {
-			sizeAttenuation: true,
-			depthWrite: false,
-			depthTest: true,
-			transparent: true,
-			blending: THREE.AdditiveBlending,
-		};
+			const smokeTwinkleOverLife = new MATH.FloatInterpolant( [
+				{ time: 0, value: 0 },
+				{ time: 1, value: 0 },
+			] );
+
+			smokeUniforms = {
+				sizeOverLifeTexture: smokeSizeOverLife.toTexture(),
+				alphaOverLifeTexture: smokeAlphaOverLife.toTexture(),
+				colorOverLifeTexture: smokeColorOverLife.toTexture(),
+				twinkleOverLifeTexture: smokeTwinkleOverLife.toTexture(),
+				map: starTexture,
+				spinSpeed: uniform( 0 ),
+			};
+
+		}
+
+		{
+
+			const sizesOverLife = new MATH.FloatInterpolant( [
+				{ time: 0, value: 15 },
+				{ time: 5, value: 30 },
+			] );
+
+			const alphaOverLife = new MATH.FloatInterpolant( [
+				{ time: 0, value: 0 },
+				{ time: 0.25, value: 1 },
+				{ time: 4.5, value: 1 },
+				{ time: 5, value: 0 },
+			] );
+
+			const colorsOverLife = new MATH.ColorInterpolant( [
+				{ time: 0, value: new THREE.Color().setHSL( 0, 1, 0.75 ) },
+				{ time: 2, value: new THREE.Color().setHSL( 0.5, 1, 0.5 ) },
+				{ time: 5, value: new THREE.Color().setHSL( 1, 1, 0.5 ) },
+			] );
+
+			const twinkleOverLife = new MATH.FloatInterpolant( [
+				{ time: 0, value: 0 },
+				{ time: 3, value: 1 },
+				{ time: 4, value: 1 },
+			] );
+
+			const sizeOverLifeTexture: THREE.DataTexture = sizesOverLife.toTexture();
+			const colorOverLifeTexture: THREE.DataTexture = colorsOverLife.toTexture();
+			const twinkleOverLifeTexture: THREE.DataTexture = twinkleOverLife.toTexture();
+
+			leadUniforms = {
+				sizeOverLifeTexture: sizeOverLifeTexture,
+				colorOverLifeTexture: colorOverLifeTexture,
+				twinkleOverLifeTexture: twinkleOverLifeTexture,
+				alphaOverLifeTexture: alphaOverLife.toTexture(),
+				map: starTexture,
+				spinSpeed: uniform( Math.PI ),
+			};
+
+		}
 
 		const emitterParams = new EmitterParameters();
-		emitterParams.shape = new PointEmitterShape();
+		emitterParams.shape = new PointEmitterShape( new THREE.Vector3( 0, 25, 0 ) );
 		//emitterParams.shape.position.copy( pos );
 		emitterParams.particleEmissionRate = 1;
 		emitterParams.maxDisplayParticles = 500;
@@ -95,9 +143,9 @@ class ParticleProject extends App {
 
 			console.log( this.Camera );
 
-			/*const smokeEmitterParams = new EmitterParameters();
+			const smokeEmitterParams = new EmitterParameters();
 			smokeEmitterParams.shape = new PointEmitterShape();
-			smokeEmitterParams.shape = new PointEmitterShape();
+			//smokeEmitterParams.shape = new PointEmitterShape();
 			//emitterParams.shape.position.copy( pos );
 			smokeEmitterParams.particleEmissionRate = 100;
 			smokeEmitterParams.maxDisplayParticles = 500;
@@ -107,16 +155,10 @@ class ParticleProject extends App {
 			smokeEmitterParams.spinSpeed = Math.PI / 8;
 
 			smokeEmitterParams.particleRenderer = new ParticleRenderer();
-			smokeEmitterParams.particleRenderer.initialize( this.#particleMaterial, {
+			smokeEmitterParams.particleRenderer.initialize( smokeUniforms, {
 				scene: this.Scene,
-				positions: positions,
-				lifes: lifes,
 				maxDisplayParticles: maxDisplayParticles,
 				group: new THREE.Group(),
-				positionAttribute: positionAttribute,
-				lifeAttribute: lifeAttribute,
-				idAttribute: idAttribute,
-				uniforms: uniforms,
 			} );
 
 			// NOTE: Velocity animation and color animation are not on the same lifecycle
@@ -124,7 +166,7 @@ class ParticleProject extends App {
 			this.#particleSystem?.addEmitter( smokeEmitter );
 
 
-			console.log( 'test particle created' ); */
+			console.log( 'test particle created' );
 
 		};
 
@@ -143,20 +185,13 @@ class ParticleProject extends App {
 
 		emitterParams.particleRenderer = new ParticleRenderer();
 
-		const uniforms = {
-			sizeOverLifeTexture: sizeOverLifeTexture,
-			colorOverLifeTexture: colorOverLifeTexture,
-			twinkleOverLifeTexture: twinkleOverLifeTexture,
-			map: starTexture
-		};
 
-		const particleMaterial = emitterParams.particleRenderer.initialize( uniforms, {
+		this.#particleMaterial = emitterParams.particleRenderer.initialize( leadUniforms, {
 			scene: this.Scene,
 			maxDisplayParticles: maxDisplayParticles,
 			group: new THREE.Group(),
 		} );
 
-		this.#particleMaterial = particleMaterial;
 
 		// NOTE: Velocity animation and color animation are not on the same lifecycle
 		const emitter = new Emitter( emitterParams );
@@ -206,6 +241,8 @@ class ParticleProject extends App {
 			sizeOverLifeTexture: sizeOverLifeTexture,
 			colorOverLifeTexture: colorsOverLifeTexture,
 			twinkleOverLifeTexture: twinkleOverLifeTexture,
+			alphaOverLife: alphaOverLife.toTexture(),
+			map: starTexture,
 			spinSpeed: uniform( 0 )
 		};
 
@@ -268,7 +305,7 @@ class ParticleProject extends App {
 
 		// Currently it seems like the particles can only be reset when they are still active
 		// Even if the dispose method is commented out
-		projectFolder?.add( { 'Reset Sim': () => this.#particleSystem?.resetEmitter( 0 ) }, 'Reset Sim' ).name( 'Reset Sim' );
+		projectFolder?.add( { 'Reset Sim': () => this.#particleSystem?.killAllEmitters() }, 'Reset Sim' ).name( 'Reset Sim' );
 
 	}
 
