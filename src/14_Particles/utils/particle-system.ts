@@ -2,7 +2,7 @@
 
 import * as THREE from 'three';
 import MATH from './math';
-import { instancedBufferAttribute, texture, vec2, Fn, vec3, ShaderNodeObject, instancedDynamicBufferAttribute, time } from 'three/tsl';
+import { instancedBufferAttribute, texture, vec2, Fn, vec3, ShaderNodeObject, instancedDynamicBufferAttribute, time, mix, sin } from 'three/tsl';
 
 import { NodeMaterial, PointsNodeMaterial, SpriteNodeMaterial, UniformNode } from 'three/webgpu';
 
@@ -636,7 +636,9 @@ export class ParticleRenderer {
 		const {
 			sizeOverLifeTexture,
 			colorOverLifeTexture,
-			map
+			map,
+			alphaOverLifeTexture,
+			twinkleOverLifeTexture,
 		} = uniforms;
 
 		this.#particleMaterial = new PointsNodeMaterial( {
@@ -648,6 +650,18 @@ export class ParticleRenderer {
 				const starMap = texture( map );
 				const color = texture( colorOverLifeTexture, vec2( lifeNode, 0.5 ) ).rgb;
 				return vec3( starMap.mul( color ) );
+
+			} )(),
+			opacityNode: Fn( () => {
+
+				const twinkleSample = texture( twinkleOverLifeTexture, vec2( lifeNode, 0.5 ) ).x;
+  			const twinkle = mix( 1.0, sin(
+					time.mul( 20.0 ).add( idNode.mul( 6.28 ) )
+				).mul( 0.5 ).add( 0.5 ), twinkleSample
+				);
+
+				const alpha = texture( alphaOverLifeTexture, vec2( lifeNode, 0.5 ) ).x;
+				return alpha.mul( twinkle );
 
 			} )(),
 			sizeAttenuation: true,

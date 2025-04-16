@@ -75,8 +75,8 @@ class ParticleProject extends App {
 		] ); */
 
 		const sizesOverLife = new MATH.FloatInterpolant( [
-			{ time: 0, value: 20 },
-			{ time: 5, value: 20 },
+			{ time: 0, value: 30 },
+			{ time: 5, value: 40 },
 		] );
 
 		const alphaOverLife = new MATH.FloatInterpolant( [
@@ -101,18 +101,20 @@ class ParticleProject extends App {
 		const sizeOverLifeTexture: THREE.DataTexture = sizesOverLife.toTexture();
 		const colorsOverLifeTexture: THREE.DataTexture = colorsOverLife.toTexture();
 		const twinkleOverLifeTexture: THREE.DataTexture = twinkleOverLife.toTexture();
+		const alphaOverLifeTexture: THREE.DataTexture = alphaOverLife.toTexture();
 
 		const uniforms = {
 			sizeOverLifeTexture: sizeOverLifeTexture,
 			colorOverLifeTexture: colorsOverLifeTexture,
 			twinkleOverLifeTexture: twinkleOverLifeTexture,
+			alphaOverLifeTexture: alphaOverLifeTexture,
 			map: starTexture,
 		};
 
 
 
 		const emitterParams = new EmitterParameters();
-		emitterParams.shape = new PointEmitterShape();
+		emitterParams.shape = new PointEmitterShape( new THREE.Vector3( 0, 25, 0 ) );
 		//emitterParams.shape.position.copy( pos );
 		emitterParams.particleEmissionRate = 5000;
 		emitterParams.maxDisplayParticles = 500;
@@ -121,7 +123,7 @@ class ParticleProject extends App {
 		emitterParams.maxLife = 3;
 		emitterParams.gravity = true;
 		emitterParams.dragCoefficient = 4;
-		emitterParams.velocityMagnitude = 75;
+		emitterParams.velocityMagnitude = 150;
 		emitterParams.velocityMagnitudeVariance = 10;
 		emitterParams.rotationAngularVariance = 2 * Math.PI;
 		emitterParams.spinSpeed = Math.PI;
