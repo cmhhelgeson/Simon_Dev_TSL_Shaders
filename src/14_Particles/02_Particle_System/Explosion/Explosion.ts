@@ -16,6 +16,7 @@ class ParticleProject extends App {
 	// Each emitter will now be responsible for its own rendering
 	#particleMaterial: PointsNodeMaterial;
 	#particleSystem: ParticleSystem | null = null;
+	#currentUniformType = 'Explosion';
 	#uniformTypes = {};
 
 	constructor() {
@@ -24,7 +25,7 @@ class ParticleProject extends App {
 
 	}
 
-	#createPointsParticleSystem() {
+	#createPointsParticleSystem( uniformPackage: string = 'Explosion' ) {
 
 		this.#particleSystem = new ParticleSystem();
 
@@ -124,7 +125,7 @@ class ParticleProject extends App {
 		emitterParams.maxDisplayParticles = 500;
 		emitterParams.startNumParticles = 500;
 		emitterParams.maxEmission = 500;
-		emitterParams.maxLife = 3;
+		emitterParams.maxLife = 18;
 		emitterParams.gravity = true;
 		emitterParams.dragCoefficient = 4;
 		emitterParams.velocityMagnitude = 150;
@@ -133,7 +134,7 @@ class ParticleProject extends App {
 		emitterParams.spinSpeed = Math.PI;
 
 		emitterParams.particleRenderer = new ParticleRenderer();
-		this.#particleMaterial = emitterParams.particleRenderer.initialize( this.#uniformTypes[ 'Explosion' ], {
+		this.#particleMaterial = emitterParams.particleRenderer.initialize( this.#uniformTypes[ this.#currentUniformType ], {
 			scene: this.Scene,
 			maxDisplayParticles: maxDisplayParticles,
 			group: new THREE.Group(),
@@ -159,7 +160,7 @@ class ParticleProject extends App {
 
 			this.#particleSystem?.dispose();
 			this.#particleSystem = null;
-			this.#createPointsParticleSystem();
+			this.#createPointsParticleSystem( this.#currentUniformType );
 
 		}
 
@@ -171,12 +172,23 @@ class ParticleProject extends App {
 
 		this.Camera.position.set( 100, 0, 100 );
 
-		this.#createPointsParticleSystem();
+		this.#createPointsParticleSystem( this.#currentUniformType );
 
 		// Currently it seems like the particles can only be reset when they are still active
 		// Even if the dispose method is commented out
-		projectFolder?.add( { 'Reset Sim': () => this.#particleSystem?.resetEmitter( 0 ) }, 'Reset Sim' ).name( 'Reset Sim' );
-		//projectFolder?.add({'Switch Sim Type'}: () => this.#particleSystem.switchUniforms)
+		projectFolder?.add( { 'Reset Current Sim': () => this.#particleSystem?.killAllEmitters() }, 'Reset Current Sim' ).name( 'Reset Current Sim' );
+
+		const simOptions = Object.keys( this.#uniformTypes );
+		const params = { selectedSim: this.#currentUniformType };
+
+		projectFolder?.add( params, 'selectedSim', simOptions )
+			.name( 'Simulation Type' )
+			.onChange( ( value: string ) => {
+
+				this.#currentUniformType = value;
+				this.#particleSystem?.killAllEmitters();
+
+			} );
 
 	}
 

@@ -333,10 +333,9 @@ export class Emitter {
 
 	}
 
-	setUniforms() {
+	setUniforms( uniforms ) {
 
-		this.#params.particleRenderer;
-
+		this.#params.particleRenderer.switchUniforms( uniforms );
 
 	}
 
@@ -366,7 +365,6 @@ export class Emitter {
 
 		// Create a Particle with a position determined by the Emitter's EmitterShape
 		const p = this.#params.shape.emit();
-		console.log( p );
 
 		// Assign the global max life for all particles to the particle
 		p.maxLife = this.#params.maxLife;
@@ -529,6 +527,7 @@ export class ParticleSystem {
 	addEmitter( emitter: Emitter ) {
 
 		this.#emitters.push( emitter );
+		console.log( this.#emitters );
 
 	}
 
@@ -538,9 +537,20 @@ export class ParticleSystem {
 
 	}
 
-	setEmitterUniforms = ( index: number ) => {
+	// Arbitrarily kills all emitters, which will invoke the callback on onStep that disposes of the particle's state
+	killAllEmitters() {
 
-		this.#emitters[ index ].setUniforms();
+		for ( let i = 0; i < this.#emitters.length; i ++ ) {
+
+			this.#emitters[ i ].kill();
+
+		}
+
+	}
+
+	setEmitterUniforms = ( index, uniforms ) => {
+
+		this.#emitters[ index ].setUniforms( uniforms );
 
 	};
 
@@ -606,12 +616,63 @@ export class ParticleRenderer {
 
 	dispose() {
 
-		console.log( 'Particle Renderer disposed' );
-
 		this.#particlesSprite?.removeFromParent();
 		this.#geometryAttributes = null;
 		this.#particleMaterial?.dispose();
 		this.#particlesSprite = null;
+
+	}
+
+	switchUniforms( uniforms ) {
+
+		const lifeNode = instancedDynamicBufferAttribute( this.#geometryAttributes.lifeAttribute );
+		const newPosition = instancedDynamicBufferAttribute( this.#geometryAttributes.positionAttribute );
+		const idNode = instancedBufferAttribute( this.#geometryAttributes.idAttribute );
+		const idNodeOffset = idNode.mul( 6.28 );
+
+		this.#uniforms = uniforms;
+
+		const {
+			sizeOverLifeTexture,
+			colorOverLifeTexture,
+			map,
+			alphaOverLifeTexture,
+			twinkleOverLifeTexture,
+			spinSpeed,
+		} = this.#uniforms;
+
+		this.#particleMaterial = new PointsNodeMaterial( {
+			//color: 0xffffff,
+			positionNode: newPosition,
+			sizeNode: texture( sizeOverLifeTexture, vec2( lifeNode, 0.5 ) ).x,
+			colorNode: Fn( () => {
+
+				const starMap = texture( map );
+				const color = texture( colorOverLifeTexture, vec2( lifeNode, 0.5 ) ).rgb;
+				return vec3( starMap.mul( color ) );
+
+			} )(),
+			opacityNode: Fn( () => {
+
+				const twinkleSample = texture( twinkleOverLifeTexture, vec2( lifeNode, 0.5 ) ).x;
+  			const twinkle = mix( 1.0, sin(
+					time.mul( 20.0 ).add( idNodeOffset )
+				).mul( 0.5 ).add( 0.5 ), twinkleSample
+				);
+
+				const alpha = texture( alphaOverLifeTexture, vec2( lifeNode, 0.5 ) ).x;
+				return alpha.mul( twinkle );
+
+			} )(),
+			sizeAttenuation: true,
+			depthWrite: false,
+			depthTest: true,
+			transparent: true,
+			blending: THREE.AdditiveBlending,
+			rotationNode: time.mul( spinSpeed ).add( idNodeOffset ),
+		} );
+
+		this.#particleMaterial.needsUpdate = true;
 
 	}
 
@@ -656,7 +717,7 @@ export class ParticleRenderer {
 			alphaOverLifeTexture,
 			twinkleOverLifeTexture,
 			spinSpeed,
-		} = uniforms;
+		} = this.#uniforms;
 
 		const idNodeOffset = idNode.mul( 6.28 );
 
