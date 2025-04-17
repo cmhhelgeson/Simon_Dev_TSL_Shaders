@@ -44,11 +44,14 @@ class App {
 		const near = 0.1;
 		const far = 1000;
 		this.#camera_ = new THREE.PerspectiveCamera( fov, aspect, near, far );
+		this.#camera_.position.set( 80, 20, 80 );
 		this.#camera_.lookAt( new THREE.Vector3( 0, 0, 0 ) );
 
 		const controls = new OrbitControls( this.#camera_, this.#renderer_.domElement );
+		controls.minDistance = 1;
+		controls.maxDistance = 1000;
 		controls.enableDamping = true;
-		controls.target.set( 0, 20, 0 );
+		controls.target.set( 0, 0, 0 );
 		controls.update();
 
 		this.#scene_ = new THREE.Scene();

@@ -120,12 +120,12 @@ class ParticleProject extends App {
 		};
 
 		const emitterParams = new EmitterParameters();
-		emitterParams.shape = new PointEmitterShape( new THREE.Vector3( 0, 25, 0 ) );
+		emitterParams.shape = new PointEmitterShape( new THREE.Vector3( 0, 0, 0 ) );
 		emitterParams.particleEmissionRate = 5000;
 		emitterParams.maxDisplayParticles = 500;
 		emitterParams.startNumParticles = 500;
 		emitterParams.maxEmission = 500;
-		emitterParams.maxLife = 18;
+		emitterParams.maxLife = 5;
 		emitterParams.gravity = true;
 		emitterParams.dragCoefficient = 4;
 		emitterParams.velocityMagnitude = 150;
@@ -170,9 +170,7 @@ class ParticleProject extends App {
 
 		this.loadRGBE( './resources/moonless_golf_2k.hdr' );
 
-		this.Camera.position.set( 100, 0, 100 );
-
-		this.#createPointsParticleSystem( this.#currentUniformType );
+		this.#createPointsParticleSystem();
 
 		// Currently it seems like the particles can only be reset when they are still active
 		// Even if the dispose method is commented out
