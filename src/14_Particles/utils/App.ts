@@ -13,6 +13,7 @@ class App {
 	#scene_ : THREE.Scene;
 	#clock_: THREE.Clock;
 	#debugUI_: GUI;
+	#controls_: OrbitControls;
 
 
 	// Override these methods
@@ -47,12 +48,12 @@ class App {
 		this.#camera_.position.set( 80, 20, 80 );
 		this.#camera_.lookAt( new THREE.Vector3( 0, 0, 0 ) );
 
-		const controls = new OrbitControls( this.#camera_, this.#renderer_.domElement );
-		controls.minDistance = 1;
-		controls.maxDistance = 1000;
-		controls.enableDamping = true;
-		controls.target.set( 0, 0, 0 );
-		controls.update();
+		this.#controls_ = new OrbitControls( this.#camera_, this.#renderer_.domElement );
+		this.#controls_.minDistance = 1;
+		this.#controls_.maxDistance = 1000;
+		this.#controls_.enableDamping = true;
+		this.#controls_.target.set( 0, 0, 0 );
+		this.#controls_.update();
 
 		this.#scene_ = new THREE.Scene();
 		this.#scene_.background = new THREE.Color( 0x000000 );
@@ -60,6 +61,7 @@ class App {
 		// Scene tweaks
 		this.#scene_.backgroundBlurriness = 0.0;
 		this.#scene_.backgroundIntensity = 0.2;
+
 		this.#scene_.environmentIntensity = 1.0;
 		// Apply general parameters to the scene
 		const sceneFolder = this.#debugUI_.addFolder( 'Scene' );
@@ -178,6 +180,12 @@ class App {
 	get Camera() {
 
 		return this.#camera_;
+
+	}
+
+	get CameraControls() {
+
+		return this.#controls_;
 
 	}
 
