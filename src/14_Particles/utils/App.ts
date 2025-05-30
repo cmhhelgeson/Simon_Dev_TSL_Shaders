@@ -1,137 +1,412 @@
 /* eslint-disable compat/compat */
 import * as THREE from 'three';
+import { WebGPURenderer } from 'three/webgpu';
+
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
-import { WebGPURenderer } from 'three/webgpu';
+import Stats from 'three/addons/libs/stats.module.js';
+
+interface AppInitializationOptions {
+	projectName?: string,
+	debug: boolean,
+	webGL?: boolean,
+}
+
 class App {
 
-	// Private references to values shared across all single scene Threejs applications
-	#renderer_: WebGPURenderer; //| THREE.WebGLRenderer
-	#camera_: THREE.PerspectiveCamera;
-	#scene_ : THREE.Scene;
-	#clock_: THREE.Clock;
-	#debugUI_: GUI;
-	#controls_: OrbitControls;
+	#renderer: WebGPURenderer;
+	#camera: THREE.PerspectiveCamera;
+	#scene: THREE.Scene;
+	#clock: THREE.Clock;
+	#controls: OrbitControls;
+	#mesh: THREE.Mesh;
+	#stats: Stats;
+	#debugUI: GUI;
+	#debugUIMap = {};
+	#rendererSettings = {
+		// Time Settings
+		useDeltaTime: true,
+		useFixedFrameRate: false,
+		fixedTimeStep: 0.03,
+		fixedUnifiedFPS: 30,
+		fixedCPUFPS: 30,
+		fixedGPUFPS: 30,
+		// Time Values
+		clampMin: 0.01,
+		clampMax: 0.5,
+		// Canvas Settings,
+		resizeCanvas: true,
+		cameraResizeUpdate: true,
+		useFixedAspectRatio: false,
+		useDPR: true,
+		// Canvas Values
+		fixedAspectController: '16:9',
+		aspectWidth: 16,
+		aspectHeight: 9,
+		dprValue: 'Device',
+	};
 
+	#timeSinceLastUpdate = 0;
+	#timeSinceLastRender = 0;
 
 	// Override these methods
 	async onSetupProject( projectFolder?: GUI ) {
 	}
 
-	onRender() {
+	onRender( deltaTime: number ) {
 	}
 
-	onStep( dt: number, totalTimeElapsed: number ) {
+	onStep( deltaTime: number, totalTimeElapsed: number ) {
 	}
 
 	onResize() {
 	}
 
-	async #setupRenderer_() {
+	constructor() {
+	}
 
-		this.#renderer_ = new THREE.WebGPURenderer( { antialias: true } );
-		this.#renderer_.shadowMap.enabled = true;
-		this.#renderer_.shadowMap.type = THREE.PCFSoftShadowMap;
-		this.#renderer_.toneMapping = THREE.ACESFilmicToneMapping;
-		this.#renderer_.setSize( window.innerWidth, window.innerHeight );
-		document.body.appendChild( this.#renderer_.domElement );
+	#setupRenderer( options ) {
 
-		this.#debugUI_ = new GUI();
+		this.#renderer = new WebGPURenderer( {
+			canvas: document.getElementById( 'c' ),
+			forceWebGL: options.webGL !== undefined ? options.webGL : false
+		} );
+		this.#renderer.setSize( window.innerWidth, window.innerHeight );
+		this.#renderer.setClearColor( 0x000000 );
+		document.body.appendChild( this.#renderer.domElement );
 
-		const fov = 60;
+		this.#stats = new Stats();
+		document.body.appendChild( this.#stats.dom );
+
 		const aspect = window.innerWidth / window.innerHeight;
-		const near = 0.1;
-		const far = 1000;
-		this.#camera_ = new THREE.PerspectiveCamera( fov, aspect, near, far );
-		this.#camera_.position.set( 80, 20, 80 );
-		this.#camera_.lookAt( new THREE.Vector3( 0, 0, 0 ) );
+		this.#camera = new THREE.PerspectiveCamera( 50, aspect, 0.1, 2000 );
+		this.#camera.position.z = 200;
 
-		this.#controls_ = new OrbitControls( this.#camera_, this.#renderer_.domElement );
-		this.#controls_.minDistance = 1;
-		this.#controls_.maxDistance = 1000;
-		this.#controls_.enableDamping = true;
-		this.#controls_.target.set( 0, 0, 0 );
-		this.#controls_.update();
+		this.#controls = new OrbitControls( this.#camera, this.#renderer.domElement );
+		// Smooths camera movement
+		this.#controls.enableDamping = true;
+		// Explicitly set camera's target to the default of 0, 0, 0
+		this.#controls.target.set( 0, 0, 0 );
+		this.#controls.update();
 
-		this.#scene_ = new THREE.Scene();
-		this.#scene_.background = new THREE.Color( 0x000000 );
+		this.#scene = new THREE.Scene();
 
-		// Scene tweaks
-		this.#scene_.backgroundBlurriness = 0.0;
-		this.#scene_.backgroundIntensity = 0.2;
+		this.#debugUI = new GUI();
+		if ( options.debug ) {
 
-		this.#scene_.environmentIntensity = 1.0;
-		// Apply general parameters to the scene
-		const sceneFolder = this.#debugUI_.addFolder( 'Scene' );
-		sceneFolder.add( this.#scene_, 'backgroundBlurriness', 0.0, 1.0 );
-		sceneFolder.add( this.#scene_, 'backgroundIntensity', 0.0, 1.0 );
-		sceneFolder.add( this.#scene_, 'environmentIntensity', 0.0, 1.0 );
+			this.#addRendererDebugGui();
+
+		}
+
 
 	}
 
+	async #setupProject( options ) {
 
-	async #setupProject_() {
-
-		await this.#setupRenderer_();
+		await this.#setupRenderer( options );
 
 		// Initialize project
-		const projectFolder = this.#debugUI_.addFolder( 'Project' );
+		// const projectFolder = this.#debugUI.addFolder( options.projectName ?? 'Project' );
 
 		// Apply project specific parameters to the scene
-		await this.onSetupProject( projectFolder );
+		await this.onSetupProject( );
+
+	}
+
+	#addRendererDebugGui() {
+
+		this.#debugUIMap[ 'Time Settings' ] = this.#debugUI.addFolder( 'Time Settings' );
+		this.#debugUIMap[ 'Time Settings' ].add( this.#rendererSettings, 'useDeltaTime' );
+		this.#debugUIMap[ 'Time Settings' ].add( this.#rendererSettings, 'useFixedFrameRate' );
+		this.#debugUIMap[ 'Time Values' ] = this.#debugUI.addFolder( 'Time Values' );
+		this.#debugUIMap[ 'Time Values' ].add( this.#rendererSettings, 'fixedTimeStep', 0.01, 0.5 );
+		const fixedCPU = this.#debugUIMap[ 'Time Values' ].add( this.#rendererSettings, 'fixedCPUFPS', 1, 60 ).step( 1 );
+		const fixedGPU = this.#debugUIMap[ 'Time Values' ].add( this.#rendererSettings, 'fixedGPUFPS', 1, 60 ).step( 1 );
+		// Set CPU and GPU to run at same rate when useFixedFrameRate === true
+		this.#debugUIMap[ 'Time Values' ].add( this.#rendererSettings, 'fixedUnifiedFPS', 1, 60 ).step( 1 ).onChange( () => {
+
+			this.#rendererSettings.fixedCPUFPS = this.#rendererSettings.fixedUnifiedFPS;
+			fixedCPU.setValue( this.#rendererSettings.fixedUnifiedFPS );
+			this.#rendererSettings.fixedGPUFPS = this.#rendererSettings.fixedUnifiedFPS;
+			fixedGPU.setValue( this.#rendererSettings.fixedUnifiedFPS );
+
+		} );
+		this.#debugUIMap[ 'Time Values' ].add( this.#rendererSettings, 'clampMin', 0.01, 1.0 );
+		this.#debugUIMap[ 'Time Values' ].add( this.#rendererSettings, 'clampMax', 0.01, 1.0 );
+		this.#debugUIMap[ 'Resize Settings' ] = this.#debugUI.addFolder( 'Resize Settings' );
+		this.#debugUIMap[ 'Resize Settings' ].add( this.#rendererSettings, 'resizeCanvas' ).onChange( () => {
+
+			this.#onWindowResize();
+
+		} );
+		this.#debugUIMap[ 'Resize Settings' ].add( this.#rendererSettings, 'cameraResizeUpdate' ).onChange( () => {
+
+			this.#onWindowResize();
+
+		} );
+		this.#debugUIMap[ 'Resize Settings' ].add( this.#rendererSettings, 'useFixedAspectRatio' ).onChange( () => {
+
+			this.#onWindowResize();
+
+		} );
+		this.#debugUIMap[ 'Resize Settings' ].add( this.#rendererSettings, 'useDPR' ).onChange( () => {
+
+			this.#onWindowResize();
+
+		} );
+		this.#debugUIMap[ 'Resize Values' ] = this.#debugUI.addFolder( 'Resize Values' );
+		this.#debugUIMap[ 'Resize Values' ].add( this.#rendererSettings, 'fixedAspectController', [
+			'16:9 (HD)',
+			'4:3 (CRT)',
+			'1:85:1 (Standard)',
+			'2.39:1 (Anamorphic)',
+			'2.76:1 (Ultra Panavasion)',
+			'1.90:1 ("Imax")',
+			'1.43:1 (Imax Film)',
+			'4:1 (Gance)',
+			'1:1'
+		] ).onChange( () => {
+
+			// Lazy way, no parsing
+			switch ( this.#rendererSettings.fixedAspectController ) {
+
+				case '16:9 (HD)': {
+
+					this.#rendererSettings.aspectWidth = 16;
+					this.#rendererSettings.aspectHeight = 9;
+					break;
+
+				}
+
+				case '4:3 (CRT)': {
+
+					this.#rendererSettings.aspectWidth = 4;
+					this.#rendererSettings.aspectHeight = 3;
+					break;
+
+				}
+
+				case '1:85:1 (Standard)': {
+
+					this.#rendererSettings.aspectWidth = 1.85;
+					this.#rendererSettings.aspectHeight = 1;
+					break;
+
+				}
+
+				case '2.39:1 (Anamorphic)': {
+
+					this.#rendererSettings.aspectWidth = 2.39;
+					this.#rendererSettings.aspectHeight = 1;
+					break;
+
+				}
+
+				case '2.76:1 (Ultra Panavasion)': {
+
+					this.#rendererSettings.aspectWidth = 2.76;
+					this.#rendererSettings.aspectHeight = 1;
+					break;
+
+				}
+
+				case '1.90:1 ("Imax")': {
+
+					this.#rendererSettings.aspectWidth = 1.90;
+					this.#rendererSettings.aspectHeight = 1;
+					break;
+
+				}
+
+				case '1.43:1 (Imax Film)': {
+
+					this.#rendererSettings.aspectWidth = 1.43;
+					this.#rendererSettings.aspectHeight = 1;
+					break;
+
+				}
+
+				case '4:1 (Gance)': {
+
+					this.#rendererSettings.aspectWidth = 4.0;
+					this.#rendererSettings.aspectHeight = 1;
+					break;
+
+				}
+
+				case '1:1': {
+
+					this.#rendererSettings.aspectWidth = 1.0;
+					this.#rendererSettings.aspectHeight = 1.0;
+					break;
+
+				}
+
+			}
+
+			this.#onWindowResize();
+
+		} ).name( 'Fixed Aspect Ratio' );
+
+		this.#debugUIMap[ 'Resize Values' ].add( this.#rendererSettings, 'dprValue', [ 'Device', '0.1', '0.5', '1.0', '2.0', '3.0' ] ).onChange( () => {
+
+			this.#onWindowResize();
+
+		} );
+
+		for ( const folderName in this.#debugUIMap ) {
+
+			this.#debugUIMap[ folderName ].close();
+
+		}
 
 	}
 
 
-	#onWindowResize_() {
+	#raf() {
 
-		// Intentionally ignoring DPR for now
-		// const dpr = window.devicePixelRatio;
-		const dpr = 1;
+		requestAnimationFrame( () => {
 
-		const canvas = this.#renderer_.domElement;
-		canvas.style.width = window.innerWidth + 'px';
-		canvas.style.height = window.innerHeight + 'px';
-		const w = canvas.clientWidth;
-		const h = canvas.clientHeight;
+			const { useDeltaTime, clampMin, clampMax, fixedTimeStep, useFixedFrameRate, fixedCPUFPS, fixedGPUFPS } = this.#rendererSettings;
 
-		const aspect = w / h;
+			const timeElapsed = this.#clock.getDelta();
+			const totalTimeElapsed = this.#clock.getElapsedTime();
+			const deltaTime = useDeltaTime ? Math.min( Math.max( timeElapsed, clampMin ), clampMax ) : fixedTimeStep;
 
-		this.#renderer_.setSize( w, h, false );
-		this.#camera_.aspect = aspect;
-		this.#camera_.updateProjectionMatrix();
+			// We're still calculating literal time even when deltaTime is set arbitrarily
+			this.#timeSinceLastRender += timeElapsed;
+			this.#timeSinceLastUpdate += timeElapsed;
 
-	}
+			if ( useFixedFrameRate ) {
 
-	#raf_() {
+				// # of times per second to update the state
+				const cpuFrameInterval = 1 / fixedCPUFPS;
+				// # of times per second to render a frame
+				const gpuFrameInterval = 1 / fixedGPUFPS;
 
-		requestAnimationFrame( ( t: number ) => {
+				if ( this.#timeSinceLastRender >= cpuFrameInterval ) {
 
-			const timeElapsed = Math.min( this.#clock_.getDelta(), 0.1 );
+					this.#step( useDeltaTime ? this.#timeSinceLastUpdate : fixedTimeStep, totalTimeElapsed );
+					this.#timeSinceLastUpdate = 0;
 
-			// Calculate and compute
-			this.#step_( timeElapsed );
-			// Render
-			this.#render_();
-			// Call next animation frame
-			this.#raf_();
+				}
+
+				if ( this.#timeSinceLastRender >= gpuFrameInterval ) {
+
+					this.#render( deltaTime );
+					this.#timeSinceLastRender = 0;
+
+				}
+
+			} else {
+
+				this.#step( deltaTime, totalTimeElapsed );
+				this.#render( deltaTime );
+
+			}
+
+			this.#raf();
 
 		} );
 
 	}
 
-	#render_() {
+	// State update function
+	#step( deltaTime: number, totalTimeElapsed: number ) {
 
-		this.onRender();
-		this.#renderer_.renderAsync( this.#scene_, this.#camera_ );
+		this.onStep( deltaTime, totalTimeElapsed );
+
+		//this.#controls.update( deltaTime );
 
 	}
 
-	#step_( dt: number ) {
+	#render( deltaTime: number ) {
 
-		this.onStep( dt, this.#clock_.getElapsedTime() );
+		// App specific code executed per render
+		this.onRender( deltaTime );
+		this.#renderer.render( this.#scene, this.#camera );
+
+	}
+
+	#onWindowResize() {
+
+		const { cameraResizeUpdate, useFixedAspectRatio, aspectWidth, aspectHeight, dprValue } = this.#rendererSettings;
+
+		let canvasWidth = window.innerWidth;
+		let canvasHeight = window.innerHeight;
+
+		const dpr = dprValue === 'Device' ? window.devicePixelRatio : parseFloat( dprValue );
+
+		if ( useFixedAspectRatio ) {
+
+			// Aspect ratio of your browser window
+			const windowAspect = window.innerWidth / window.innerHeight;
+			// Target aspect ratio of your image
+			const targetAspect = aspectWidth / aspectHeight;
+
+			// When window size is wider than target, limit the width to a factor of the height
+			if ( windowAspect > targetAspect ) {
+
+				// Window is too wide, limit width
+				canvasHeight = window.innerHeight;
+				canvasWidth = canvasHeight * targetAspect;
+
+				// Otherwise limit the height
+
+			} else {
+
+				// Window is too tall, limit height
+				canvasWidth = window.innerWidth;
+				canvasHeight = canvasWidth / targetAspect;
+
+			}
+
+		}
+
+		if ( cameraResizeUpdate ) {
+
+			this.#camera.aspect = useFixedAspectRatio ?
+				aspectWidth / aspectHeight :
+				window.innerWidth / window.innerHeight;
+			this.#camera.updateProjectionMatrix();
+
+		}
+
+
+		// Arguments: Width, height, and whether to resize the canvas
+		this.#renderer.setSize( canvasWidth, canvasHeight, this.#rendererSettings.resizeCanvas );
+		if ( this.#rendererSettings.useDPR ) {
+
+			this.#renderer.setPixelRatio( dpr );
+
+		} else {
+
+			this.#renderer.setPixelRatio( 1 );
+
+		}
+
+	}
+
+	async initialize( options: AppInitializationOptions ) {
+
+		this.#clock = new THREE.Clock( true );
+
+		// Setup event listeners before render loop
+		window.addEventListener( 'resize', () => {
+
+			this.#onWindowResize();
+
+		}, false );
+
+		// Setup Project and call App specific onSetupProject
+		await this.#setupProject( options );
+
+		// Resize window to meet current canvas dimensions
+		this.#onWindowResize();
+		// Start render loop
+		this.#raf();
 
 	}
 
@@ -142,54 +417,44 @@ class App {
 
 			hdrTexture.mapping = THREE.EquirectangularReflectionMapping;
 
-			this.#scene_.background = hdrTexture;
-			this.#scene_.environment = hdrTexture;
+			this.#scene.background = hdrTexture;
+			this.#scene.environment = hdrTexture;
 
 		} );
 
 	}
 
-	async initialize() {
-
-		this.#clock_ = new THREE.Clock( true );
-
-		// Setup event listeners before render loop
-		window.addEventListener( 'resize', () => {
-
-			this.#onWindowResize_();
-
-		}, false );
-
-		// Setup Project and call App specific onSetupProject
-		await this.#setupProject_();
-
-		// Resize window to meet current canvas dimensions
-		this.#onWindowResize_();
-		// Start render loop
-		this.#raf_();
-
-	}
-
-	// Getters
 	get Scene() {
 
-		return this.#scene_;
+		return this.#scene;
 
 	}
 
 	get Camera() {
 
-		return this.#camera_;
+		return this.#camera;
 
 	}
 
 	get CameraControls() {
 
-		return this.#controls_;
+		return this.#controls;
+
+	}
+
+	get Stats() {
+
+		return this.#stats;
+
+	}
+
+	get DebugGui() {
+
+		return this.#debugUI;
+
 
 	}
 
 }
-
 
 export { App };

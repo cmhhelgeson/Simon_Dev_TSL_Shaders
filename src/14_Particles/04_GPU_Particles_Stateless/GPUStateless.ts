@@ -39,36 +39,6 @@ class GPGPUProject extends App {
 		pointGeo.setAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
 		pointGeo.setAttribute( 'size', new THREE.InstancedBufferAttribute( sizes, 1 ) );
 
-		const vertexNodeCallback = () => {
-
-			// Copied from PointsNodeMaterial
-			const mvp = modelViewProjection;
-			const size = instancedBufferAttribute( new THREE.InstancedBufferAttribute( sizes, 1 ) );
-
-			const alignedPosition = positionGeometry.xy.toVar();
-			const aspect = viewport.z.div( viewport.w );
-
-			// point size
-
-			const pointSize = vec2( size );
-
-			// scale
-
-			alignedPosition.mulAssign( pointSize.mul( 2 ) );
-
-			alignedPosition.assign( alignedPosition.div( viewport.z ) );
-			alignedPosition.y.assign( alignedPosition.y.mul( aspect ) );
-
-			// back to clip space
-			alignedPosition.assign( alignedPosition.mul( mvp.w ) );
-
-			//clipPos.xy += offset;
-			mvp.addAssign( vec4( alignedPosition, 0, 0 ) );
-
-			return mvp;
-
-		};
-
 		const material = new MeshBasicNodeMaterial( {
 			vertexNode: Fn( vertexNodeCallback )(),
 			colorNode: vec3( 1.0, 0.0, 0.0 )
@@ -90,6 +60,9 @@ class GPGPUProject extends App {
 const APP_ = new GPGPUProject();
 window.addEventListener( 'DOMContentLoaded', async () => {
 
-	await APP_.initialize();
+	await APP_.initialize( {
+		debug: false,
+		projectName: 'GPGPU Particles'
+	} );
 
 } );

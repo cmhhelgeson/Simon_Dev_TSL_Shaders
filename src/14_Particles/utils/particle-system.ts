@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import MATH from './math';
 import { instancedBufferAttribute, texture, vec2, Fn, vec3, ShaderNodeObject, instancedDynamicBufferAttribute, time, mix, sin } from 'three/tsl';
 
-import { NodeMaterial, PointsNodeMaterial, SpriteNodeMaterial, UniformNode } from 'three/webgpu';
+import { PointsNodeMaterial, SpriteNodeMaterial, UniformNode } from 'three/webgpu';
 
 const GRAVITY = new THREE.Vector3( 0.0, - 9.8, 0.0 );
 
@@ -34,6 +34,7 @@ export class EmitterShape {
 
 export class PointEmitterShape extends EmitterShape {
 
+	// The starting position of the particle
 	position: THREE.Vector3;
 	positionRadiusVariance: number;
 
@@ -55,7 +56,7 @@ export class PointEmitterShape extends EmitterShape {
 		const p = new Particle();
 		p.position.copy( this.position );
 
-		/* const phi = MATH.random() * Math.PI * 2;
+		/*const phi = MATH.random() * Math.PI * 2;
 		const theta = MATH.random() * Math.PI;
 		const radius = MATH.random() * this.positionRadiusVariance;
 
@@ -94,6 +95,7 @@ export class VolumeEmitterShape extends EmitterShape {
 
 	}
 
+	// Emit the particle somewhere within the range of the volume
 	emit() {
 
 		const p = new Particle();
@@ -120,6 +122,8 @@ export class Particle {
 	life: number;
 	maxLife: number;
 	id: number;
+	attachedEmitter?: Emitter;
+	attachedShape?: PointEmitterShape;
 
 	static GRAVITY = new THREE.Vector3( 0.0, - 9.8, 0.0 );
 
@@ -168,7 +172,7 @@ export class EmitterParameters {
 	// Callback for when a particle is created
 	onCreated: ParticleFunction | null = null;
 	// Callback for when a partcile is steped
-	onStep: ParticleFunction | null = null;
+	onStepParticle: ParticleFunction | null = null;
 	// Callback for when a partcile is destroyed
 	onDestroy: ParticleFunction | null = null;
 
@@ -182,8 +186,11 @@ export class EmitterParameters {
 // Rather than creating particles randomly,
 export class Emitter {
 
+	// Particles the emitter is responsible for
 	#particles: Particle[] = [];
+	// Time since a particle was last emitted
 	#timeSinceLastEmit: number = 0;
+	// Number of particles the emitter has emitted over its lifespan
 	#numParticlesEmitted: number = 0;
 	#params: EmitterParameters;
 	// Dead does not necessarily mean that the emitter is not working
@@ -196,6 +203,7 @@ export class Emitter {
 
 		this.#params = params;
 
+		// Push initial particles and emit them
 		if ( this.#params.startNumParticles ) {
 
 			for ( let i = 0; i < this.#params.startNumParticles; i ++ ) {
@@ -225,6 +233,7 @@ export class Emitter {
 
 		}
 
+		// New empty array
 		this.#particles = [];
 
 		// If there is a renderer, dispose of the renderer
@@ -355,6 +364,8 @@ export class Emitter {
 
 	}
 
+
+	// Creates a particle pushed to the emitter's particle array
 	#emitParticle() {
 
 		// Create a Particle with a position determined by the Emitter's EmitterShape
@@ -412,7 +423,6 @@ export class Emitter {
 
 		}
 
-		this.setPointEmitterShape( new THREE.Vector3( 0, 0, 0 ) );
 		// Update time since last particle emission
 		this.#timeSinceLastEmit += dt;
 		const secondsPerParticle = 1.0 / this.#params.particleEmissionRate;
@@ -446,9 +456,9 @@ export class Emitter {
 		const displacement = p.velocity.clone().multiplyScalar( dt );
 		p.position.add( displacement );
 
-		if ( this.#params.onStep ) {
+		if ( this.#params.onStepParticle ) {
 
-			this.#params.onStep( p );
+			this.#params.onStepParticle( p );
 
 		}
 
@@ -595,6 +605,19 @@ export interface ParticleGeometryAttributes {
 // but more like a class that separates our CPU logic from our GPU logic.
 // We effectively "upload" CPU data to the GPU in this class, which is
 // a nice bit of abstraction of "CPU" code from "GPU" code
+
+interface ParticleUniformsType {
+	sizeOverLifeTexture: THREE.DataTexture
+	colorOverLifeTexture: THREE.DataTexture
+	map: THREE.Texture,
+	alphaOverLifeTexture: THREE.DataTexture
+	twinkleOverLifeTexture: THREE.DataTexture
+			spinSpeed,
+
+
+}
+
+
 export class ParticleRenderer {
 
 	// For purposes of the WebGPU version, particlesSprite is effectively the particle geometry.
@@ -603,7 +626,7 @@ export class ParticleRenderer {
 	#particlesSprite: THREE.Sprite | null = null;
 	#geometryAttributes: ParticleGeometryAttributes | null = null;
 	#particleMaterial: SpriteNodeMaterial | null = null;
-	#uniforms = null;
+	#uniforms: ParticleUniformsType;
 
 	constructor( ) {
 	}
@@ -617,7 +640,7 @@ export class ParticleRenderer {
 
 	}
 
-	initialize( uniforms, params ) {
+	initialize( uniforms: ParticleUniformsType, params ) {
 
 		const positions = new Float32Array( params.maxDisplayParticles * 3 );
 		const lifes = new Float32Array( params.maxDisplayParticles );

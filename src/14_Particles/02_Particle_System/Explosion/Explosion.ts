@@ -166,7 +166,7 @@ class ParticleProject extends App {
 
 	}
 
-	async onSetupProject( projectFolder?: GUI ): Promise<void> {
+	async onSetupProject( ): Promise<void> {
 
 		this.loadRGBE( './resources/moonless_golf_2k.hdr' );
 
@@ -174,12 +174,12 @@ class ParticleProject extends App {
 
 		// Currently it seems like the particles can only be reset when they are still active
 		// Even if the dispose method is commented out
-		projectFolder?.add( { 'Reset Current Sim': () => this.#particleSystem?.killAllEmitters() }, 'Reset Current Sim' ).name( 'Reset Current Sim' );
+		this.DebugGui.add( { 'Reset Current Sim': () => this.#particleSystem?.killAllEmitters() }, 'Reset Current Sim' ).name( 'Reset Current Sim' );
 
 		const simOptions = Object.keys( this.#uniformTypes );
 		const params = { selectedSim: this.#currentUniformType };
 
-		projectFolder?.add( params, 'selectedSim', simOptions )
+		this.DebugGui.add( params, 'selectedSim', simOptions )
 			.name( 'Simulation Type' )
 			.onChange( ( value: string ) => {
 
@@ -196,6 +196,10 @@ const APP_ = new ParticleProject();
 
 window.addEventListener( 'DOMContentLoaded', async () => {
 
-	await APP_.initialize();
+	await APP_.initialize( {
+		debug: true,
+		projectName: 'Explosion Particles',
+		webGL: true,
+	} );
 
 } );
