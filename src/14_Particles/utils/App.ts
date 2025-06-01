@@ -107,8 +107,12 @@ class App {
 
 		await this.#setupRenderer( options );
 
+		this.#scene.backgroundBlurriness = 0.0;
+		this.#scene.backgroundIntensity = 0.01;
+		this.#scene.environmentIntensity = 1.0;
+
 		// Initialize project
-		// const projectFolder = this.#debugUI.addFolder( options.projectName ?? 'Project' );
+		//const projectFolder = this.#debugUI.addFolder( options.projectName ?? 'Project' );
 
 		// Apply project specific parameters to the scene
 		await this.onSetupProject( );

@@ -531,7 +531,6 @@ export class ParticleSystem {
 	addEmitter( emitter: Emitter ) {
 
 		this.#emitters.push( emitter );
-		console.log( this.#emitters );
 
 	}
 
@@ -606,15 +605,13 @@ export interface ParticleGeometryAttributes {
 // We effectively "upload" CPU data to the GPU in this class, which is
 // a nice bit of abstraction of "CPU" code from "GPU" code
 
-interface ParticleUniformsType {
+export interface ParticleUniformsType {
 	sizeOverLifeTexture: THREE.DataTexture
 	colorOverLifeTexture: THREE.DataTexture
 	map: THREE.Texture,
 	alphaOverLifeTexture: THREE.DataTexture
 	twinkleOverLifeTexture: THREE.DataTexture
-			spinSpeed,
-
-
+	spinSpeed: number | ShaderNodeObject<UniformNode<number>>
 }
 
 
@@ -635,6 +632,7 @@ export class ParticleRenderer {
 
 		this.#particlesSprite?.removeFromParent();
 		this.#geometryAttributes = null;
+		// We tend to recreate materials a lot perhaps there should be some kind of map of the materials that are created
 		this.#particleMaterial?.dispose();
 		this.#particlesSprite = null;
 
@@ -693,6 +691,8 @@ export class ParticleRenderer {
 
 		};
 
+		console.log( params.blending );
+
 		this.#particleMaterial = new PointsNodeMaterial( {
 			//color: 0xffffff,
 			positionNode: newPosition,
@@ -714,7 +714,7 @@ export class ParticleRenderer {
 			depthWrite: false,
 			depthTest: true,
 			transparent: true,
-			blending: THREE.AdditiveBlending,
+			blending: params.blending ? params.blending : THREE.AdditiveBlending,
 			rotationNode: time.mul( spinSpeed ).add( idNodeOffset ),
 		} );
 

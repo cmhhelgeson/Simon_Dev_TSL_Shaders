@@ -8,13 +8,13 @@ import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
 import MATH from '../../utils/math';
 
 import { ParticleRenderer, ParticleSystem, EmitterParameters, Emitter, PointEmitterShape } from '../../utils/particle-system';
-import { PointsNodeMaterial } from 'three/webgpu';
+import { PointsNodeMaterial, SpriteNodeMaterial } from 'three/webgpu';
 
 class ParticleProject extends App {
 
 	// From 1 hr onwards, pass particle renderer as emitter params
 	// Each emitter will now be responsible for its own rendering
-	#particleMaterial: PointsNodeMaterial;
+	#particleMaterial: SpriteNodeMaterial;
 	#particleSystem: ParticleSystem | null = null;
 	#currentUniformType = 'Explosion';
 	#uniformTypes = {};
