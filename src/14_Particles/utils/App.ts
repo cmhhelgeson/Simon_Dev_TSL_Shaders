@@ -1,6 +1,6 @@
 /* eslint-disable compat/compat */
 import * as THREE from 'three';
-import { WebGPURenderer } from 'three/webgpu';
+import { Renderer, WebGPURenderer } from 'three/webgpu';
 
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
@@ -8,15 +8,18 @@ import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import Stats from 'three/addons/libs/stats.module.js';
 
+type RendererEnum = 'WebGL' | 'WebGPU' | 'WebGLFallback'
+
 interface AppInitializationOptions {
 	projectName?: string,
 	debug: boolean,
-	webGL?: boolean,
+	rendererType?: RendererEnum,
 }
 
 class App {
 
-	#renderer: WebGPURenderer;
+	#renderer: Renderer | THREE.WebGLRenderer;
+	rendererType: 'WebGL' | 'WebGPU';
 	#camera: THREE.PerspectiveCamera;
 	#scene: THREE.Scene;
 	#clock: THREE.Clock;
@@ -67,12 +70,41 @@ class App {
 	constructor() {
 	}
 
-	#setupRenderer( options ) {
+	#getRenderer( rendererType: RendererEnum ) {
+
+		const documentCanvas = document.getElementById( 'c' ) as HTMLCanvasElement;
+
+		if ( documentCanvas === null ) {
+
+			throw new Error( 'Cannot get canvas' );
+
+		}
+
+		if ( rendererType === 'WebGL' ) {
+
+			this.#renderer = new THREE.WebGLRenderer( {
+				canvas: documentCanvas
+			} );
+
+			this.rendererType = 'WebGL';
+
+			return;
+
+		}
 
 		this.#renderer = new WebGPURenderer( {
-			canvas: document.getElementById( 'c' ),
-			forceWebGL: options.webGL !== undefined ? options.webGL : false
+			canvas: documentCanvas,
+			forceWebGL: rendererType === 'WebGLFallback' ? true : false
 		} );
+
+		this.rendererType = 'WebGPU';
+
+	}
+
+	#setupRenderer( options ) {
+
+		this.#getRenderer( options.rendererType ? options.rendererType : 'WebGPU' );
+
 		this.#renderer.setSize( window.innerWidth, window.innerHeight );
 		this.#renderer.setClearColor( 0x000000 );
 		document.body.appendChild( this.#renderer.domElement );

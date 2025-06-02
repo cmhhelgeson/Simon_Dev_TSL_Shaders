@@ -6,8 +6,9 @@ import { App } from '../../utils/App';
 import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
 
 import MATH from '../../utils/math';
-import { ParticleRenderer, ParticleSystem, EmitterParameters, Emitter, PointEmitterShape, Particle, ParticleUniformsType } from '../../utils/particle-system';
+import { ParticleSystem, EmitterParameters, Emitter, PointEmitterShape, Particle, PicleUniformsType } from '../../utils/particle-system';
 import { SpriteNodeMaterial } from 'three/webgpu';
+import { ParticleRenderer } from '../../utils/particle-renderer';
 
 class ParticleProject extends App {
 
@@ -136,7 +137,7 @@ class ParticleProject extends App {
 		emitterParams.rotationAngularVariance = 2 * Math.PI;
 		emitterParams.spinSpeed = Math.PI;
 
-		emitterParams.particleRenderer = new ParticleRenderer();
+		emitterParams.particleRenderer = new ParticleRenderer( this.rendererType );
 		this.#popMaterial = emitterParams.particleRenderer.initialize( this.#uniformTypes[ this.#currentUniformType ], {
 			scene: this.Scene,
 			maxDisplayParticles: maxDisplayParticles,
@@ -369,7 +370,7 @@ window.addEventListener( 'DOMContentLoaded', async () => {
 	await APP_.initialize( {
 		projectName: 'Final Particles',
 		debug: false,
-		webGL: false,
+		rendererType: 'WebGPU',
 	} );
 
 } );
