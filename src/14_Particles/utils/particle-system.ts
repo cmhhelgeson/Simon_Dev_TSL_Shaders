@@ -137,8 +137,6 @@ export class Particle {
 	}
 
 }
-
-type VoidFunction = ( () => void )
 type ParticleFunction = ( ( p: Particle ) => void );
 export class EmitterParameters {
 
@@ -549,12 +547,6 @@ export class ParticleSystem {
 		}
 
 	}
-
-	setEmitterUniforms = ( index, uniforms ) => {
-
-		this.#emitters[ index ].setUniforms( uniforms );
-
-	};
 
 	step( dt: number, totalTime: number ) {
 

@@ -11,6 +11,11 @@ export interface ParticleGeometryAttributes {
 	positionAttribute: THREE.InstancedBufferAttribute,
 }
 
+export interface ParticleGeometryBuffers {
+	positions: Float32Array,
+	lifes: Float32Array,
+}
+
 export interface ParticleUniformsType {
 	sizeOverLifeTexture: THREE.DataTexture
 	colorOverLifeTexture: THREE.DataTexture
@@ -78,6 +83,7 @@ abstract class ParticleRendererBackend {
 
 }
 
+
 // Contains particle geometry data and "renders" particles.
 // Not actually a draw call per se (that happens in the raf loop)
 // but more like a class that separates our CPU logic from our GPU logic.
@@ -131,7 +137,7 @@ export class ParticleRendererWebGPUBackend extends ParticleRendererBackend {
 		// ... this.#geometryAttributes.lifeAttribute.needsUpdate = true;
 
 		const lifeNode = instancedDynamicBufferAttribute( lifeAttribute );
-		const newPosition = instancedDynamicBufferAttribute( positionAttribute );
+		const newPosition = instancedDynamicBufferAttribute( positionAttribute ).label( 'dirper' );
 		const idNode = instancedBufferAttribute( idAttribute );
 
 		// Both static and dynamic geometry attributes
@@ -162,8 +168,6 @@ export class ParticleRendererWebGPUBackend extends ParticleRendererBackend {
 
 		};
 
-		console.log( params.blending );
-
 		this.#particleMaterial = new PointsNodeMaterial( {
 			//color: 0xffffff,
 			positionNode: newPosition,
@@ -192,6 +196,8 @@ export class ParticleRendererWebGPUBackend extends ParticleRendererBackend {
 		this.#particlesSprite = new THREE.Sprite( this.#particleMaterial );
 		this.#particlesSprite.count = params.maxDisplayParticles;
 
+		console.log( this.#particlesSprite );
+
 		params.group.add( this.#particlesSprite );
 		params.scene.add( params.group );
 
@@ -201,23 +207,19 @@ export class ParticleRendererWebGPUBackend extends ParticleRendererBackend {
 
 	updateFromParticles( particles: Particle[] ) {
 
-		const positions = new Float32Array( particles.length * 3 );
-		const lifes = new Float32Array( particles.length );
+		if ( this.#geometryAttributes ) {
 
-		for ( let i = 0; i < particles.length; ++ i ) {
+			for ( let i = 0; i < particles.length; ++ i ) {
 
-			const p = particles[ i ];
-			positions[ i * 3 + 0 ] = p.position.x;
-			positions[ i * 3 + 1 ] = p.position.y;
-			positions[ i * 3 + 2 ] = p.position.z;
-			lifes[ i ] = p.life / p.maxLife;
+				const p = particles[ i ];
 
-		}
+				// Not always best practice to update arrays directly but for now we do
+				this.#geometryAttributes.positionAttribute.array[ i * 3 + 0 ] = p.position.x;
+				this.#geometryAttributes.positionAttribute.array[ i * 3 + 1 ] = p.position.y;
+				this.#geometryAttributes.positionAttribute.array[ i * 3 + 2 ] = p.position.z;
+				this.#geometryAttributes.lifeAttribute.array[ i ] = p.life / p.maxLife;
 
-		this.#geometryAttributes?.positionAttribute.copyArray( positions );
-		if ( this.#geometryAttributes?.lifeAttribute ) {
-
-			this.#geometryAttributes.lifeAttribute.copyArray( lifes );
+			}
 
 		}
 
@@ -236,7 +238,13 @@ export class ParticleRendererWebGPUBackend extends ParticleRendererBackend {
 
 }
 
+
+// ParticleRenderer will render particles
 class ParticleRendererWebGLBackend extends ParticleRendererBackend {
+
+	#particleGeometry: THREE.BufferGeometry | null;
+	#particlePoints: THREE.Points | null;
+	#material: THREE.ShaderMaterial | null;
 
 	constructor() {
 
@@ -246,19 +254,72 @@ class ParticleRendererWebGLBackend extends ParticleRendererBackend {
 
 	dispose() {
 
-		console.log( 'dispose' );
+		this.#particlePoints?.removeFromParent();
+		this.#particleGeometry?.dispose();
+		this.#material?.dispose();
+
+		this.#particlePoints = null;
+		// Is setting particleGeometry to null necessary
+		this.#particleGeometry = null;
+		// As is setting the material to null?
+		this.#material = null;
 
 	}
 
-	initialize( uniforms: ParticleUniformsType, params: any ) {
+	initialize( material, params ) {
 
-		console.log( 'test' );
+		this.#particleGeometry = new THREE.BufferGeometry();
+
+		const positions = new Float32Array( params.maxParticles * 3 );
+		const particleData = new Float32Array( params.maxParticles * 2 );
+
+		this.#particleGeometry.setAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
+		this.#particleGeometry.setAttribute( 'particleData', new THREE.Float32BufferAttribute( particleData, 2 ) );
+
+		// Set dynamic draw usage on every attribute we plan on updating
+		( this.#particleGeometry.attributes.position as THREE.BufferAttribute ).setUsage( THREE.DynamicDrawUsage );
+		( this.#particleGeometry.attributes.position as THREE.BufferAttribute ).setUsage( THREE.DynamicDrawUsage );
+
+		this.#particlePoints = new THREE.Points( this.#particleGeometry, material );
+
+		this.#material = material;
+
+		params.group.add( this.#particlePoints );
 
 	}
 
-	updateFromParticles( particles: Particle[] ) {
+	updateFromParticles( particles: Particle[], params, totalTimeElapsed ) {
 
-		console.log( 'yo' );
+		if ( this.#material ) {
+
+			this.#material.uniforms.time.value = totalTimeElapsed;
+			this.#material.uniforms.spinSpeed.value = params.spinSpeed;
+
+		}
+
+		if ( this.#particleGeometry ) {
+
+			for ( let i = 0; i < particles.length; ++ i ) {
+
+				const p = particles[ i ];
+				this.#particleGeometry.attributes.position.array[ i * 3 + 0 ] = p.position.x;
+				this.#particleGeometry.attributes.position.array[ i * 3 + 1 ] = p.position.y;
+				this.#particleGeometry.attributes.position.array[ i * 3 + 2 ] = p.position.z;
+				this.#particleGeometry.attributes.particleData.array[ i * 2 + 0 ] = p.life / p.maxLife;
+				this.#particleGeometry.attributes.particleData.array[ i * 2 + 1 ] = p.id;
+
+			}
+
+		}
+
+		if ( this.#particleGeometry ) {
+
+			this.#particleGeometry.attributes.position.needsUpdate = true;
+			this.#particleGeometry.attributes.particleData.needsUpdate = true;
+
+			this.#particleGeometry.setDrawRange( 0, particles.length );
+
+		}
 
 	}
 
