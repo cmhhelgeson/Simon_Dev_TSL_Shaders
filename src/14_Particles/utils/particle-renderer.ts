@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { instancedBufferAttribute, instancedDynamicBufferAttribute, mix, ShaderNodeObject, sin, texture, time, vec2, vec3 } from 'three/tsl';
+import { attribute, instancedBufferAttribute, instancedDynamicBufferAttribute, mix, ShaderNodeObject, sin, texture, time, vec2, vec3 } from 'three/tsl';
 import { PointsNodeMaterial, SpriteNodeMaterial, UniformNode } from 'three/webgpu';
 import MATH from './math';
 import { Fn } from 'three/src/nodes/TSL.js';
@@ -60,9 +60,9 @@ export class ParticleRenderer {
 	}
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	initialize( uniforms: ParticleUniformsType, params: any ) {
+	initialize( material, params: any ) {
 
-		this.#backend.initialize( uniforms, params );
+		this.#backend.initialize( material, params );
 
 	}
 
@@ -115,7 +115,7 @@ export class ParticleRendererWebGPUBackend extends ParticleRendererBackend {
 
 	}
 
-	initialize( uniforms: ParticleUniformsTypeWebGPU, params ) {
+	initialize( material, params ) {
 
 		const positions = new Float32Array( params.maxDisplayParticles * 3 );
 		const lifes = new Float32Array( params.maxDisplayParticles );
@@ -131,15 +131,6 @@ export class ParticleRendererWebGPUBackend extends ParticleRendererBackend {
 		const lifeAttribute = new THREE.InstancedBufferAttribute( lifes, 1 );
 		const idAttribute = new THREE.InstancedBufferAttribute( ids, 1 );
 
-		// Using instancedDynamicBufferAttributes obivates the need to execute these lines
-		// of code in our updateFromParticles function
-		// ... this.#geometryAttributes.positionAttribute.needsUpdate = true;
-		// ... this.#geometryAttributes.lifeAttribute.needsUpdate = true;
-
-		const lifeNode = instancedDynamicBufferAttribute( lifeAttribute );
-		const newPosition = instancedDynamicBufferAttribute( positionAttribute ).label( 'dirper' );
-		const idNode = instancedBufferAttribute( idAttribute );
-
 		// Both static and dynamic geometry attributes
 		this.#geometryAttributes = {
 			positionAttribute: positionAttribute,
@@ -147,54 +138,18 @@ export class ParticleRendererWebGPUBackend extends ParticleRendererBackend {
 			idAttribute: idAttribute,
 		};
 
-		this.#uniforms = uniforms;
-
-		const {
-			sizeOverLifeTexture,
-			colorOverLifeTexture,
-			map,
-			alphaOverLifeTexture,
-			twinkleOverLifeTexture,
-			spinSpeed,
-		} = this.#uniforms;
-
-		const idNodeOffset = idNode.mul( 6.28 );
-
-		const colorNodeCallback = () => {
-
-			const starMap = texture( map );
-			const color = texture( colorOverLifeTexture, vec2( lifeNode, 0.5 ) ).rgb;
-			return vec3( starMap.mul( color ) );
-
-		};
-
-		this.#particleMaterial = new PointsNodeMaterial( {
-			//color: 0xffffff,
-			positionNode: newPosition,
-			sizeNode: texture( sizeOverLifeTexture, vec2( lifeNode, 0.5 ) ).x,
-			colorNode: Fn( colorNodeCallback )(),
-			opacityNode: Fn( () => {
-
-				const twinkleSample = texture( twinkleOverLifeTexture, vec2( lifeNode, 0.5 ) ).x;
-  			const twinkle = mix( 1.0, sin(
-					time.mul( 20.0 ).add( idNodeOffset )
-				).mul( 0.5 ).add( 0.5 ), twinkleSample
-				);
-
-				const alpha = texture( alphaOverLifeTexture, vec2( lifeNode, 0.5 ) ).x;
-				return alpha.mul( twinkle );
-
-			} )(),
-			sizeAttenuation: true,
-			depthWrite: false,
-			depthTest: true,
-			transparent: true,
-			blending: params.blending ? params.blending : THREE.AdditiveBlending,
-			rotationNode: time.mul( spinSpeed ).add( idNodeOffset ),
-		} );
+		this.#particleMaterial = material;
 
 		this.#particlesSprite = new THREE.Sprite( this.#particleMaterial );
 		this.#particlesSprite.count = params.maxDisplayParticles;
+
+		this.#particlesSprite.geometry.setAttribute( 'instancePosition', positionAttribute );
+		this.#particlesSprite.geometry.setAttribute( 'instanceLife', lifeAttribute );
+		this.#particlesSprite.geometry.setAttribute( 'instanceID', idAttribute );
+
+		this.#particlesSprite.geometry.attributes.instancePosition.setUsage( THREE.DynamicDrawUsage );
+		this.#particlesSprite.geometry.attributes.instanceLife.setUsage( THREE.DynamicDrawUsage );
+		this.#particlesSprite.geometry.attributes.instanceID.setUsage( THREE.DynamicDrawUsage );
 
 		console.log( this.#particlesSprite );
 

@@ -1,14 +1,14 @@
 
 import * as THREE from 'three';
-import { uniform } from 'three/tsl';
+import { attribute, Fn, mix, sin, texture, time, uniform, vec2, vec3 } from 'three/tsl';
 
 import { App } from '../../utils/App';
 import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
 
 import MATH from '../../utils/math';
 import { ParticleSystem, EmitterParameters, Emitter, PointEmitterShape, Particle, PicleUniformsType } from '../../utils/particle-system';
-import { SpriteNodeMaterial } from 'three/webgpu';
-import { ParticleRenderer } from '../../utils/particle-renderer';
+import { PointsNodeMaterial, SpriteNodeMaterial } from 'three/webgpu';
+import { ParticleRenderer, ParticleUniformsType } from '../../utils/particle-renderer';
 
 class ParticleProject extends App {
 
@@ -25,6 +25,45 @@ class ParticleProject extends App {
 	constructor() {
 
 		super();
+
+	}
+
+	createMaterial( uniforms: ParticleUniformsType, blending?: THREE.Blending ) {
+
+		const idNodeOffset = attribute( 'instanceID' ).mul( 6.28 );
+
+		const material = new PointsNodeMaterial( {
+			//color: 0xffffff,
+			positionNode: attribute( 'instancePosition' ),
+			sizeNode: texture( uniforms.sizeOverLifeTexture, vec2( attribute( 'instanceLife' ), 0.5 ) ).x,
+			colorNode: Fn( () => {
+
+				const starMap = texture( uniforms.map );
+				const color = texture( uniforms.colorOverLifeTexture, vec2( attribute( 'instanceLife' ), 0.5 ) ).rgb;
+				return vec3( starMap.mul( color ) );
+
+			} )(),
+			opacityNode: Fn( () => {
+
+				const twinkleSample = texture( uniforms.twinkleOverLifeTexture, vec2( attribute( 'instanceLife' ), 0.5 ) ).x;
+				const twinkle = mix( 1.0, sin(
+					time.mul( 20.0 ).add( idNodeOffset )
+				).mul( 0.5 ).add( 0.5 ), twinkleSample
+				);
+
+				const alpha = texture( uniforms.alphaOverLifeTexture, vec2( attribute( 'instanceLife' ), 0.5 ) ).x;
+				return alpha.mul( twinkle );
+
+			} )(),
+			sizeAttenuation: true,
+			depthWrite: false,
+			depthTest: true,
+			transparent: true,
+			blending: blending ? blending : THREE.AdditiveBlending,
+			rotationNode: time.mul( uniforms.spinSpeed ).add( idNodeOffset ),
+		} );
+
+		return material;
 
 	}
 
@@ -138,7 +177,8 @@ class ParticleProject extends App {
 		emitterParams.spinSpeed = Math.PI;
 
 		emitterParams.particleRenderer = new ParticleRenderer( this.rendererType );
-		this.#popMaterial = emitterParams.particleRenderer.initialize( this.#uniformTypes[ this.#currentUniformType ], {
+		this.#popMaterial = this.createMaterial( this.#uniformTypes[ this.#currentUniformType ] );
+		emitterParams.particleRenderer.initialize( this.#popMaterial, {
 			scene: this.Scene,
 			maxDisplayParticles: maxDisplayParticles,
 			group: new THREE.Group(),
@@ -199,9 +239,6 @@ class ParticleProject extends App {
 			spinSpeed: uniform( 0 ),
 		};
 
-		//this.#smokeMaterial = material;
-
-
 		const leadSizeOverLife = new MATH.FloatInterpolant( [
 			{ time: 0, value: 2 },
 			{ time: 0.1, value: 40 },
@@ -237,7 +274,6 @@ class ParticleProject extends App {
 			spinSpeed: uniform( Math.PI ),
 		};
 
-
 		const emitterParams = new EmitterParameters();
 		emitterParams.shape = new PointEmitterShape( new THREE.Vector3( 0, 0, 0 ) );
 		emitterParams.particleEmissionRate = 1;
@@ -272,8 +308,12 @@ class ParticleProject extends App {
 
 			smokeEmitterParams.particleRenderer = new ParticleRenderer();
 
+			console.log( this.#trailMaterial );
+
+			this.#trailMaterial = this.createMaterial( smokeUniforms, THREE.NormalBlending );
+
 			// Providing application with reference to the particle renderer's internal material
-			this.#trailMaterial = smokeEmitterParams.particleRenderer.initialize( smokeUniforms, {
+			smokeEmitterParams.particleRenderer.initialize( this.#trailMaterial, {
 				scene: this.Scene,
 				maxDisplayParticles: 500,
 				group: new THREE.Group(),
@@ -318,9 +358,10 @@ class ParticleProject extends App {
 		};
 
 		emitterParams.particleRenderer = new ParticleRenderer();
+		this.#leadParticleMaterial = this.createMaterial( leadUniforms );
 
 
-		this.#leadParticleMaterial = emitterParams.particleRenderer.initialize( leadUniforms, {
+		emitterParams.particleRenderer.initialize( this.#leadParticleMaterial, {
 			scene: this.Scene,
 			maxDisplayParticles: maxDisplayParticles,
 			group: new THREE.Group(),

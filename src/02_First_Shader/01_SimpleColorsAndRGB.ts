@@ -1,21 +1,46 @@
+/* eslint-disable compat/compat */
 import * as THREE from 'three';
 import { vec3, Fn, uniform } from 'three/tsl';
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+import { MeshBasicNodeMaterial, WebGPURenderer } from 'three/webgpu';
+
+import { ShaderMaterial } from 'three';
 
 let renderer, camera, scene, gui;
+
+const getShaderMaterial = async () => {
+
+	const vsh = await fetch( './vertex-shader.glsl' );
+	const fsh = await fetch( './shaders/fragment-shader.glsl' );
+
+	const colorShader = new ShaderMaterial( {
+		uniforms: {
+			red: { value: 1.0 },
+			green: { value: 1.0 },
+			blue: { value: 1.0 }
+		},
+		vertexShader: await vsh.text(),
+		fragmentShader: await fsh.text()
+	} );
+
+	return colorShader;
+
+};
 
 const init = () => {
 
 	camera = new THREE.OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
 	scene = new THREE.Scene();
 	const geometry = new THREE.PlaneGeometry( 2, 2 );
-	const material = new THREE.MeshBasicNodeMaterial();
+	const material = new MeshBasicNodeMaterial();
 
 	const effectController = {
 		red: uniform( 1.0 ),
 		green: uniform( 1.0 ),
 		blue: uniform( 1.0 )
 	};
+
+	const shaderMaterialColorShader = getShaderMaterial();
 
 	material.colorNode = Fn( () => {
 
@@ -28,7 +53,7 @@ const init = () => {
 	const quad = new THREE.Mesh( geometry, material );
 	scene.add( quad );
 
-	renderer = new THREE.WebGPURenderer( { antialias: true } );
+	renderer = new WebGPURenderer( { antialias: true } );
 	renderer.setSize( window.innerWidth, window.innerHeight );
 	renderer.setAnimationLoop( animate );
 	renderer.outputColorSpace = THREE.LinearSRGBColorSpace;

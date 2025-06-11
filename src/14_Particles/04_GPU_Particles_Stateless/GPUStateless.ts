@@ -1,8 +1,9 @@
 import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
 import { App } from '../utils/App';
 import * as THREE from 'three';
-import { NodeMaterial, MeshBasicNodeMaterial } from 'three/webgpu';
-import { attribute, cameraProjectionMatrix, Fn, instancedBufferAttribute, modelViewMatrix, modelViewProjection, positionGeometry, positionLocal, positionView, vec2, vec3, vec4, viewport } from 'three/tsl';
+import { PointsNodeMaterial } from 'three/webgpu';
+import { attribute, float } from 'three/tsl';
+
 
 class GPGPUProject extends App {
 
@@ -21,30 +22,29 @@ class GPGPUProject extends App {
 
 	async #setupGPUParticlesStateless() {
 
-		const pointGeo = new THREE.BufferGeometry();
+		const numParticles = 100;
 
-		// No equivalent to GL_PointSize in WebGPU, so we copy the THREE.Sprite's
-		// BufferGeometry and use Sprites as equivalent to points.
-		const positions = new Float32Array( [
-			- 0.5, - 0.5, 0,
-			0.5, - 0.5, 0,
-			0.5, 0.5, 0,
-			- 0.5, 0.5, 0,
-		] );
+		const positions = new Float32Array( numParticles * 3 );
 
-		const sizes = new Float32Array( [
-			10.0
-		] );
+		for ( let i = 0; i < numParticles; i ++ ) {
 
-		pointGeo.setAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
-		pointGeo.setAttribute( 'size', new THREE.InstancedBufferAttribute( sizes, 1 ) );
+			positions[ i * 3 ] = i;
+			positions[ i * 3 + 1 ] = 0;
+			positions[ i * 3 + 2 ] = 0;
 
-		const material = new MeshBasicNodeMaterial( {
-			vertexNode: Fn( vertexNodeCallback )(),
-			colorNode: vec3( 1.0, 0.0, 0.0 )
+		}
+
+		const material = new PointsNodeMaterial( {
+			positionNode: attribute( 'instancePosition' ),
+			depthWrite: false,
+			depthTest: true,
+			sizeNode: float( 10 ),
 		} );
 
-		const mesh = new THREE.Mesh( new THREE.PlaneGeometry(), material );
+		const mesh = new THREE.Sprite( material );
+		mesh.geometry.setAttribute( 'instancePosition', new THREE.InstancedBufferAttribute( positions, 3 ) );
+		material.needsUpdate = true;
+		mesh.count = numParticles;
 
 		this.Scene.add( mesh );
 
