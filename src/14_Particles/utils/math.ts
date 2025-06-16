@@ -208,6 +208,7 @@ class FloatInterpolant extends Interpolant<number> {
 	}
 
 }
+
 class ColorInterpolant extends Interpolant<THREE.Color> {
 
 	constructor( frames ) {
@@ -228,38 +229,80 @@ class ColorInterpolant extends Interpolant<THREE.Color> {
 
 	}
 
-	toTexture() {
+	toTexture( alphaInterpolant?: FloatInterpolant ) {
 
-		const textureWidth = this.getTextureWidth();
-		const maxFrameTime = this.Frames[ this.Frames.length - 1 ].time;
+		const frames = this.Frames;
 
-		const data = new Float32Array( textureWidth * 4 );
+		let maxFrameTime = frames[ frames.length - 1 ].time;
 
-		// 10 unit example texture:
-		// UV.X 0.0 -> this.evaluate(0.0)
-		// UV.X 1.0 -> this.evaluate(1.0)
-		for ( let i = 0; i < textureWidth; ++ i ) {
+		if ( alphaInterpolant ) {
 
-			const t = i / ( textureWidth - 1 );
-			const value = this.evaluate( t * maxFrameTime );
-			data[ i * 4 ] = value.r;
-			data[ i * 4 + 1 ] = value.g;
-			data[ i * 4 + 2 ] = value.b;
-			data[ i * 4 + 3 ] = 1.0;
+			const alphaFrames = alphaInterpolant.Frames;
+
+			maxFrameTime = Math.max(
+				maxFrameTime,
+				alphaFrames[ alphaFrames.length - 1 ].time
+			);
 
 		}
 
-		const dataTex = new THREE.DataTexture( data, textureWidth, 1, THREE.RGBAFormat, THREE.FloatType );
-		dataTex.minFilter = THREE.LinearFilter;
-		dataTex.magFilter = THREE.LinearFilter;
-		dataTex.wrapS = THREE.ClampToEdgeWrapping;
-		dataTex.wrapT = THREE.ClampToEdgeWrapping;
-		dataTex.needsUpdate = true;
-		return dataTex;
+		// Custom getTextureWidth implementation
+
+		let smallestStep = 0.5;
+		for ( let i = 1; i < frames.length; ++ i ) {
+
+			const stepSize = ( frames[ i ].time - frames[ i - 1 ].time ) / maxFrameTime;
+			smallestStep = Math.min( smallestStep, stepSize );
+
+		}
+
+		if ( alphaInterpolant ) {
+
+			const alphaFrames = alphaInterpolant.Frames;
+
+			for ( let i = 1; i < alphaFrames.length; ++ i ) {
+
+				const stepSize = ( alphaFrames[ i ].time - alphaFrames[ i - 1 ].time ) / maxFrameTime;
+				smallestStep = Math.min( smallestStep, stepSize );
+
+			}
+
+		}
+
+		// Compute recommended size
+		const recommendedSize = Math.ceil( 1 / smallestStep );
+
+		// Make 1D texture with the values
+		const width = recommendedSize + 1;
+
+		const elementSize = 4;
+		const data = new Float32Array( width * elementSize );
+
+		for ( let i = 0; i < width; ++ i ) {
+
+			const t = i / ( width - 1 );
+			const color = this.evaluate( t * maxFrameTime );
+
+			data[ i * elementSize + 0 ] = color.r;
+			data[ i * elementSize + 1 ] = color.g;
+			data[ i * elementSize + 2 ] = color.b;
+			data[ i * elementSize + 3 ] = alphaInterpolant !== undefined ? alphaInterpolant.evaluate( t * maxFrameTime ) : 1.0;
+
+
+		}
+
+		const dt = new THREE.DataTexture( data, width, 1, THREE.RGBAFormat, THREE.FloatType );
+		dt.minFilter = THREE.LinearFilter;
+		dt.magFilter = THREE.LinearFilter;
+		dt.wrapS = THREE.ClampToEdgeWrapping;
+		dt.wrapT = THREE.ClampToEdgeWrapping;
+		dt.needsUpdate = true;
+		return dt;
 
 	}
 
 }
+
 
 
 export default {
