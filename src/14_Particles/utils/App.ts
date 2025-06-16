@@ -446,6 +446,18 @@ class App {
 
 	}
 
+	async loadGLSLShader( path ) {
+
+		// Load shaders
+		//const vsh = await fetch( './shaders/points-vsh.glsl' );
+		//const fsh = await fetch( './shaders/points-fsh.glsl' );
+
+		const shaderFile = await fetch( path );
+		const shaderText = await shaderFile.text();
+		return shaderText;
+
+	}
+
 	loadRGBE( path ) {
 
 		const rgbeLoader = new RGBELoader();

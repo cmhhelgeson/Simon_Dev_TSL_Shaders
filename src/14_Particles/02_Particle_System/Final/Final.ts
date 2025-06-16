@@ -1,12 +1,12 @@
+/* eslint-disable compat/compat */
 
 import * as THREE from 'three';
 import { attribute, Fn, mix, sin, texture, time, uniform, vec2, vec3 } from 'three/tsl';
 
 import { App } from '../../utils/App';
-import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
 
 import MATH from '../../utils/math';
-import { ParticleSystem, EmitterParameters, Emitter, PointEmitterShape, Particle, PicleUniformsType } from '../../utils/particle-system';
+import { ParticleSystem, EmitterParameters, Emitter, PointEmitterShape, Particle } from '../../utils/particle-system';
 import { PointsNodeMaterial, SpriteNodeMaterial } from 'three/webgpu';
 import { ParticleRenderer, ParticleUniformsType } from '../../utils/particle-renderer';
 
@@ -14,13 +14,14 @@ class ParticleProject extends App {
 
 	// From 1 hr onwards, pass particle renderer as emitter params
 	// Each emitter will now be responsible for its own rendering
-	#trailMaterial: SpriteNodeMaterial;
-	#popMaterial: SpriteNodeMaterial;
-	#leadParticleMaterial: SpriteNodeMaterial;
+	#trailMaterial: THREE.Material;
+	#popMaterial: THREE.Material;
+	#leadParticleMaterial: THREE.Material;
 	// Responsible for the smoke that comes off the lead particle	#smokeMaterial: PointsNodeMaterial;
 	#particleSystem: ParticleSystem | null = null;
 	#uniformTypes = {};
 	#currentUniformType = 'Explosion';
+	#webGLShaders = {};
 
 	constructor() {
 
@@ -28,7 +29,7 @@ class ParticleProject extends App {
 
 	}
 
-	createMaterial( uniforms: ParticleUniformsType, blending?: THREE.Blending ) {
+	createWebGPUMaterial( uniforms: ParticleUniformsType, blending?: THREE.Blending ) {
 
 		const idNodeOffset = attribute( 'instanceID' ).mul( 6.28 );
 
@@ -64,6 +65,37 @@ class ParticleProject extends App {
 		} );
 
 		return material;
+
+	}
+
+	createWebGLMaterial( uniforms: ParticleUniformsType, blending?: THREE.Blending )	 {
+
+		const spinSpeed = ( typeof uniforms.spinSpeed === 'number' ) ? uniforms.spinSpeed : uniforms.spinSpeed.value;
+
+		const material = new THREE.ShaderMaterial( {
+			uniforms: {
+				time: { value: 0 },
+				map: { value: uniforms.map },
+				sizeOverLife: { value: uniforms.sizeOverLifeTexture },
+				colourOverLife: { value: uniforms.colorOverLifeTexture },
+				twinkleOverLife: { value: uniforms.twinkleOverLifeTexture },
+				spinSpeed: { value: spinSpeed },
+			},
+			vertexShader: this.#webGLShaders[ 'pointsVertex' ],
+			fragmentShader: this.#webGLShaders[ 'pointsFragment' ],
+			depthWrite: false,
+			depthTest: true,
+			transparent: true,
+			blending: blending ? blending : THREE.AdditiveBlending,
+		} );
+
+		return material;
+
+	}
+
+	createMaterial( uniforms: ParticleUniformsType, blending?: THREE.Blending ) {
+
+		return this.rendererType === 'WebGPU' ? this.createWebGPUMaterial( uniforms, blending ) : this.createWebGLMaterial( uniforms, blending );
 
 	}
 
@@ -197,7 +229,6 @@ class ParticleProject extends App {
 
 		// Maximum number of particles in memory/displayed at once
 		const maxDisplayParticles = 500;
-		const maxEmission = 500;
 
 		// Create an events system for the emitter.
 		// Whenver a particle is created, destroyed, etc, we h
@@ -236,7 +267,7 @@ class ParticleProject extends App {
 			colorOverLifeTexture: smokeColorOverLife.toTexture(),
 			twinkleOverLifeTexture: smokeTwinkleOverLife.toTexture(),
 			map: smokeTexture,
-			spinSpeed: uniform( 0 ),
+			spinSpeed: this.rendererType ? 0 : uniform( 0 ),
 		};
 
 		const leadSizeOverLife = new MATH.FloatInterpolant( [
@@ -306,7 +337,7 @@ class ParticleProject extends App {
 			//smokeEmitterParams.rotationAngularVariance = Math.PI / 8;
 			//emitterParams.spinSpeed = Math.PI / 8;
 
-			smokeEmitterParams.particleRenderer = new ParticleRenderer();
+			smokeEmitterParams.particleRenderer = new ParticleRenderer( this.rendererType );
 
 			console.log( this.#trailMaterial );
 
@@ -317,7 +348,6 @@ class ParticleProject extends App {
 				scene: this.Scene,
 				maxDisplayParticles: 500,
 				group: new THREE.Group(),
-				blending: THREE.NormalBlending,
 			} );
 
 			// NOTE: Velocity animation and color animation are not on the same lifecycle
@@ -393,6 +423,16 @@ class ParticleProject extends App {
 		this.loadRGBE( './resources/moonless_golf_2k.hdr' );
 		this.Camera.position.set( 40, 1, 40 );
 		this.Camera.lookAt( new THREE.Vector3( 0, 0, 0 ) );
+
+		if ( this.rendererType === 'WebGL' ) {
+
+			const vertexShader = await this.loadGLSLShader( './shaders/points-vsh.glsl' );
+			const fragmentShader = await this.loadGLSLShader( './shaders/points-fsh.glsl' );
+
+			this.#webGLShaders[ 'pointsVertex' ] = vertexShader;
+			this.#webGLShaders[ 'pointsFragment' ] = fragmentShader;
+
+		}
 
 		this.#createTrailParticleSystem();
 

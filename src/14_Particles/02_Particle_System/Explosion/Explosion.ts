@@ -199,7 +199,7 @@ window.addEventListener( 'DOMContentLoaded', async () => {
 	await APP_.initialize( {
 		debug: true,
 		projectName: 'Explosion Particles',
-		webGL: true,
+		rendererType: 'WebGPU',
 	} );
 
 } );

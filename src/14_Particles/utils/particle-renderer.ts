@@ -21,7 +21,8 @@ export interface ParticleUniformsType {
 	colorOverLifeTexture: THREE.DataTexture
 	map: THREE.Texture,
 	alphaOverLifeTexture: THREE.DataTexture
-	twinkleOverLifeTexture: THREE.DataTexture
+	twinkleOverLifeTexture: THREE.DataTexture,
+	spinSpeed: number | ShaderNodeObject<UniformNode<number>>
 }
 
 export interface ParticleUniformsTypeWebGPU extends ParticleUniformsType {
@@ -74,12 +75,18 @@ export class ParticleRenderer {
 
 }
 
+interface ParticleRendererInitializationSettings {
+	scene: THREE.Scene,
+	group: THREE.Group,
+	maxDisplayParticles: number
+}
+
 abstract class ParticleRendererBackend {
 
 	abstract dispose(): void;
+	abstract initialize( material: THREE.Material, params: ParticleRendererInitializationSettings ): void;
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	abstract initialize( uniforms: ParticleUniformsType, params: any ): void;
-	abstract updateFromParticles( particles: Particle[] ): void;
+	abstract updateFromParticles( particles: Particle[], params: any, totalTimeElapsed: number ): void;
 
 }
 
@@ -96,8 +103,7 @@ export class ParticleRendererWebGPUBackend extends ParticleRendererBackend {
 	// attached to it.
 	#particlesSprite: THREE.Sprite | null = null;
 	#geometryAttributes: ParticleGeometryAttributes | null = null;
-	#particleMaterial: SpriteNodeMaterial | null = null;
-	#uniforms: ParticleUniformsTypeWebGPU;
+	#particleMaterial: SpriteNodeMaterial;
 
 	constructor( ) {
 
@@ -115,7 +121,7 @@ export class ParticleRendererWebGPUBackend extends ParticleRendererBackend {
 
 	}
 
-	initialize( material, params ) {
+	initialize( material: SpriteNodeMaterial, params: ParticleRendererInitializationSettings ) {
 
 		const positions = new Float32Array( params.maxDisplayParticles * 3 );
 		const lifes = new Float32Array( params.maxDisplayParticles );
@@ -160,7 +166,7 @@ export class ParticleRendererWebGPUBackend extends ParticleRendererBackend {
 
 	}
 
-	updateFromParticles( particles: Particle[] ) {
+	updateFromParticles( particles: Particle[], params, totalTimeElapsed: number ) {
 
 		if ( this.#geometryAttributes ) {
 
@@ -179,7 +185,7 @@ export class ParticleRendererWebGPUBackend extends ParticleRendererBackend {
 		}
 
 		// Don't necessarily need this if positionAttribute and lifeAttribute
-		// are already defined as instancedDynamicBufferAttributes() in TSL
+		// are already defined as instancedDynamicBufferAttributes() in TSL or setUsage(THREE.DynamicDrawUsage) on the attributes themselves
 		//this.#geometryAttributes.positionAttribute.needsUpdate = true;
 		//this.#geometryAttributes.lifeAttribute.needsUpdate = true;
 
