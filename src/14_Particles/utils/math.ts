@@ -303,8 +303,6 @@ class ColorInterpolant extends Interpolant<THREE.Color> {
 
 }
 
-
-
 export default {
 	random,
 	Vec3Interpolant,

@@ -177,7 +177,7 @@ class ParticleProject extends App {
 
 		this.#uniformTypes[ 'Explosion' ] = {
 			sizeOverLifeTexture: explosionSizeOverLife.toTexture(),
-			colorOverLifeTexture: explosionColorOverLife.toTexture(),
+			colorOverLifeTexture: explosionColorOverLife.toTexture( explosionAlphaOverLife ),
 			twinkleOverLifeTexture: explosionTwinkleOverLife.toTexture(),
 			alphaOverLifeTexture: explosionAlphaOverLife.toTexture(),
 			map: starTexture,
@@ -339,8 +339,6 @@ class ParticleProject extends App {
 
 			smokeEmitterParams.particleRenderer = new ParticleRenderer( this.rendererType );
 
-			console.log( this.#trailMaterial );
-
 			this.#trailMaterial = this.createMaterial( smokeUniforms, THREE.NormalBlending );
 
 			// Providing application with reference to the particle renderer's internal material
@@ -451,7 +449,7 @@ window.addEventListener( 'DOMContentLoaded', async () => {
 	await APP_.initialize( {
 		projectName: 'Final Particles',
 		debug: false,
-		rendererType: 'WebGPU',
+		rendererType: 'WebGL',
 	} );
 
 } );

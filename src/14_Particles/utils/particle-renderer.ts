@@ -157,8 +157,6 @@ export class ParticleRendererWebGPUBackend extends ParticleRendererBackend {
 		this.#particlesSprite.geometry.attributes.instanceLife.setUsage( THREE.DynamicDrawUsage );
 		this.#particlesSprite.geometry.attributes.instanceID.setUsage( THREE.DynamicDrawUsage );
 
-		console.log( this.#particlesSprite );
-
 		params.group.add( this.#particlesSprite );
 		params.scene.add( params.group );
 
@@ -254,7 +252,9 @@ class ParticleRendererWebGLBackend extends ParticleRendererBackend {
 		if ( this.#material ) {
 
 			this.#material.uniforms.time.value = totalTimeElapsed;
-			this.#material.uniforms.spinSpeed.value = params.spinSpeed;
+			//this.#material.uniforms.spinSpeed.value = params.spinSpeed;
+			// TODO: Spin speed and uniform 'uniform' update across both backends
+			this.#material.uniforms.spinSpeed.value = 0;
 
 		}
 
