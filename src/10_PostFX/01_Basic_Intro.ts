@@ -7,13 +7,13 @@ import {
 	uniform,
 	pass,
 } from 'three/tsl';
-import PostProcessing from './PostProcessing';
 
 import { sobel } from 'three/addons/tsl/display/SobelOperatorNode.js';
 import { bleach } from 'three/addons/tsl/display/BleachBypass.js';
 import { dotScreen } from 'three/addons/tsl/display/DotScreenNode.js';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+import { WebGPURenderer, PostProcessing, MeshBasicNodeMaterial } from 'three/webgpu';
 
 let renderer, camera, scene, gui;
 
@@ -35,7 +35,7 @@ const init = async () => {
 	scene = new THREE.Scene();
 	const geometry = new THREE.PlaneGeometry( 2, 2 );
 
-	const material = new THREE.MeshBasicNodeMaterial();
+	const material = new MeshBasicNodeMaterial();
 
 	const textureLoader = new THREE.TextureLoader();
 	const tomatoTexture = textureLoader.load( './resources/tomato.jpg' );
@@ -54,7 +54,7 @@ const init = async () => {
 	const quad = new THREE.Mesh( geometry, material );
 	scene.add( quad );
 
-	renderer = new THREE.WebGPURenderer( { antialias: true } );
+	renderer = new WebGPURenderer( { antialias: true } );
 	renderer.setSize( window.innerWidth, window.innerHeight );
 	renderer.setAnimationLoop( animate );
 	renderer.outputColorSpace = THREE.LinearSRGBColorSpace;

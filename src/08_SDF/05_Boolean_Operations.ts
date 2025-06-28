@@ -161,7 +161,6 @@ class BooleanOperations extends App {
 
 }
 
-
 const APP_ = new BooleanOperations();
 
 window.addEventListener( 'DOMContentLoaded', async () => {

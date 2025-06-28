@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { uniform, Fn, texture, uv, vec3, textureSize, floor, vec2, mix, fract, If, uint, smoothstep } from 'three/tsl';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+import { MeshBasicNodeMaterial } from 'three/webgpu';
+import { App } from '../utils/App';
 
 let renderer, camera, scene, gui;
 
@@ -22,128 +24,118 @@ const effectController = {
 	internalFilterUniform: uniform( uint( 0 ) ),
 };
 
-const init = async () => {
+class NoiseFiltering extends App {
 
-	camera = new THREE.OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
-	scene = new THREE.Scene();
-	const geometry = new THREE.PlaneGeometry( 2, 2 );
+	async onSetupProject(): Promise<void> {
 
-	const material = new THREE.MeshBasicNodeMaterial();
-	const textureLoader = new THREE.TextureLoader();
-	let gridMap = textureLoader.load( './resources/texture.png' );
+		const geometry = new THREE.PlaneGeometry( 2, 2 );
 
-	gridMap.minFilter = THREE.LinearFilter;
-	gridMap.magFilter = THREE.NearestFilter;
+		const material = new MeshBasicNodeMaterial();
+		const textureLoader = new THREE.TextureLoader();
+		let gridMap = textureLoader.load( './resources/texture.png' );
 
-	// TexSize is already known since we are working with a 2x2 texture
-	// Alternatively, it can be derived from the textureSize function
-	const size = textureSize( texture( gridMap ) );
+		gridMap.minFilter = THREE.LinearFilter;
+		gridMap.magFilter = THREE.NearestFilter;
 
-	const colorShader = Fn( () => {
+		// TexSize is already known since we are working with a 2x2 texture
+		// Alternatively, it can be derived from the textureSize function
+		const size = textureSize( texture( gridMap ) );
 
-		const { internalFilterUniform } = effectController;
+		const colorShader = Fn( () => {
 
-		const pc = uv().mul( size ).sub( 0.5 );
+			const { internalFilterUniform } = effectController;
 
-		// The 2D coordinate of the pixel in the texture
-		const textureBaseCoord = floor( pc );
+			const pc = uv().mul( size ).sub( 0.5 );
 
-		const base = textureBaseCoord.add( 0.5 );
+			// The 2D coordinate of the pixel in the texture
+			const textureBaseCoord = floor( pc );
 
-		const sample1 = texture(
-			gridMap,
-			( base.add( vec2( 0.0, 0.0 ) ) ).div( size )
-		);
-		const sample2 = texture(
-			gridMap,
-			( base.add( vec2( 1.0, 0.0 ) ) ).div( size )
-		);
-		const sample3 = texture(
-			gridMap,
-			( base.add( vec2( 0.0, 1.0 ) ) ).div( size )
-		);
-		const sample4 = texture(
-			gridMap,
-			( base.add( vec2( 1.0, 1.0 ) ) ).div( size )
-		);
+			const base = textureBaseCoord.add( 0.5 );
 
-		const newColor = vec3( 0.0 ).toVar( 'newColor' );
+			const sample1 = texture(
+				gridMap,
+				( base.add( vec2( 0.0, 0.0 ) ) ).div( size )
+			);
+			const sample2 = texture(
+				gridMap,
+				( base.add( vec2( 1.0, 0.0 ) ) ).div( size )
+			);
+			const sample3 = texture(
+				gridMap,
+				( base.add( vec2( 0.0, 1.0 ) ) ).div( size )
+			);
+			const sample4 = texture(
+				gridMap,
+				( base.add( vec2( 1.0, 1.0 ) ) ).div( size )
+			);
 
-		If( internalFilterUniform.equal( uint( 0 ) ), () => {
+			const newColor = vec3( 0.0 ).toVar( 'newColor' );
 
-			newColor.assign( texture( gridMap, uv() ) );
+			If( internalFilterUniform.equal( uint( 0 ) ), () => {
 
-		} ).ElseIf( internalFilterUniform.equal( uint( 1 ) ), () => {
+				newColor.assign( texture( gridMap, uv() ) );
 
-			const f = fract( pc );
+			} ).ElseIf( internalFilterUniform.equal( uint( 1 ) ), () => {
 
-			const px1 = mix( sample1, sample2, f.x );
-			const px2 = mix( sample3, sample4, f.x );
-			newColor.assign( mix( px1, px2, f.y ) );
+				const f = fract( pc );
 
-		} ).Else( () => {
+				const px1 = mix( sample1, sample2, f.x );
+				const px2 = mix( sample3, sample4, f.x );
+				newColor.assign( mix( px1, px2, f.y ) );
 
-			const f = smoothstep( 0.0, 1.0, fract( pc ) );
+			} ).Else( () => {
 
-			const px1 = mix( sample1, sample2, f.x );
-			const px2 = mix( sample3, sample4, f.x );
-			newColor.assign( mix( px1, px2, f.y ) );
+				const f = smoothstep( 0.0, 1.0, fract( pc ) );
+
+				const px1 = mix( sample1, sample2, f.x );
+				const px2 = mix( sample3, sample4, f.x );
+				newColor.assign( mix( px1, px2, f.y ) );
+
+			} );
+
+			return newColor;
 
 		} );
 
-		return newColor;
-
-	} );
-
-	material.colorNode = colorShader();
-
-	const quad = new THREE.Mesh( geometry, material );
-	scene.add( quad );
-
-	renderer = new THREE.WebGPURenderer( { antialias: true } );
-	renderer.setSize( window.innerWidth, window.innerHeight );
-	renderer.setAnimationLoop( animate );
-	renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
-	document.body.appendChild( renderer.domElement );
-
-	window.addEventListener( 'resize', onWindowResize );
-
-	gui = new GUI();
-	gui.add( effectController, 'externalFilterMode', Object.keys( externalFilterModes ) ).onChange( () => {
-
-		// Destroy current shader to prevent destroyed texture from being accessed in a submit
-		material.colorNode = null;
-		material.needsUpdate = true;
-		// Dipsose of current grid map to change filter mode
-		gridMap.dispose();
-		gridMap = textureLoader.load( './resources/texture.png' );
-		gridMap.minFilter = gridMap.magFilter = externalFilterModes[ effectController[ 'externalFilterMode' ] ];
-		// Reinitialize shader
 		material.colorNode = colorShader();
 
-	} );
+		const quad = new THREE.Mesh( geometry, material );
+		this.Scene.add( quad );
 
-	gui.add( effectController, 'internalFilterMode', Object.keys( internalFilterModes ) ).onChange( () => {
+		this.DebugGui.add( effectController, 'externalFilterMode', Object.keys( externalFilterModes ) ).onChange( () => {
 
-		effectController.internalFilterUniform.value = internalFilterModes[ effectController.internalFilterMode ];
+			// Destroy current shader to prevent destroyed texture from being accessed in a submit
+			material.colorNode = null;
+			material.needsUpdate = true;
+			// Dipsose of current grid map to change filter mode
+			gridMap.dispose();
+			gridMap = textureLoader.load( './resources/texture.png' );
+			gridMap.minFilter = gridMap.magFilter = externalFilterModes[ effectController[ 'externalFilterMode' ] ];
+			// Reinitialize shader
+			material.colorNode = colorShader();
+
+		} );
+
+		this.DebugGui.add( effectController, 'internalFilterMode', Object.keys( internalFilterModes ) ).onChange( () => {
+
+			effectController.internalFilterUniform.value = internalFilterModes[ effectController.internalFilterMode ];
 
 
-	} );
+		} );
 
-};
-
-const onWindowResize = () => {
-
-	camera.aspect = window.innerWidth / window.innerHeight;
-	camera.updateProjectionMatrix();
-	renderer.setSize( window.innerWidth, window.innerHeight );
-
-};
-
-function animate() {
-
-	renderer.render( scene, camera );
+	}
 
 }
 
-init();
+const APP_ = new NoiseFiltering();
+
+window.addEventListener( 'DOMContentLoaded', async () => {
+
+	await APP_.initialize( {
+		projectName: 'Chapter 9: Filtering',
+		debug: false,
+		rendererType: 'WebGPU',
+		initialCameraMode: 'orthographic'
+	} );
+
+} );
