@@ -14,13 +14,14 @@ interface AppInitializationOptions {
 	projectName?: string,
 	debug: boolean,
 	rendererType?: RendererEnum,
+	initialCameraMode?: 'perspective' | 'orthographic'
 }
 
 class App {
 
 	#renderer: Renderer | THREE.WebGLRenderer;
 	rendererType: 'WebGL' | 'WebGPU';
-	#camera: THREE.PerspectiveCamera;
+	#camera: THREE.PerspectiveCamera | THREE.OrthographicCamera;
 	#scene: THREE.Scene;
 	#clock: THREE.Clock;
 	#controls: OrbitControls;
@@ -113,15 +114,25 @@ class App {
 		document.body.appendChild( this.#stats.dom );
 
 		const aspect = window.innerWidth / window.innerHeight;
-		this.#camera = new THREE.PerspectiveCamera( 50, aspect, 0.1, 2000 );
-		this.#camera.position.z = 200;
+		const cameraType = options.initialCameraMode ? options.initialCameraMode : 'perspective';
 
-		this.#controls = new OrbitControls( this.#camera, this.#renderer.domElement );
-		// Smooths camera movement
-		this.#controls.enableDamping = true;
-		// Explicitly set camera's target to the default of 0, 0, 0
-		this.#controls.target.set( 0, 0, 0 );
-		this.#controls.update();
+		if ( cameraType === 'perspective' ) {
+
+			this.#camera = new THREE.PerspectiveCamera( 50, aspect, 0.1, 2000 );
+			this.#camera.position.z = 200;
+
+			this.#controls = new OrbitControls( this.#camera, this.#renderer.domElement );
+			// Smooths camera movement
+			this.#controls.enableDamping = true;
+			// Explicitly set camera's target to the default of 0, 0, 0
+			this.#controls.target.set( 0, 0, 0 );
+			this.#controls.update();
+
+		} else {
+
+			this.#camera = new THREE.OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
+
+		}
 
 		this.#scene = new THREE.Scene();
 
@@ -362,7 +373,15 @@ class App {
 
 		// App specific code executed per render
 		this.onRender( deltaTime );
-		this.#renderer.render( this.#scene, this.#camera );
+		if ( this.rendererType === 'WebGL' ) {
+
+			this.#renderer.render( this.#scene, this.#camera );
+
+		} else {
+
+			( this.#renderer as WebGPURenderer ).renderAsync( this.#scene, this.#camera );
+
+		}
 
 	}
 
@@ -426,6 +445,12 @@ class App {
 	}
 
 	async initialize( options: AppInitializationOptions ) {
+
+		if ( options.projectName ) {
+
+			document.title = options.projectName;
+
+		}
 
 		this.#clock = new THREE.Clock( true );
 

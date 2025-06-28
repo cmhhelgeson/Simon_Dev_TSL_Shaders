@@ -15,44 +15,20 @@ export const DrawGrid = Fn( ( [ pixelCoords, baseColor, lineColor, cellWidth, li
 
 	return color;
 
-} ).setLayout( {
-	name: 'DrawGrid',
-	type: 'vec3',
-	inputs: [
-		{ name: 'pixelCoords', type: 'vec2' },
-		{ name: 'baseColor', type: 'vec3' },
-		{ name: 'lineColor', type: 'vec3' },
-		{ name: 'cellWidth', type: 'float' },
-		{ name: 'lineWidth', type: 'float' }
-	]
-} );
+}, { pixelCoords: 'vec2', baseColor: 'vec3', lineColor: 'vec3', cellWidth: 'float', lineWidth: 'float', return: 'vec3' } );
 
 export const SDFCircle = Fn( ( [ position, radius ] ) => {
 
 	return length( position ).sub( radius );
 
-} ).setLayout( {
-	name: 'SDFCircle',
-	type: 'float',
-	inputs: [
-		{ name: 'position', type: 'vec2' },
-		{ name: 'radius', type: 'float' }
-	]
-} );
+}, { position: 'vec2', radius: 'float', return: 'float' } );
 
 export const SDFBox = Fn( ( [ position, bounds ] ) => {
 
 	const d = abs( position ).sub( bounds );
 	return length( max( d, 0.0 ) ).add( min( max( d.x, d.y ), 0.0 ) );
 
-} ).setLayout( {
-	name: 'SDFBox',
-	type: 'float',
-	inputs: [
-		{ name: 'position', type: 'vec2' },
-		{ name: 'bounds', type: 'vec2' }
-	]
-} );
+}, { position: 'vec2', bounds: 'vec2', return: 'float' } );
 
 export const SDFLine = Fn( ( [ p, a, b ] ) => {
 
@@ -66,12 +42,4 @@ export const SDFLine = Fn( ( [ p, a, b ] ) => {
 
 	return length( pa.sub( ba.mul( h ) ) );
 
-} ).setLayout( {
-	name: 'SDFLine',
-	type: 'float',
-	inputs: [
-		{ name: 'p', type: 'vec2' },
-		{ name: 'a', type: 'vec2' },
-		{ name: 'b', type: 'vec2' },
-	]
-} );
+}, { p: 'vec2', a: 'vec2', b: 'vec2', return: 'float' } );

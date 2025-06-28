@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { attribute, Fn, mix, sin, texture, time, uniform, vec2, vec3 } from 'three/tsl';
 
-import { App } from '../../utils/App';
+import { App } from '../../../utils/App';
 
 import MATH from '../../utils/math';
 import { ParticleSystem, EmitterParameters, Emitter, PointEmitterShape, Particle } from '../../utils/particle-system';
@@ -450,6 +450,7 @@ window.addEventListener( 'DOMContentLoaded', async () => {
 		projectName: 'Final Particles',
 		debug: false,
 		rendererType: 'WebGL',
+		initialCameraMode: 
 	} );
 
 } );
