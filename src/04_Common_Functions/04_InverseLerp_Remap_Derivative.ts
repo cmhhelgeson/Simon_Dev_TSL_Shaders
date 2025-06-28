@@ -1,10 +1,8 @@
 
 import * as THREE from 'three';
-import { uniform, Fn, texture, dFdx, dFdy, time, sin, mix, timerLocal } from 'three/tsl';
-
-import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
-
-let renderer, camera, scene, gui;
+import { Fn, texture, dFdx, dFdy, time, sin, mix } from 'three/tsl';
+import { App } from '../utils/App';
+import { MeshBasicNodeMaterial } from 'three/webgpu';
 
 // InverseLerp(currentValue, minValue, maxValue)
 // Returns how far between minValue and maxValue the current value is
@@ -39,65 +37,43 @@ let renderer, camera, scene, gui;
 // dFdx(value) = value(x+1) - value(x);
 // dFdy(value) = value(y+1) - value(y);
 
-enum ShaderMode {
-	'Animate',
-	'dFdx',
-	'dFdy'
-}
+class InverseLerpRemapDerivative extends App {
 
+	async onSetupProject(): Promise<void> {
 
-const init = async () => {
+		const geometry = new THREE.PlaneGeometry( 2, 2 );
 
-	camera = new THREE.OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
-	scene = new THREE.Scene();
-	const geometry = new THREE.PlaneGeometry( 2, 2 );
+		const material = new MeshBasicNodeMaterial();
+		const textureLoader = new THREE.TextureLoader();
+		const map = textureLoader.load( './resources/uv_grid_opengl.jpg' );
 
-	const material = new THREE.MeshBasicNodeMaterial();
-	const textureLoader = new THREE.TextureLoader();
-	const map = textureLoader.load( './resources/uv_grid_opengl.jpg' );
+		// Grid shaders succintly demonstrate the functionality of dFdx due to the harsh
+		// changes between grid lines and the rest of the grid space.
+		material.colorNode = Fn( () => {
 
-	const effectController = {
-		tint: uniform( new THREE.Color( 1.0, 0.0, 0.0 ) ),
-	};
+			const color = texture( map );
+			color.assign( mix( dFdx( color ), dFdy( color ), sin( time ) ) );
 
-	// Grid shaders succintly demonstrate the functionality of dFdx due to the harsh
-	// changes between grid lines and the rest of the grid space.
-	material.colorNode = Fn( () => {
+			return color;
 
-		const color = texture( map );
-		color.assign( mix( dFdx( color ), dFdy( color ), sin( time ) ) );
+		} )();
 
-		return color;
+		const quad = new THREE.Mesh( geometry, material );
+		this.Scene.add( quad );
 
-	} )();
-
-	const quad = new THREE.Mesh( geometry, material );
-	scene.add( quad );
-
-	renderer = new THREE.WebGPURenderer( { antialias: true } );
-	renderer.setSize( window.innerWidth, window.innerHeight );
-	renderer.setAnimationLoop( animate );
-	renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
-	document.body.appendChild( renderer.domElement );
-
-	window.addEventListener( 'resize', onWindowResize );
-
-	gui = new GUI();
-
-};
-
-const onWindowResize = () => {
-
-	camera.aspect = window.innerWidth / window.innerHeight;
-	camera.updateProjectionMatrix();
-	renderer.setSize( window.innerWidth, window.innerHeight );
-
-};
-
-function animate() {
-
-	renderer.render( scene, camera );
+	}
 
 }
 
-init();
+const APP_ = new InverseLerpRemapDerivative();
+
+window.addEventListener( 'DOMContentLoaded', async () => {
+
+	await APP_.initialize( {
+		projectName: 'Chapter 4: InverseLerp, Remap, Derivative',
+		debug: false,
+		rendererType: 'WebGPU',
+		initialCameraMode: 'orthographic'
+	} );
+
+} );

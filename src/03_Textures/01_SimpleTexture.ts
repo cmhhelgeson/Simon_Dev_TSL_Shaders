@@ -1,68 +1,57 @@
 import * as THREE from 'three';
-import { uniform, Fn, texture, viewportUV, viewportCoordinate, viewport, viewportSize, viewportSafeUV, uv, textureSize } from 'three/tsl';
+import { uniform, Fn, texture, viewportCoordinate, textureSize } from 'three/tsl';
+import { App } from '../utils/App';
+import { MeshBasicNodeMaterial } from 'three/webgpu';
 
-import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+class SimpleTexture extends App {
 
-let renderer, camera, scene, gui;
 
-const init = async () => {
+	async onSetupProject(): Promise<void> {
 
-	camera = new THREE.OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
-	scene = new THREE.Scene();
-	const geometry = new THREE.PlaneGeometry( 2, 2 );
+		const geometry = new THREE.PlaneGeometry( 2, 2 );
 
-	const material = new THREE.MeshBasicNodeMaterial();
-	const textureLoader = new THREE.TextureLoader();
-	const map = textureLoader.load( './resources/uv_grid_opengl.jpg' );
+		const material = new MeshBasicNodeMaterial();
+		const textureLoader = new THREE.TextureLoader();
+		const map = textureLoader.load( './resources/uv_grid_opengl.jpg' );
 
-	const effectController = {
-		tint: uniform( new THREE.Color( 1.0, 1.0, 1.0 ) ),
-	};
+		const effectController = {
+			tint: uniform( new THREE.Color( 1.0, 1.0, 1.0 ) ),
+		};
 
-	material.colorNode = Fn( () => {
+		material.colorNode = Fn( () => {
 
-		const { tint } = effectController;
+			const { tint } = effectController;
 
-		const color = texture( map );
+			const color = texture( map );
 
-		const size = textureSize( color );
+			const size = textureSize( color );
 
-		return texture( map, viewportCoordinate.div( size ) ).mul( tint );
+			return texture( map, viewportCoordinate.div( size ) ).mul( tint );
 
-	} )();
+		} )();
 
-	const quad = new THREE.Mesh( geometry, material );
-	scene.add( quad );
+		const quad = new THREE.Mesh( geometry, material );
+		this.Scene.add( quad );
 
-	renderer = new THREE.WebGPURenderer( { antialias: true } );
-	renderer.setSize( window.innerWidth, window.innerHeight );
-	renderer.setAnimationLoop( animate );
-	renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
-	document.body.appendChild( renderer.domElement );
+		this.DebugGui.addColor( { color: effectController.tint.value.getHex( THREE.SRGBColorSpace ) }, 'color' ).onChange( ( value ) => {
 
-	window.addEventListener( 'resize', onWindowResize );
+			effectController.tint.value.set( value );
 
-	gui = new GUI();
-	gui.addColor( { color: effectController.tint.value.getHex( THREE.SRGBColorSpace ) }, 'color' ).onChange( ( value ) => {
+		} ).name( 'tint' );
 
-		effectController.tint.value.set( value );
-
-	} ).name( 'tint' );
-
-};
-
-const onWindowResize = () => {
-
-	camera.aspect = window.innerWidth / window.innerHeight;
-	camera.updateProjectionMatrix();
-	renderer.setSize( window.innerWidth, window.innerHeight );
-
-};
-
-function animate() {
-
-	renderer.render( scene, camera );
+	}
 
 }
 
-init();
+const APP_ = new SimpleTexture();
+
+window.addEventListener( 'DOMContentLoaded', async () => {
+
+	await APP_.initialize( {
+		projectName: 'Simple Texture',
+		debug: false,
+		rendererType: 'WebGPU',
+		initialCameraMode: 'orthographic'
+	} );
+
+} );
