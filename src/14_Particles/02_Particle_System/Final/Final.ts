@@ -73,8 +73,6 @@ class ParticleProject extends App {
 
 		const spinSpeed = ( typeof uniforms.spinSpeed === 'number' ) ? uniforms.spinSpeed : uniforms.spinSpeed.value;
 
-		console.log( this.#webGLShaders );
-
 		const material = new THREE.ShaderMaterial( {
 			uniforms: {
 				time: { value: 0 },

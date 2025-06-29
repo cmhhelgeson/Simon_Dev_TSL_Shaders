@@ -236,7 +236,7 @@ class ParticleRendererWebGLBackend extends ParticleRendererBackend {
 
 		// Set dynamic draw usage on every attribute we plan on updating
 		( this.#particleGeometry.attributes.position as THREE.BufferAttribute ).setUsage( THREE.DynamicDrawUsage );
-		( this.#particleGeometry.attributes.position as THREE.BufferAttribute ).setUsage( THREE.DynamicDrawUsage );
+		( this.#particleGeometry.attributes.particleData as THREE.BufferAttribute ).setUsage( THREE.DynamicDrawUsage );
 
 		this.#particlePoints = new THREE.Points( this.#particleGeometry, material );
 
