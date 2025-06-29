@@ -5,10 +5,11 @@ import { attribute, Fn, mix, sin, texture, time, uniform, vec2, vec3 } from 'thr
 
 import { App } from '../../../utils/App';
 
-import MATH from '../../utils/math';
 import { ParticleSystem, EmitterParameters, Emitter, PointEmitterShape, Particle } from '../../utils/particle-system';
-import { PointsNodeMaterial, SpriteNodeMaterial } from 'three/webgpu';
+import { PointsNodeMaterial } from 'three/webgpu';
 import { ParticleRenderer, ParticleUniformsType } from '../../utils/particle-renderer';
+import { explosionData, leadData, punchData, smokeData } from './data';
+
 
 class ParticleProject extends App {
 
@@ -52,7 +53,7 @@ class ParticleProject extends App {
 				).mul( 0.5 ).add( 0.5 ), twinkleSample
 				);
 
-				const alpha = texture( uniforms.alphaOverLifeTexture, vec2( attribute( 'instanceLife' ), 0.5 ) ).x;
+				const alpha = texture( uniforms.colorOverLifeTexture, vec2( attribute( 'instanceLife' ), 0.5 ) ).a;
 				return alpha.mul( twinkle );
 
 			} )(),
@@ -71,6 +72,8 @@ class ParticleProject extends App {
 	createWebGLMaterial( uniforms: ParticleUniformsType, blending?: THREE.Blending )	 {
 
 		const spinSpeed = ( typeof uniforms.spinSpeed === 'number' ) ? uniforms.spinSpeed : uniforms.spinSpeed.value;
+
+		console.log( this.#webGLShaders );
 
 		const material = new THREE.ShaderMaterial( {
 			uniforms: {
@@ -109,86 +112,18 @@ class ParticleProject extends App {
 		const textureLoader = new THREE.TextureLoader();
 		const starTexture = textureLoader.load( './resources/star.png' );
 
-		// All particles use one life value (p.life / p.maxLife) so each interpolant has to cover
-		// the same length of time, irrespective of whether it is doing anything during
-		// large stretches of time.
-
-		// Pucnh parameters
-		const punchSizeOverLife = new MATH.FloatInterpolant( [
-			{ time: 0, value: 100.0 },
-			{ time: 1, value: 0.0 },
-			{ time: 2, value: 100.0 },
-			{ time: 3, value: 0.0 },
-			{ time: 4, value: 200.0 },
-			{ time: 5, value: 0.0 },
-			{ time: 6, value: 100.0 },
-			{ time: 18, value: 100.0 },
-			{ time: 20, value: 200.0 }
-		] );
-
-		const punchAlphaOverLife = new MATH.FloatInterpolant( [
-			{ time: 0, value: 1 },
-			{ time: 8, value: 1 },
-			{ time: 10, value: 0 },
-			{ time: 12, value: 1 },
-			{ time: 17, value: 1 },
-			{ time: 18, value: 0 }
-		] );
-
-		const punchColorOverLife = new MATH.ColorInterpolant( [
-			{ time: 0, value: new THREE.Color( 0xFFFFFF ) },
-			{ time: 14, value: new THREE.Color( 0xFFFFFF ) },
-			{ time: 15, value: new THREE.Color( 0xFF0000 ) },
-			{ time: 16, value: new THREE.Color( 0x00FF00 ) },
-			{ time: 17, value: new THREE.Color( 0x0000FF ) },
-			{ time: 18, value: new THREE.Color( 0xFFFFFF ) },
-		] );
-
-		const punchTwinkleOverLife = new MATH.FloatInterpolant( [
-			{ time: 0, value: 0 },
-			{ time: 3, value: 1 },
-			{ time: 4, value: 1 },
-		] );
-
-		// Generic Firework Explosion Parameters
-		const explosionSizeOverLife = new MATH.FloatInterpolant( [
-			{ time: 0, value: 30 },
-			{ time: 5, value: 40 },
-		] );
-
-		const explosionAlphaOverLife = new MATH.FloatInterpolant( [
-			{ time: 0, value: 0 },
-			{ time: 0.25, value: 1 },
-			{ time: 4.5, value: 1 },
-			{ time: 5, value: 0 },
-		] );
-
-		const explosionColorOverLife = new MATH.ColorInterpolant( [
-			{ time: 0, value: new THREE.Color().setHSL( 0, 1, 0.75 ) },
-			{ time: 2, value: new THREE.Color().setHSL( 0.5, 1, 0.5 ) },
-			{ time: 5, value: new THREE.Color().setHSL( 1, 1, 0.5 ) },
-		] );
-
-		const explosionTwinkleOverLife = new MATH.FloatInterpolant( [
-			{ time: 0, value: 0 },
-			{ time: 3, value: 1 },
-			{ time: 4, value: 1 },
-		] );
-
 		this.#uniformTypes[ 'Explosion' ] = {
-			sizeOverLifeTexture: explosionSizeOverLife.toTexture(),
-			colorOverLifeTexture: explosionColorOverLife.toTexture( explosionAlphaOverLife ),
-			twinkleOverLifeTexture: explosionTwinkleOverLife.toTexture(),
-			alphaOverLifeTexture: explosionAlphaOverLife.toTexture(),
+			sizeOverLifeTexture: explosionData.sizeOverLife.toTexture(),
+			colorOverLifeTexture: explosionData.colorOverLife.toTexture( explosionData.alphaOverLife ),
+			twinkleOverLifeTexture: explosionData.twinkleOverLife.toTexture(),
 			map: starTexture,
 			spinSpeed: uniform( Math.PI )
 		};
 
 		this.#uniformTypes[ 'Punch' ] = {
-			sizeOverLifeTexture: punchSizeOverLife.toTexture(),
-			colorOverLifeTexture: punchColorOverLife.toTexture(),
-			twinkleOverLifeTexture: punchTwinkleOverLife.toTexture(),
-			alphaOverLifeTexture: punchAlphaOverLife.toTexture(),
+			sizeOverLifeTexture: punchData.sizeOverLife.toTexture(),
+			colorOverLifeTexture: punchData.colorOverLife.toTexture( punchData.alphaOverLife ),
+			twinkleOverLifeTexture: punchData.twinkleOverLife.toTexture(),
 			map: starTexture,
 			spinSpeed: uniform( Math.PI )
 		};
@@ -237,70 +172,18 @@ class ParticleProject extends App {
 		const starTexture = textureLoader.load( './resources/star.png' );
 		const smokeTexture = textureLoader.load( './resources/smoke.png' );
 
-		const smokeSizeOverLife = new MATH.FloatInterpolant( [
-			{ time: 0, value: 20 },
-			{ time: 3, value: 40 },
-		] );
-
-		const smokeAlphaOverLife = new MATH.FloatInterpolant( [
-			{ time: 0, value: 0 },
-			{ time: 0.2, value: 1 },
-			{ time: 3, value: 0 },
-		] );
-
-		const smokeColorOverLife = new MATH.ColorInterpolant( [
-			// { time: 0, value: new THREE.Color(0x808080) },
-			// { time: 1, value: new THREE.Color(0x404040) },
-			{ time: 0, value: new THREE.Color( 0x808080 ) },
-			{ time: 1, value: new THREE.Color( 0x202020 ) },
-			{ time: 3, value: new THREE.Color( 0x202020 ) }
-		] );
-
-		const smokeTwinkleOverLife = new MATH.FloatInterpolant( [
-			{ time: 0, value: 0 },
-			{ time: 3, value: 0 },
-		] );
-
 		const smokeUniforms: ParticleUniformsType = {
-			sizeOverLifeTexture: smokeSizeOverLife.toTexture(),
-			alphaOverLifeTexture: smokeAlphaOverLife.toTexture(),
-			colorOverLifeTexture: smokeColorOverLife.toTexture(),
-			twinkleOverLifeTexture: smokeTwinkleOverLife.toTexture(),
+			sizeOverLifeTexture: smokeData.sizeOverLife.toTexture(),
+			colorOverLifeTexture: smokeData.colorOverLife.toTexture( smokeData.alphaOverLife ),
+			twinkleOverLifeTexture: smokeData.twinkleOverLife.toTexture(),
 			map: smokeTexture,
 			spinSpeed: this.rendererType ? 0 : uniform( 0 ),
 		};
 
-		const leadSizeOverLife = new MATH.FloatInterpolant( [
-			{ time: 0, value: 2 },
-			{ time: 0.1, value: 40 },
-			{ time: 5, value: 40 },
-		] );
-
-		const leadAlphaOverLife = new MATH.FloatInterpolant( [
-			{ time: 0, value: 0 },
-			{ time: 0.25, value: 1 },
-			{ time: 4.5, value: 1 },
-			{ time: 5, value: 0 },
-		] );
-
-		const leadColorOverLife = new MATH.ColorInterpolant( [
-			{ time: 0, value: new THREE.Color().setHSL( 0, 1, 0.75 ) },
-			{ time: 2, value: new THREE.Color().setHSL( 0.5, 1, 0.5 ) },
-			{ time: 5, value: new THREE.Color().setHSL( 1, 1, 0.5 ) },
-		] );
-
-		const leadTwinkleOverLife = new MATH.FloatInterpolant( [
-			{ time: 0, value: 0 },
-			{ time: 3, value: 1 },
-			{ time: 4, value: 1 },
-		] );
-
-
 		const leadUniforms: ParticleUniformsType = {
-			sizeOverLifeTexture: leadSizeOverLife.toTexture(),
-			colorOverLifeTexture: leadColorOverLife.toTexture(),
-			twinkleOverLifeTexture: leadTwinkleOverLife.toTexture(),
-			alphaOverLifeTexture: leadAlphaOverLife.toTexture(),
+			sizeOverLifeTexture: leadData.sizeOverLife.toTexture(),
+			colorOverLifeTexture: leadData.colorOverLife.toTexture( leadData.alphaOverLife ),
+			twinkleOverLifeTexture: leadData.twinkleOverLife.toTexture(),
 			map: starTexture,
 			spinSpeed: uniform( Math.PI ),
 		};
@@ -424,11 +307,9 @@ class ParticleProject extends App {
 
 		if ( this.rendererType === 'WebGL' ) {
 
-			const vertexShader = await this.loadGLSLShader( './shaders/points-vsh.glsl' );
-			const fragmentShader = await this.loadGLSLShader( './shaders/points-fsh.glsl' );
-
-			this.#webGLShaders[ 'pointsVertex' ] = vertexShader;
-			this.#webGLShaders[ 'pointsFragment' ] = fragmentShader;
+    	// Load shaders
+			this.#webGLShaders[ 'pointsVertex' ] = await this.loadGLSLShader( './resources/shaders/points-vsh.glsl' );
+			this.#webGLShaders[ 'pointsFragment' ] = await this.loadGLSLShader( './resources/shaders/points-fsh.glsl' );
 
 		}
 
@@ -450,7 +331,7 @@ window.addEventListener( 'DOMContentLoaded', async () => {
 		projectName: 'Final Particles',
 		debug: false,
 		rendererType: 'WebGL',
-		initialCameraMode: 
+		initialCameraMode: 'perspective'
 	} );
 
 } );

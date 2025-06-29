@@ -20,7 +20,6 @@ export interface ParticleUniformsType {
 	sizeOverLifeTexture: THREE.DataTexture
 	colorOverLifeTexture: THREE.DataTexture
 	map: THREE.Texture,
-	alphaOverLifeTexture: THREE.DataTexture
 	twinkleOverLifeTexture: THREE.DataTexture,
 	spinSpeed: number | ShaderNodeObject<UniformNode<number>>
 }
@@ -67,9 +66,9 @@ export class ParticleRenderer {
 
 	}
 
-	updateFromParticles( particles: Particle[] ) {
+	updateFromParticles( particles: Particle[], totalTimeElapsed: number ) {
 
-		this.#backend.updateFromParticles( particles );
+		this.#backend.updateFromParticles( particles, totalTimeElapsed );
 
 	}
 
@@ -86,7 +85,7 @@ abstract class ParticleRendererBackend {
 	abstract dispose(): void;
 	abstract initialize( material: THREE.Material, params: ParticleRendererInitializationSettings ): void;
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	abstract updateFromParticles( particles: Particle[], params: any, totalTimeElapsed: number ): void;
+	abstract updateFromParticles( particles: Particle[], totalTimeElapsed: number ): void;
 
 }
 
@@ -153,9 +152,9 @@ export class ParticleRendererWebGPUBackend extends ParticleRendererBackend {
 		this.#particlesSprite.geometry.setAttribute( 'instanceLife', lifeAttribute );
 		this.#particlesSprite.geometry.setAttribute( 'instanceID', idAttribute );
 
-		this.#particlesSprite.geometry.attributes.instancePosition.setUsage( THREE.DynamicDrawUsage );
-		this.#particlesSprite.geometry.attributes.instanceLife.setUsage( THREE.DynamicDrawUsage );
-		this.#particlesSprite.geometry.attributes.instanceID.setUsage( THREE.DynamicDrawUsage );
+		( this.#particlesSprite.geometry.attributes.instancePosition as THREE.BufferAttribute ).setUsage( THREE.DynamicDrawUsage );
+		( this.#particlesSprite.geometry.attributes.instanceLife as THREE.BufferAttribute ).setUsage( THREE.DynamicDrawUsage );
+		( this.#particlesSprite.geometry.attributes.instanceID as THREE.BufferAttribute ).setUsage( THREE.DynamicDrawUsage );
 
 		params.group.add( this.#particlesSprite );
 		params.scene.add( params.group );
@@ -164,7 +163,7 @@ export class ParticleRendererWebGPUBackend extends ParticleRendererBackend {
 
 	}
 
-	updateFromParticles( particles: Particle[], params, totalTimeElapsed: number ) {
+	updateFromParticles( particles: Particle[], totalTimeElapsed: number ) {
 
 		if ( this.#geometryAttributes ) {
 
@@ -247,7 +246,7 @@ class ParticleRendererWebGLBackend extends ParticleRendererBackend {
 
 	}
 
-	updateFromParticles( particles: Particle[], params, totalTimeElapsed ) {
+	updateFromParticles( particles: Particle[], totalTimeElapsed ) {
 
 		if ( this.#material ) {
 

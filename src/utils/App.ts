@@ -471,13 +471,13 @@ class App {
 
 	}
 
-	async loadGLSLShader( path ) {
+	async loadGLSLShader( filePath ) {
 
 		// Load shaders
 		//const vsh = await fetch( './shaders/points-vsh.glsl' );
 		//const fsh = await fetch( './shaders/points-fsh.glsl' );
 
-		const shaderFile = await fetch( path );
+		const shaderFile = await fetch( filePath );
 		const shaderText = await shaderFile.text();
 		return shaderText;
 

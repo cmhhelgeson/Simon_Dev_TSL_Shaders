@@ -28,8 +28,6 @@ const remap = (
 };
 
 
-type FloatFrame = Frame<number>
-
 class Interpolant<T> {
 
 	// Values which construct the interpolater.

@@ -310,7 +310,7 @@ export class Emitter {
 
 		if ( this.#params.particleRenderer ) {
 
-			this.#params.particleRenderer.updateFromParticles( this.#particles );
+			this.#params.particleRenderer.updateFromParticles( this.#particles, totalTime );
 
 		}
 
