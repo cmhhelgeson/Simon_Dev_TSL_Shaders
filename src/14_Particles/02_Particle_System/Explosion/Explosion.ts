@@ -2,13 +2,12 @@
 import * as THREE from 'three';
 import { uniform } from 'three/tsl';
 
-import { App } from '../../utils/App';
-import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
+import { App } from '../../../utils/App';
 
 import MATH from '../../utils/math';
 
 import { ParticleRenderer, ParticleSystem, EmitterParameters, Emitter, PointEmitterShape } from '../../utils/particle-system';
-import { PointsNodeMaterial, SpriteNodeMaterial } from 'three/webgpu';
+import { SpriteNodeMaterial } from 'three/webgpu';
 
 class ParticleProject extends App {
 

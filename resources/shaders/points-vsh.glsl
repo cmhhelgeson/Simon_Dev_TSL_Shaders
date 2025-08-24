@@ -22,7 +22,7 @@ void main() {
 
   vec3 mvPosition = (modelViewMatrix * vec4(position, 1.0)).xyz;
   gl_Position = projectionMatrix * vec4(mvPosition, 1.0);
-  gl_PointSize = sizeSample * 300.0 / -mvPosition.z;
+  gl_PointSize = sizeSample * 1.0 / -mvPosition.z;
   vAngle = spinSpeed * time + id * 6.28;
   vColour = colourSample;
   vColour.a *= twinkle;

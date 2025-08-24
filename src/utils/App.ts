@@ -11,25 +11,80 @@ import Stats from 'three/addons/libs/stats.module.js';
 type RendererEnum = 'WebGL' | 'WebGPU' | 'WebGLFallback'
 
 interface AppInitializationOptions {
+	/* The name of the application and the title of the page */
 	projectName?: string,
+	/* Flag indicating whether to provide the user debug functionality through the GUI */
 	debug: boolean,
+	/* The renderer to use in the project */
 	rendererType?: RendererEnum,
+	/* Whether the scene is first rendered using a perspective or an orthographic camera */
 	initialCameraMode?: 'perspective' | 'orthographic'
 }
 
+/**
+ * Configuration options for rendering and canvas behavior.
+ */
+type RendererSettings = {
+  /** Use delta time between frames for updates */
+  useDeltaTime: boolean;
+  /** Use a fixed frame rate instead of delta time */
+  useFixedFrameRate: boolean;
+  /** Fixed time step in seconds */
+  fixedTimeStep: number;
+  /** Unified FPS target across systems */
+  fixedUnifiedFPS: number;
+  /** Target CPU frame rate */
+  fixedCPUFPS: number;
+  /** Target GPU frame rate */
+  fixedGPUFPS: number;
+  /** Minimum clamp for delta time */
+  clampMin: number;
+  /** Maximum clamp for delta time */
+  clampMax: number;
+  /** Enable automatic canvas resize on window size change */
+  resizeCanvas: boolean;
+  /** Update the camera's aspect and projection matrix when the canvas resizes */
+  cameraResizeUpdate: boolean;
+  /** Maintain a fixed aspect ratio */
+  useFixedAspectRatio: boolean;
+  /** Use device pixel ratio (DPR) to set resolution of display */
+  useDPR: boolean;
+  /** Aspect ratio controller, e.g., '16:9' */
+  fixedAspectController: string;
+  /** Width part of fixed aspect ratio */
+  aspectWidth: number;
+  /** Height part of fixed aspect ratio */
+  aspectHeight: number;
+  /** Manually specify the device pixel ratio of the scene */
+  dprValue: number;
+};
+
 class App {
 
+	/**
+	 * @type {Renderer | THREE.WebGLRenderer}
+   * @private
+   * The renderer instance, can either be the modern Three.js Renderer or the legacy WebGLRenderer
+   */
 	#renderer: Renderer | THREE.WebGLRenderer;
-	rendererType: 'WebGL' | 'WebGPU';
+	/**
+ 	 * @type {RendererEnum}
+   * Specifies which renderer type is currently being used.
+   */
+	rendererType: RendererEnum;
+	/**
+ 	 * @type {THREE.PerspectiveCamera | THREE.OrthographicCamera}
+   * @private
+   * The camera used in the application.
+   */
 	#camera: THREE.PerspectiveCamera | THREE.OrthographicCamera;
 	#scene: THREE.Scene;
 	#clock: THREE.Clock;
 	#controls: OrbitControls;
-	#mesh: THREE.Mesh;
 	#stats: Stats;
 	#debugUI: GUI;
 	#debugUIMap = {};
-	#rendererSettings = {
+	#rendererSettings: RendererSettings = {
 		// Time Settings
 		useDeltaTime: true,
 		useFixedFrameRate: false,
@@ -49,7 +104,7 @@ class App {
 		fixedAspectController: '16:9',
 		aspectWidth: 16,
 		aspectHeight: 9,
-		dprValue: 'Device',
+		dprValue: window.devicePixelRatio,
 	};
 
 	#timeSinceLastUpdate = 0;
@@ -119,7 +174,6 @@ class App {
 		if ( cameraType === 'perspective' ) {
 
 			this.#camera = new THREE.PerspectiveCamera( 50, aspect, 0.1, 2000 );
-			this.#camera.position.z = 200;
 
 			this.#controls = new OrbitControls( this.#camera, this.#renderer.domElement );
 			// Smooths camera movement
@@ -297,7 +351,7 @@ class App {
 
 		} ).name( 'Fixed Aspect Ratio' );
 
-		this.#debugUIMap[ 'Resize Values' ].add( this.#rendererSettings, 'dprValue', [ 'Device', '0.1', '0.5', '1.0', '2.0', '3.0' ] ).onChange( () => {
+		this.#debugUIMap[ 'Resize Values' ].add( this.#rendererSettings, 'dprValue', [ 0.1, 0.5, 1.0, 2.0, 3.0, window.devicePixelRatio ] ).onChange( () => {
 
 			this.#onWindowResize();
 
@@ -387,12 +441,12 @@ class App {
 
 	#onWindowResize() {
 
-		const { cameraResizeUpdate, useFixedAspectRatio, aspectWidth, aspectHeight, dprValue } = this.#rendererSettings;
+		const { cameraResizeUpdate, useFixedAspectRatio, aspectWidth, aspectHeight } = this.#rendererSettings;
 
 		let canvasWidth = window.innerWidth;
 		let canvasHeight = window.innerHeight;
 
-		const dpr = dprValue === 'Device' ? window.devicePixelRatio : parseFloat( dprValue );
+		const dpr = this.#rendererSettings.dprValue ? this.#rendererSettings.dprValue : window.devicePixelRatio;
 
 		if ( useFixedAspectRatio ) {
 
@@ -425,6 +479,7 @@ class App {
 			this.#camera.aspect = useFixedAspectRatio ?
 				aspectWidth / aspectHeight :
 				window.innerWidth / window.innerHeight;
+
 			this.#camera.updateProjectionMatrix();
 
 		}
@@ -497,9 +552,25 @@ class App {
 
 	}
 
+	async loadShaders( path ) {
+
+		const vsh = await fetch( `${path}-vsh.glsl` ).then( ( res ) => res.text() );
+		const fsh = await fetch( `${path}-fsh.glsl` ).then( ( res ) => res.text() );
+
+		return { vertexShader: vsh, fragmentShader: fsh };
+
+	}
+
 	get Scene() {
 
 		return this.#scene;
+
+	}
+
+	setDPR( value ) {
+
+		this.#rendererSettings.dprValue = value;
+
 
 	}
 

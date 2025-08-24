@@ -80,10 +80,10 @@ class ParticleProject extends App {
 				sizeOverLife: { value: uniforms.sizeOverLifeTexture },
 				colourOverLife: { value: uniforms.colorOverLifeTexture },
 				twinkleOverLife: { value: uniforms.twinkleOverLifeTexture },
-				spinSpeed: { value: spinSpeed },
+				spinSpeed: { value: 0 },
 			},
-			vertexShader: this.#webGLShaders[ 'pointsVertex' ],
-			fragmentShader: this.#webGLShaders[ 'pointsFragment' ],
+			vertexShader: this.#webGLShaders[ 'points' ].vertexShader,
+			fragmentShader: this.#webGLShaders[ 'points' ].fragmentShader,
 			depthWrite: false,
 			depthTest: true,
 			transparent: true,
@@ -301,13 +301,13 @@ class ParticleProject extends App {
 
 		this.loadRGBE( './resources/moonless_golf_2k.hdr' );
 		this.Camera.position.set( 40, 1, 40 );
+		this.Camera.position.z = 150;
 		this.Camera.lookAt( new THREE.Vector3( 0, 0, 0 ) );
 
 		if ( this.rendererType === 'WebGL' ) {
 
     	// Load shaders
-			this.#webGLShaders[ 'pointsVertex' ] = await this.loadGLSLShader( './resources/shaders/points-vsh.glsl' );
-			this.#webGLShaders[ 'pointsFragment' ] = await this.loadGLSLShader( './resources/shaders/points-fsh.glsl' );
+			this.#webGLShaders[ 'points' ] = await this.loadShaders( './resources/shaders/points' );
 
 		}
 
@@ -328,7 +328,7 @@ window.addEventListener( 'DOMContentLoaded', async () => {
 	await APP_.initialize( {
 		projectName: 'Final Particles',
 		debug: false,
-		rendererType: 'WebGL',
+		rendererType: 'WebGPU',
 		initialCameraMode: 'perspective'
 	} );
 
