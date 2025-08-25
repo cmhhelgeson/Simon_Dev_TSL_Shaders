@@ -7,6 +7,9 @@ import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import Stats from 'three/addons/libs/stats.module.js';
+import { Font, FontLoader } from 'three/addons/loaders/FontLoader.js';
+import { GLTF, GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 
 type RendererEnum = 'WebGL' | 'WebGPU' | 'WebGLFallback'
 
@@ -59,6 +62,8 @@ type RendererSettings = {
   dprValue: number;
 };
 
+type GLTFLoadCallback = ( gltf: GLTF ) => void;
+
 class App {
 
 	/**
@@ -107,6 +112,10 @@ class App {
 		dprValue: window.devicePixelRatio,
 	};
 
+	#gltfLoader: GLTFLoader;
+	#fontLoader: FontLoader;
+	#ktx2Loader: KTX2Loader;
+
 	#timeSinceLastUpdate = 0;
 	#timeSinceLastRender = 0;
 
@@ -144,16 +153,18 @@ class App {
 
 			this.rendererType = 'WebGL';
 
-			return;
+		} else {
+
+			this.#renderer = new WebGPURenderer( {
+				canvas: documentCanvas,
+				forceWebGL: rendererType === 'WebGLFallback' ? true : false
+			} );
+
+			this.rendererType = 'WebGPU';
 
 		}
 
-		this.#renderer = new WebGPURenderer( {
-			canvas: documentCanvas,
-			forceWebGL: rendererType === 'WebGLFallback' ? true : false
-		} );
-
-		this.rendererType = 'WebGPU';
+		this.#renderer.shadowMap.enabled = true;
 
 	}
 
@@ -476,9 +487,13 @@ class App {
 
 		if ( cameraResizeUpdate ) {
 
-			this.#camera.aspect = useFixedAspectRatio ?
-				aspectWidth / aspectHeight :
-				window.innerWidth / window.innerHeight;
+			if ( this.#camera.type === 'PerspectiveCamera' ) {
+
+				( this.#camera as THREE.PerspectiveCamera ).aspect = useFixedAspectRatio ?
+					aspectWidth / aspectHeight :
+					window.innerWidth / window.innerHeight;
+
+			}
 
 			this.#camera.updateProjectionMatrix();
 
@@ -535,6 +550,124 @@ class App {
 		const shaderFile = await fetch( filePath );
 		const shaderText = await shaderFile.text();
 		return shaderText;
+
+	}
+
+	#setupKTX2Loader() {
+
+		this.#ktx2Loader = new KTX2Loader();
+		this.#ktx2Loader.setTranscoderPath( './libs/basis/' );
+		this.#ktx2Loader.detectSupport( this.#renderer );
+
+
+	}
+
+	async loadKTX2( path, srgb = true ): Promise<THREE.CompressedTexture> {
+
+		if ( this.#ktx2Loader === undefined ) {
+
+			this.#setupKTX2Loader();
+
+		}
+
+		return new Promise( ( resolve, reject ) => {
+
+			this.#ktx2Loader.load( path, ( texture ) => {
+
+				if ( srgb ) {
+
+					texture.encoding = THREE.sRGBEncoding;
+
+				}
+
+				resolve( texture );
+
+			} );
+
+		} );
+
+	}
+
+	async loadTexture( path, srgb = true ): Promise<THREE.Texture> {
+
+		if ( path.endsWith( '.ktx2' ) ) {
+
+			return this.loadKTX2( path, srgb );
+
+		} else {
+
+			return new Promise( ( resolve, reject ) => {
+
+				const loader = new THREE.TextureLoader();
+				loader.load( path, ( texture ) => {
+
+					if ( srgb ) {
+
+						texture.colorSpace = THREE.SRGBColorSpace;
+
+					}
+
+					resolve( texture );
+
+				} );
+
+			} );
+
+		}
+
+	}
+
+	loadModel( path: string, loadCallback: GLTFLoadCallback ) {
+
+		if ( this.#gltfLoader === undefined ) {
+
+			this.#gltfLoader = new GLTFLoader();
+
+		}
+
+		this.#gltfLoader.setPath( './resources/models/' );
+		this.#gltfLoader.load( path, loadCallback );
+
+	}
+
+	async loadFont( path ): Promise<Font> {
+
+		if ( this.#fontLoader === undefined ) {
+
+			this.#fontLoader = new FontLoader();
+
+		}
+
+		return new Promise( ( resolve, reject ) => {
+
+			this.#fontLoader.load( path, ( font ) => {
+
+				resolve( font );
+
+			} );
+
+
+		} );
+
+	}
+
+	async loadGLTF( path: string ): Promise<THREE.Group> {
+
+		if ( this.#gltfLoader === undefined ) {
+
+			this.#gltfLoader = new GLTFLoader();
+
+		}
+
+		return new Promise( ( resolve, reject ) => {
+
+			this.#gltfLoader.load( path, ( gltf: GLTF ) => {
+
+				resolve( gltf.scene );
+
+			} );
+
+		} );
 
 	}
 

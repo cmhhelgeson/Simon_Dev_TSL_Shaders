@@ -2,13 +2,16 @@ import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
 import { App } from '../../utils/App';
 import * as THREE from 'three';
 import { MeshBasicNodeMaterial, PointsNodeMaterial, SpriteNodeMaterial } from 'three/webgpu';
-import { attribute, float, Fn, mix, sin, smoothstep, time, vec3 } from 'three/tsl';
-import { MeshSurfaceSampler } from 'three/examples/jsm/Addons.js';
+import { attribute, float, Fn, fract, int, mix, sin, smoothstep, Switch, texture, time, vec3 } from 'three/tsl';
+import { MeshSurfaceSampler } from 'three/addons/math/MeshSurfaceSampler.js';
+import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
+import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+import Geometries from 'three/src/renderers/common/Geometries.js';
+import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+import { createTextMesh } from '../utils/text-utils';
 
 
 class GPGPUProject extends App {
-
-	#shaders = {};
 
 	constructor() {
 
@@ -26,7 +29,7 @@ class GPGPUProject extends App {
 
 	async #setupGPUParticlesStatelessSphere() {
 
-		const numParticles = 10000;
+		const numParticles = 256 * 256;
 
 		// Create first ampling mesh
 		const geol = new THREE.SphereGeometry( 2, 32, 32 );
@@ -37,57 +40,127 @@ class GPGPUProject extends App {
 		const mat2 = new MeshBasicNodeMaterial();
 		const mesh2 = new THREE.Mesh( geo2, mat2 );
 
-		// Sample from mesh
-		const sphereSampler = new MeshSurfaceSampler( mesh1 ).build();
-		const torusSampler = new MeshSurfaceSampler( mesh2 ).build();
+		const pumpkinGeos = [];
 
-		//Create point geometry
-		const positions = new Float32Array( numParticles * 3 );
-		const positions2 = new Float32Array( numParticles * 3 );
-		const pt = new THREE.Vector3();
+		const pumpkin = await this.loadGLTF( './resources/models/pumpkin.glb' );
+		// Pumpkin is small and offset from origin, so we need to account for that
+		pumpkin.children[ 0 ].position.set( 0, 0, 0 );
+		pumpkin.children[ 0 ].scale.setScalar( 0.01 );
+		pumpkin.children[ 0 ].traverse( ( child ) => {
 
-		for ( let i = 0; i < numParticles; i ++ ) {
+			child.updateMatrixWorld();
 
-			// Get sampled sphere into vec3
-			sphereSampler.sample( pt );
-			positions[ i * 3 ] = pt.x;
-			positions[ i * 3 + 1 ] = pt.y;
-			positions[ i * 3 + 2 ] = pt.z;
+			if ( child.isMesh ) {
 
-			torusSampler.sample( pt );
-			positions2[ i * 3 ] = pt.x;
-			positions2[ i * 3 + 1 ] = pt.y;
-			positions2[ i * 3 + 2 ] = pt.z;
+				if ( child.geometry ) {
 
+					const attribute = child.geometry.getAttribute( 'position' ).clone();
+					const geometry = new THREE.BufferGeometry();
+					geometry.setIndex( child.geometry.index );
+					geometry.setAttribute( 'position', attribute );
+					geometry.applyMatrix4( child.matrixWorld );
+					pumpkinGeos.push( geometry );
 
-		}
+				}
 
-		const positionAttributeSphere = new THREE.InstancedBufferAttribute( positions, 3 );
-		const positionAttributeTorus = new THREE.InstancedBufferAttribute( positions2, 3 );
+			}
+
+		} );
+
+		const combinedGeometry = BufferGeometryUtils.mergeGeometries( pumpkinGeos );
+		const mat3 = new MeshBasicNodeMaterial();
+		const combineMesh = new THREE.Mesh( combinedGeometry, mat3 );
+
+		const font = await this.loadFont( './resources/fonts/optimer_bold.typeface.json' );
+
+		const textMesh = createTextMesh( 'Hello World!', font );
+
+		const meshes = [ mesh1, mesh2, combineMesh, textMesh ];
+		const attributeNames = [ 'sphereSurfacePos', 'torusSurfacePos', 'pumpkinSurfacePos', 'textSurfacePos' ];
 
 		const positionFn = Fn( () => {
 
-			const spherePosition = attribute( 'sphereSurfacePosition' );
-			const torusPosition = attribute( 'torusSurfacePosition' );
+			const spherePosition = attribute( attributeNames[ 0 ] );
+			const torusPosition = attribute( attributeNames[ 1 ] );
+			const pumpkinPosition = attribute( attributeNames[ 2 ] );
+			const textPosition = attribute( attributeNames[ 3 ] );
 
-			return mix( spherePosition, torusPosition, smoothstep( 0, 1.0, sin( time ).add( 1 ).div( 2 ) ) );
+
+			const scaledTime = time.div( 2 );
+
+			// TODO: Likely only needs to be calculated once on CPU
+			const blendIndex = scaledTime.modInt( 4 );
+
+			const position = vec3( 0.0 );
+
+			const timing = smoothstep( 0.1, 0.9, fract( scaledTime ) );
+
+
+			Switch( blendIndex ).Case( int( 0 ), () => {
+
+				position.assign( mix( spherePosition, torusPosition, timing ) );
+
+			} ).Case( int( 1 ), () => {
+
+				position.assign( mix( torusPosition, pumpkinPosition, timing ) );
+
+			} ).Case( ( int( 2 ) ), () => {
+
+				position.assign( mix( pumpkinPosition, textPosition, timing ) );
+
+			} ).Case( ( int( 3 ) ), () => {
+
+				position.assign( mix( textPosition, spherePosition, timing ) );
+
+			} );
+
+			return position;
 
 		} );
+
+		const diffuseTexture = await this.loadTexture( './resources/textures/circle.png' );
 
 		const pointMaterial = new PointsNodeMaterial( {
 			positionNode: positionFn(),
 			sizeNode: float( 5.0 ),
 			sizeAttenuation: true,
+			colorNode: texture( diffuseTexture ),
+			blending: THREE.AdditiveBlending,
+			transparent: true,
+			depthWrite: false,
+			depthTest: false,
 		} );
 
 		const particlesSprite = new THREE.Sprite( pointMaterial );
 		particlesSprite.count = numParticles;
 
+		const pt = new THREE.Vector3();
 
-		particlesSprite.geometry.setAttribute( 'sphereSurfacePosition', positionAttributeSphere );
-		particlesSprite.geometry.setAttribute( 'torusSurfacePosition', positionAttributeTorus );
+		for ( let i = 0; i < meshes.length; i ++ ) {
 
-		this.Scene.add( particlesSprite );
+			const mesh = meshes[ i ];
+			const attributeName = attributeNames[ i ];
+
+			const sampler = new MeshSurfaceSampler( mesh ).build();
+
+			const positions = new Float32Array( numParticles * 3 );
+
+			for ( let i = 0; i < numParticles; i ++ ) {
+
+				// Get sampled sphere into vec3
+				sampler.sample( pt );
+				positions[ i * 3 ] = pt.x;
+				positions[ i * 3 + 1 ] = pt.y;
+				positions[ i * 3 + 2 ] = pt.z;
+
+				const posAttribute = new THREE.InstancedBufferAttribute( positions, 3 );
+				particlesSprite.geometry.setAttribute( attributeName, posAttribute );
+
+			}
+
+			this.Scene.add( particlesSprite );
+
+		}
 
 	}
 
