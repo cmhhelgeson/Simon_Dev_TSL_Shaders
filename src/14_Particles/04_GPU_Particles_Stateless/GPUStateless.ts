@@ -158,9 +158,9 @@ class GPGPUProject extends App {
 
 			}
 
-			this.Scene.add( particlesSprite );
-
 		}
+
+		this.Scene.add( particlesSprite );
 
 	}
 
@@ -206,7 +206,7 @@ window.addEventListener( 'DOMContentLoaded', async () => {
 
 	await APP_.initialize( {
 		debug: true,
-		projectName: 'GPGPU Particles',
+		projectName: 'GPGPU Particles Stateless',
 		rendererType: 'WebGPU',
 		initialCameraMode: 'perspective',
 	} );

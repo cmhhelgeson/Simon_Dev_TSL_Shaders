@@ -1,6 +1,6 @@
 /* eslint-disable compat/compat */
 import * as THREE from 'three';
-import { Renderer, WebGPURenderer } from 'three/webgpu';
+import { ComputeNode, Renderer, WebGPURenderer } from 'three/webgpu';
 
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
@@ -10,6 +10,7 @@ import Stats from 'three/addons/libs/stats.module.js';
 import { Font, FontLoader } from 'three/addons/loaders/FontLoader.js';
 import { GLTF, GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
+import { ShaderNodeObject } from 'three/tsl';
 
 type RendererEnum = 'WebGL' | 'WebGPU' | 'WebGLFallback'
 
@@ -115,6 +116,8 @@ class App {
 	#gltfLoader: GLTFLoader;
 	#fontLoader: FontLoader;
 	#ktx2Loader: KTX2Loader;
+
+	#computeShaders: ShaderNodeObject<ComputeNode>[] = [];
 
 	#timeSinceLastUpdate = 0;
 	#timeSinceLastRender = 0;
@@ -393,7 +396,7 @@ class App {
 
 			if ( useFixedFrameRate ) {
 
-				// # of times per second to update the state
+				// # of times per second to update the state (called cpuFrameInterval but also just for any state update)
 				const cpuFrameInterval = 1 / fixedCPUFPS;
 				// # of times per second to render a frame
 				const gpuFrameInterval = 1 / fixedGPUFPS;
@@ -430,7 +433,32 @@ class App {
 
 		this.onStep( deltaTime, totalTimeElapsed );
 
+		// TODO: Determine some way to make scheduling of compute shaders more flexible
+		// I.E before or after this.onStep
+
+		for ( const computeShader of this.#computeShaders ) {
+
+			this.compute( computeShader );
+
+		}
+
 		//this.#controls.update( deltaTime );
+
+	}
+
+	scheduleComputeShaders( computeShaders: ShaderNodeObject<ComputeNode>[] ) {
+
+		this.#computeShaders.push( ...computeShaders );
+
+	}
+
+	compute( fn ) {
+
+		if ( this.rendererType !== 'WebGL' ) {
+
+			( this.#renderer as WebGPURenderer ).computeAsync( fn );
+
+		}
 
 	}
 

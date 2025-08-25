@@ -10,7 +10,7 @@ export const createTextMesh = (
 	font: Font,
 ) => {
 
-	const textGeo = new TextGeometry( 'Hello, World!', {
+	const textGeo = new TextGeometry( text, {
 		font: font,
 		size: 1,
 		depth: 0.5,
