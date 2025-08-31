@@ -1,6 +1,6 @@
 /* eslint-disable compat/compat */
 import * as THREE from 'three';
-import { ComputeNode, Renderer, WebGPURenderer } from 'three/webgpu';
+import { ComputeNode, Renderer, UniformNode, WebGPURenderer } from 'three/webgpu';
 
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
@@ -10,7 +10,7 @@ import Stats from 'three/addons/libs/stats.module.js';
 import { Font, FontLoader } from 'three/addons/loaders/FontLoader.js';
 import { GLTF, GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
-import { ShaderNodeObject } from 'three/tsl';
+import { ShaderNodeObject, uniform } from 'three/tsl';
 
 type RendererEnum = 'WebGL' | 'WebGPU' | 'WebGLFallback'
 
@@ -22,7 +22,8 @@ interface AppInitializationOptions {
 	/* The renderer to use in the project */
 	rendererType?: RendererEnum,
 	/* Whether the scene is first rendered using a perspective or an orthographic camera */
-	initialCameraMode?: 'perspective' | 'orthographic'
+	initialCameraMode?: 'perspective' | 'orthographic',
+	fixedFrameRate?: number
 }
 
 /**
@@ -119,6 +120,10 @@ class App {
 
 	#computeShaders: ShaderNodeObject<ComputeNode>[] = [];
 
+	deltaTimeUniform: ShaderNodeObject<UniformNode<number>> = uniform( 0 );
+	timeUniform: ShaderNodeObject<UniformNode<number>> = uniform( 0 );
+
+
 	#timeSinceLastUpdate = 0;
 	#timeSinceLastRender = 0;
 
@@ -171,7 +176,7 @@ class App {
 
 	}
 
-	#setupRenderer( options ) {
+	#setupRenderer( options: AppInitializationOptions ) {
 
 		this.#getRenderer( options.rendererType ? options.rendererType : 'WebGPU' );
 
@@ -184,6 +189,15 @@ class App {
 
 		const aspect = window.innerWidth / window.innerHeight;
 		const cameraType = options.initialCameraMode ? options.initialCameraMode : 'perspective';
+
+		if ( options.fixedFrameRate !== undefined ) {
+
+			this.#rendererSettings.fixedUnifiedFPS = options.fixedFrameRate;
+			this.#rendererSettings.fixedCPUFPS = options.fixedFrameRate;
+			this.#rendererSettings.fixedGPUFPS = options.fixedFrameRate;
+			this.#rendererSettings.useFixedFrameRate = true;
+
+		}
 
 		if ( cameraType === 'perspective' ) {
 
@@ -214,7 +228,7 @@ class App {
 
 	}
 
-	async #setupProject( options ) {
+	async #setupProject( options: AppInitializationOptions ) {
 
 		await this.#setupRenderer( options );
 
@@ -586,7 +600,6 @@ class App {
 		this.#ktx2Loader = new KTX2Loader();
 		this.#ktx2Loader.setTranscoderPath( './libs/basis/' );
 		this.#ktx2Loader.detectSupport( this.#renderer );
-
 
 	}
 

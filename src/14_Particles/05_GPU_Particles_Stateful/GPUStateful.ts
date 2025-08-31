@@ -2,20 +2,25 @@ import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
 import { App } from '../../utils/App';
 import * as THREE from 'three';
 import { ComputeNode, MeshBasicNodeMaterial, PointsNodeMaterial, SpriteNodeMaterial, StorageBufferNode, StorageInstancedBufferAttribute } from 'three/webgpu';
-import { attribute, float, Fn, storage, fract, instanceIndex, instancedArray, int, mix, sin, smoothstep, Switch, texture, time, vec3, deltaTime, ShaderNodeObject, vec4 } from 'three/tsl';
+import { attribute, float, Fn, storage, fract, instanceIndex, instancedArray, int, mix, sin, smoothstep, Switch, texture, time, vec3, deltaTime, ShaderNodeObject, vec4, distance, If, exp, negate, normalize, uniform, clamp } from 'three/tsl';
 import { MeshSurfaceSampler } from 'three/addons/math/MeshSurfaceSampler.js';
-import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
-import { FontLoader } from 'three/addons/loaders/FontLoader.js';
-import Geometries from 'three/src/renderers/common/Geometries.js';
-import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 import { createTextMesh } from '../utils/text-utils';
-import { noise34 } from '../utils/noise';
+import { curlNoiseWGSL, noise34 } from '../utils/noise';
+import { CalculateAttractorForce, CalculateRepulsorForce } from '../utils/attractionShader';
 
 
 class GPGPUProject extends App {
 
 	#storageBuffers: Record<string, ShaderNodeObject<StorageBufferNode>> = {};
 	#computeShaders: Record<string, ShaderNodeObject<ComputeNode>> = {};
+
+	#uniforms = {
+
+		attractorIntensity: uniform( 1000.0 ),
+		attractorDecay: uniform( 1.0 ),
+		attractorRadius: uniform( 1.0 ),
+
+	};
 
 	constructor() {
 
@@ -86,18 +91,24 @@ class GPGPUProject extends App {
 
 		}
 
-		const prevPositions = currentPositions.slice();
+		const prevPositions = structuredClone( currentPositions );
+		const originalPositions = structuredClone( currentPositions );
 
 		const currentPosAttribute = new StorageInstancedBufferAttribute( currentPositions, 3 );
 		const prevPosAttribute = new StorageInstancedBufferAttribute( prevPositions, 3 );
+		const originalPosAttribute = new StorageInstancedBufferAttribute( originalPositions, 3 );
 		this.#storageBuffers.currentPositionBuffer = storage( currentPosAttribute, 'vec3', numParticles );
 		this.#storageBuffers.prevPositionBuffer = storage( prevPosAttribute, 'vec3', numParticles );
+		this.#storageBuffers.originalPositionBuffer = storage( originalPosAttribute, 'vec3', numParticles );
 		particlesSprite.geometry.setAttribute( 'currentPosition', currentPosAttribute );
 		//particlesSprite.geometry.setAttribute( 'prevPosition', prevPosAttribute );
 
+		const maxFrameTime = 1 / 60;
+
 		const computePositionFn = Fn( () => {
 
-			const { currentPositionBuffer, prevPositionBuffer } = this.#storageBuffers;
+			const { currentPositionBuffer, prevPositionBuffer, originalPositionBuffer } = this.#storageBuffers;
+			const { attractorIntensity, attractorRadius } = this.#uniforms;
 
 			const currentPosition = currentPositionBuffer.element( instanceIndex ).toVar();
 			const prevPosition = prevPositionBuffer.element( instanceIndex ).toVar();
@@ -107,11 +118,24 @@ class GPGPUProject extends App {
 
 			const forces = vec3( 0.0 );
 
-			forces.addAssign(noise34({x: vec4(currentPosition, time)}));
+			// Particles may move away from original text structure
+			// but are compelled or "attracted" back
+			const originalPosition = originalPositionBuffer.element( instanceIndex );
 
-			forces.addAssign( noise34( vec4( currentPosition, time ) ) );
-			forces.mulAssign( deltaTime );
-			forces.mulAssign( deltaTime );
+			forces.addAssign( CalculateAttractorForce(
+				currentPosition,
+				originalPosition,
+				attractorRadius,
+				float( 1.0 ),
+				attractorIntensity
+			) );
+
+			forces.addAssign( noise34( { x: vec4( currentPosition, time ) } ) );
+
+			const clampedDeltaTime = clamp( deltaTime, 0.001, maxFrameTime );
+
+			forces.mulAssign( clampedDeltaTime );
+			forces.mulAssign( clampedDeltaTime );
 
 			const newPosition = currentPosition.add( deltaPosition.mul( drag ) ).add( forces );
 
@@ -124,6 +148,11 @@ class GPGPUProject extends App {
 
 		this.#computeShaders.computePosition = computePositionFn;
 
+		this.DebugGui.add( this.#uniforms.attractorIntensity, 'value', 10.0, 1000.0 ).step( 10.0 ).name( 'Attractor Intensity' );
+		// Small radius means more strict pull
+		this.DebugGui.add( this.#uniforms.attractorRadius, 'value', 0.1, 10.0 ).step( 0.1 ).name( 'Attractor Radius' );
+
+
 		//this.Camera.position.set( 0, 2.2, 9.4 );
 
 		this.Scene.add( particlesSprite );
@@ -134,7 +163,6 @@ class GPGPUProject extends App {
 	onStep( dt: number, totalTimeElapsed: number ) {
 
 		this.compute( this.#computeShaders.computePosition );
-
 
 	}
 
@@ -148,6 +176,7 @@ window.addEventListener( 'DOMContentLoaded', async () => {
 		projectName: 'GPGPU Particles Stateful',
 		rendererType: 'WebGPU',
 		initialCameraMode: 'perspective',
+		fixedFrameRate: 60,
 	} );
 
 } );
