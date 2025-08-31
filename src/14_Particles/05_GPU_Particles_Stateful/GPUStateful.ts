@@ -2,13 +2,14 @@ import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
 import { App } from '../../utils/App';
 import * as THREE from 'three';
 import { ComputeNode, MeshBasicNodeMaterial, PointsNodeMaterial, SpriteNodeMaterial, StorageBufferNode, StorageInstancedBufferAttribute } from 'three/webgpu';
-import { attribute, float, Fn, storage, fract, instanceIndex, instancedArray, int, mix, sin, smoothstep, Switch, texture, time, vec3, deltaTime, ShaderNodeObject } from 'three/tsl';
+import { attribute, float, Fn, storage, fract, instanceIndex, instancedArray, int, mix, sin, smoothstep, Switch, texture, time, vec3, deltaTime, ShaderNodeObject, vec4 } from 'three/tsl';
 import { MeshSurfaceSampler } from 'three/addons/math/MeshSurfaceSampler.js';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 import { FontLoader } from 'three/addons/loaders/FontLoader.js';
 import Geometries from 'three/src/renderers/common/Geometries.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 import { createTextMesh } from '../utils/text-utils';
+import { noise34 } from '../utils/noise';
 
 
 class GPGPUProject extends App {
@@ -25,7 +26,7 @@ class GPGPUProject extends App {
 	async onSetupProject( projectFolder?: GUI ): Promise<void> {
 
 		await this.loadRGBE( './resources/moonless_golf_2k.hdr' );
-		this.Camera.position.z = 4;
+		this.Camera.position.z = 20;
 		await this.#setupGPUParticlesStatelessSphere();
 
 	}
@@ -104,7 +105,13 @@ class GPGPUProject extends App {
 			const deltaPosition = currentPosition.sub( prevPosition );
 			const drag = float( 1.0 );
 
-			const forces = vec3( 0.0, - 0.001, 0.0 ).mul( deltaTime ).mul( deltaTime );
+			const forces = vec3( 0.0 );
+
+			forces.addAssign(noise34({x: vec4(currentPosition, time)}));
+
+			forces.addAssign( noise34( vec4( currentPosition, time ) ) );
+			forces.mulAssign( deltaTime );
+			forces.mulAssign( deltaTime );
 
 			const newPosition = currentPosition.add( deltaPosition.mul( drag ) ).add( forces );
 
