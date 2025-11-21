@@ -1,8 +1,8 @@
 import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
-import { App } from '../../utils/App';
+import { App } from '../../../utils/App';
 import * as THREE from 'three';
 import { ComputeNode, MeshBasicNodeMaterial, Node, PointsNodeMaterial, SpriteNodeMaterial, StorageBufferNode, StorageInstancedBufferAttribute } from 'three/webgpu';
-import { attribute, float, Fn, storage, fract, instanceIndex, instancedArray, int, mix, sin, Switch, texture, time, vec3, deltaTime, ShaderNodeObject, vec4, positionLocal, smoothstep, clamp, uint, ivec2 } from 'three/tsl';
+import { attribute, float, Fn, storage, fract, instanceIndex, instancedArray, int, mix, sin, Switch, texture, time, vec3, deltaTime, vec4, positionLocal, smoothstep, clamp, uint, ivec2 } from 'three/tsl';
 import { MeshSurfaceSampler } from 'three/addons/math/MeshSurfaceSampler.js';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 import { FontLoader } from 'three/addons/loaders/FontLoader.js';
@@ -28,8 +28,8 @@ const GRID_BOUNDS_MIN = GRID_CENTER.clone().sub(
 
 class GPGPUProject extends App {
 
-	#storageBuffers: Record<string, ShaderNodeObject<StorageBufferNode>> = {};
-	#computeShaders: Record<string, ShaderNodeObject<ComputeNode>> = {};
+	#storageBuffers: Record<string, StorageBufferNode> = {};
+	#computeShaders: Record<string, ComputeNode> = {};
 	#debugScene: THREE.Scene;
 	#debugShaders: Record<string, Node>;
 
@@ -41,7 +41,7 @@ class GPGPUProject extends App {
 
 	async onSetupProject( projectFolder?: GUI ): Promise<void> {
 
-		await this.loadRGBE( './resources/moonless_golf_2k.hdr' );
+		await this.loadHDRBackground( './resources/moonless_golf_2k.hdr' );
 		this.Camera.position.z = 4;
 		this.#debugScene = new THREE.Scene();
 		await this.#setupGPUParticlesStatelessSphere();

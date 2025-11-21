@@ -9,11 +9,11 @@ import {
 	normalize,
 	color,
 } from 'three/tsl';
-import { Node, ShaderNodeObject } from 'three/tsl';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+import { MeshStandardNodeMaterial, Node, WebGPURenderer } from 'three/webgpu';
 
 let renderer, camera, scene, gui;
 
@@ -51,7 +51,7 @@ const init = async () => {
 	scene.background = cubemap;
 
 	const loader = new GLTFLoader();
-	const suzanneMaterial = new THREE.MeshStandardNodeMaterial();
+	const suzanneMaterial = new MeshStandardNodeMaterial();
 
 	const hemiLight = new THREE.HemisphereLight( 0xffffff, 0xffffff, 1 );
 	hemiLight.color.setHSL( 0.6, 1, 0.6 );
@@ -59,8 +59,7 @@ const init = async () => {
 	hemiLight.position.set( 0, 20, 0 );
 	scene.add( hemiLight );
 
-	const shaders: Record<ShaderType, ShaderNodeObject<Node>> = {
-
+	const shaders: Record<ShaderType, Node> = {
 
 		// Basic Ambient lighting
 		'Basic Ambient': Fn( () => {
@@ -78,7 +77,6 @@ const init = async () => {
 
 			// Equivalent of normalize(vNormal);
 			return normalize( normalGeometry );
-
 
 		} )(),
 
@@ -120,7 +118,7 @@ const init = async () => {
 
 	} );
 
-	renderer = new THREE.WebGPURenderer( { antialias: true } );
+	renderer = new WebGPURenderer( { antialias: true } );
 	renderer.setSize( window.innerWidth, window.innerHeight );
 	renderer.setAnimationLoop( animate );
 	renderer.outputColorSpace = THREE.LinearSRGBColorSpace;

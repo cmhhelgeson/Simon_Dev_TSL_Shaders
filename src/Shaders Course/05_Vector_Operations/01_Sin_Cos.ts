@@ -17,7 +17,8 @@ import {
 	float,
 	viewportSize,
 	time,
-	ShaderNodeObject,
+	uint,
+	int
 } from 'three/tsl';
 import { MeshBasicNodeMaterial, Node } from 'three/webgpu';
 
@@ -59,7 +60,7 @@ class SinCos extends App {
 		const red = vec3( 1.0, 0.0, 0.0 );
 		const blue = vec3( 0.0, 0.0, 1.0 );
 
-		const shaders: Record<ShaderType, ShaderNodeObject<Node>> = {
+		const shaders: Record<ShaderType, Node> = {
 
 			'Basic Sin': Fn( () => {
 
@@ -134,7 +135,7 @@ class SinCos extends App {
 
 				const coord = pixel.div( cellSize );
 				const subcoord = coord.mul(
-					vec2( select( 3.0, cellSize, cellSize.greaterThan( 6 ) ),
+					vec2( select( cellSize.greaterThan( 6 ), uint( 3.0 ), cellSize ),
 						1.0
 					) );
 
@@ -149,7 +150,7 @@ class SinCos extends App {
 
 				const color = texture( map, samplePoint );
 
-				const ind = floor( subcoord.x ).modInt( 3 );
+				const ind = floor( subcoord.x ).mod( int( 3 ) );
 
 				const maskColor = vec3(
 					ind.equal( 0.0 ),

@@ -2,8 +2,9 @@
 import * as THREE from 'three';
 import { float, texture, vec3, sin, instanceIndex, time, instance, instancedBufferAttribute, instancedDynamicBufferAttribute, vec2, Fn } from 'three/tsl';
 
-import { App } from '../utils/App';
+import { App } from '../../../utils/App';
 import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
+import { PointsNodeMaterial } from 'three/webgpu';
 
 interface ParticleInfo {
   life: number,
@@ -34,7 +35,7 @@ class ParticleProject extends App {
 
 	#particles: ParticleInfo[] = [];
 	#particlesData: ParticlesData;
-	#particleMaterial: THREE.PointsNodeMaterial;
+	#particleMaterial: PointsNodeMaterial;
 
 	constructor() {
 
@@ -90,7 +91,7 @@ class ParticleProject extends App {
 		const angleAttribute = new THREE.InstancedBufferAttribute( angles, 1 );
 		const alphaAttribute = new THREE.InstancedBufferAttribute( alphas, 1 );
 		const colorAttribute = new THREE.InstancedBufferAttribute( colors, 3 );
-		this.#particleMaterial = new THREE.PointsNodeMaterial( {
+		this.#particleMaterial = new PointsNodeMaterial( {
 			color: 0xffffff,
 			rotationNode: instancedDynamicBufferAttribute( angleAttribute ),
 			positionNode: instancedDynamicBufferAttribute( positionAttribute ),
@@ -202,7 +203,7 @@ class ParticleProject extends App {
 
 	async onSetupProject( projectFolder?: GUI ): Promise<void> {
 
-		this.loadRGBE( './resources/moonless_golf_2k.hdr' );
+		this.loadHDRBackground( './resources/moonless_golf_2k.hdr' );
 
 		this.#createPointsParticleSystem();
 
@@ -212,8 +213,15 @@ class ParticleProject extends App {
 
 const APP_ = new ParticleProject();
 
+const rendererType = 'WebGPU';
+
 window.addEventListener( 'DOMContentLoaded', async () => {
 
-	await APP_.initialize();
+	await APP_.initialize( {
+		debug: true,
+		projectName: `${rendererType} GPGPU Particles`,
+		rendererType: rendererType,
+		initialCameraMode: 'perspective'
+	} );
 
 } );

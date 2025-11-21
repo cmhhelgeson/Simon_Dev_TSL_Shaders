@@ -1,7 +1,7 @@
 import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
 import * as THREE from 'three';
 import { ComputeNode, MeshBasicNodeMaterial, PointsNodeMaterial, SpriteNodeMaterial, StorageBufferNode, StorageInstancedBufferAttribute } from 'three/webgpu';
-import { attribute, float, Fn, storage, fract, instanceIndex, instancedArray, int, mix, sin, smoothstep, Switch, texture, time, vec3, deltaTime, ShaderNodeObject, vec4, distance, If, exp, negate, normalize, uniform, clamp, vec2 } from 'three/tsl';
+import { attribute, float, Fn, storage, fract, instanceIndex, instancedArray, int, mix, sin, smoothstep, Switch, texture, time, vec3, deltaTime, vec4, distance, If, exp, negate, normalize, uniform, clamp, vec2 } from 'three/tsl';
 import { MeshSurfaceSampler } from 'three/addons/math/MeshSurfaceSampler.js';
 import { CalculateAttractorForce, CalculateRepulsorForce } from '../utils/attractionShader';
 import { App } from '../utils/App';
@@ -29,8 +29,8 @@ export const groundHash = Fn( ( [ p ] ) => {
 
 class GrassSetup extends App {
 
-	#storageBuffers: Record<string, ShaderNodeObject<StorageBufferNode>> = {};
-	#computeShaders: Record<string, ShaderNodeObject<ComputeNode>> = {};
+	#storageBuffers: Record<string, StorageBufferNode> = {};
+	#computeShaders: Record<string, ComputeNode> = {};
 
 	#uniforms = {
 
@@ -48,7 +48,7 @@ class GrassSetup extends App {
 
 	async onSetupProject( projectFolder?: GUI ): Promise<void> {
 
-		await this.loadRGBE( './resources/moonless_golf_2k.hdr' );
+		await this.loadHDRBackground( './resources/moonless_golf_2k.hdr' );
 		this.Camera.position.z = 20;
 		await this.#setupGrassInitialScene();
 

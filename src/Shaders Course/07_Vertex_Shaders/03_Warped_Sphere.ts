@@ -15,8 +15,7 @@ import {
 	normalGeometry,
 	time,
 } from 'three/tsl';
-import { UniformNode } from 'three/webgpu';
-import { Node, ShaderNodeObject, } from 'three/tsl';
+import { MeshStandardNodeMaterial, UniformNode, WebGPURenderer, Node } from 'three/webgpu';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
@@ -42,7 +41,7 @@ const init = async () => {
 
 	const varyingColor = varyingProperty( 'vec3', 'vColor' );
 
-	const vertexShaders: Record<ShaderType, ShaderNodeObject<Node>> = {
+	const vertexShaders: Record<ShaderType, Node> = {
 		'Warp Sphere': Fn( () => {
 
 			const { undulationUniform, undulationExtrusion } = effectController;
@@ -68,7 +67,7 @@ const init = async () => {
 
 	};
 
-	const fragmentShaders: Record<ShaderType, ShaderNodeObject<Node>> = {
+	const fragmentShaders: Record<ShaderType, Node> = {
 
 		'Warp Sphere': Fn( () => {
 
@@ -92,7 +91,7 @@ const init = async () => {
 	const cubemap = new THREE.CubeTextureLoader().load( urls );
 	scene.background = cubemap;
 
-	const sphereMaterial = new THREE.MeshStandardNodeMaterial();
+	const sphereMaterial = new MeshStandardNodeMaterial();
 	sphereMaterial.positionNode = vertexShaders[ effectController[ 'Current Shader' ] ];
 	sphereMaterial.colorNode = fragmentShaders[ effectController[ 'Current Shader' ] ];
 
@@ -109,7 +108,7 @@ const init = async () => {
 	scene.add( light );
 	scene.add( light2 );
 
-	renderer = new THREE.WebGPURenderer( { antialias: true } );
+	renderer = new WebGPURenderer( { antialias: true } );
 	renderer.setSize( window.innerWidth, window.innerHeight );
 	renderer.setAnimationLoop( animate );
 	renderer.outputColorSpace = THREE.LinearSRGBColorSpace;

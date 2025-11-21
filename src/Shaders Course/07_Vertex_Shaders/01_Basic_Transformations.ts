@@ -8,11 +8,11 @@ import {
 	positionLocal,
 	rotate,
 } from 'three/tsl';
-import { Node, ShaderNodeObject } from 'three/tsl';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+import { MeshStandardNodeMaterial, Node, WebGPURenderer } from 'three/webgpu';
 
 let renderer, camera, scene, gui;
 
@@ -39,7 +39,7 @@ const init = async () => {
 		'Current Shader': 'Move Z'
 	};
 
-	const shaders: Record<ShaderType, ShaderNodeObject<Node>> = {
+	const shaders: Record<ShaderType, Node> = {
 		'Move Z': Fn( () => {
 
 			const position = positionLocal.toVar( 'newPosition' );
@@ -115,7 +115,7 @@ const init = async () => {
 	scene.background = cubemap;
 
 	const loader = new GLTFLoader();
-	const suzanneMaterial = new THREE.MeshStandardNodeMaterial();
+	const suzanneMaterial = new MeshStandardNodeMaterial();
 	suzanneMaterial.positionNode = shaders[ 'Move Z' ];
 
 	const light = new THREE.DirectionalLight( 0xffffff, 2 );
@@ -139,7 +139,7 @@ const init = async () => {
 
 	} );
 
-	renderer = new THREE.WebGPURenderer( { antialias: true } );
+	renderer = new WebGPURenderer( { antialias: true } );
 	renderer.setSize( window.innerWidth, window.innerHeight );
 	renderer.setAnimationLoop( animate );
 	renderer.outputColorSpace = THREE.LinearSRGBColorSpace;

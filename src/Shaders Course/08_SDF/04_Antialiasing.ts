@@ -20,12 +20,9 @@ import {
 	If,
 } from 'three/tsl';
 
-import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { DrawGrid, SDFBox, SDFCircle } from './util';
-import { MeshBasicNodeMaterial, WebGPURenderer } from 'three/webgpu';
-import { App } from '../utils/App';
-
-let renderer, camera, scene, gui;
+import { MeshBasicNodeMaterial } from 'three/webgpu';
+import { App } from '../../utils/App';
 
 enum ShapeEnum {
 	CIRCLE,

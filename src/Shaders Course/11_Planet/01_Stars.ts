@@ -1,9 +1,9 @@
 
 import * as THREE from 'three';
-import { uniform, viewportSize, Fn, time, sin, mix, floor, float, vec3, dot, fract, uint, Loop, uv, negate, length, smoothstep, vec2, ShaderNodeObject, exp, If, abs, remap, sqrt } from 'three/tsl';
+import { uniform, viewportSize, Fn, time, sin, mix, floor, float, vec3, dot, fract, uint, Loop, uv, negate, length, smoothstep, vec2, exp, If, abs, remap, sqrt } from 'three/tsl';
 
 import { MeshBasicNodeMaterial, Node } from 'three/webgpu';
-import { App } from '../utils/App';
+import { App } from '../../utils/App';
 
 const hash3 = ( pNode ) => {
 
@@ -316,7 +316,7 @@ class Stars extends App {
 			inputs: starsInputs,
 		} );
 
-		const fragmentShaders: Record<ShaderType, ShaderNodeObject<Node>> = {
+		const fragmentShaders: Record<ShaderType, Node> = {
 			'Step 1: UV': Fn( () => {
 
 				return uv().sub( 0.5 ).mul( viewportSize );

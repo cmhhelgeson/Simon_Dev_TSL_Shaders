@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { vec3, Fn, uniform } from 'three/tsl';
 import { MeshBasicNodeMaterial } from 'three/webgpu';
-import { App } from '../utils/App';
+import { App } from '../../utils/App';
 
 class SimpleColorsAndRGB extends App {
 

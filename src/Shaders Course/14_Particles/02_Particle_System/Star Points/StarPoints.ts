@@ -157,7 +157,7 @@ class ParticleProject extends App {
 
 	async onSetupProject( projectFolder?: GUI ): Promise<void> {
 
-		this.loadRGBE( './resources/moonless_golf_2k.hdr' );
+		this.loadHDRBackground( './resources/moonless_golf_2k.hdr' );
 
 		this.#createPointsParticleSystem();
 

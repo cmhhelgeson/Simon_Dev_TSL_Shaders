@@ -25,13 +25,12 @@ import {
 	int,
 	Loop,
 	sin,
-	floor,
-	ShaderNodeObject,
+	floor
 } from 'three/tsl';
 import { SDFLine } from '../08_SDF/util';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
-import { Node } from 'three/webgpu';
+import { Node, WebGPURenderer } from 'three/webgpu';
 
 let renderer, camera, scene, gui;
 
@@ -600,7 +599,7 @@ const init = async () =>{
 		],
 	} );
 
-	const shaders: Record<ShaderType, ShaderNodeObject<Node>> = {
+	const shaders: Record<ShaderType, Node> = {
 		'Graph': Fn( () => {
 
 			const {
@@ -670,7 +669,7 @@ const init = async () =>{
 	const quad = new THREE.Mesh( geometry, material );
 	scene.add( quad );
 
-	renderer = new THREE.WebGPURenderer( { antialias: false } );
+	renderer = new WebGPURenderer( { antialias: false } );
 	renderer.setSize( window.innerWidth, window.innerHeight );
 	renderer.setAnimationLoop( animate );
 	renderer.outputColorSpace = THREE.LinearSRGBColorSpace;

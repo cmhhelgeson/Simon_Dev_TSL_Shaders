@@ -1,16 +1,16 @@
 /* eslint-disable compat/compat */
 import * as THREE from 'three';
-import { ComputeNode, Renderer, UniformNode, WebGPURenderer } from 'three/webgpu';
+import { ComputeNode, Renderer, UniformNode, WebGPURenderer, Scene, Camera, Object3DEventMap } from 'three/webgpu';
 
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
+import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import Stats from 'three/addons/libs/stats.module.js';
 import { Font, FontLoader } from 'three/addons/loaders/FontLoader.js';
 import { GLTF, GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
-import { ShaderNodeObject, uniform } from 'three/tsl';
+import { uniform } from 'three/tsl';
 
 type RendererEnum = 'WebGL' | 'WebGPU' | 'WebGLFallback'
 
@@ -118,10 +118,16 @@ class App {
 	#fontLoader: FontLoader;
 	#ktx2Loader: KTX2Loader;
 
-	#computeShaders: ShaderNodeObject<ComputeNode>[] = [];
+	#computeShaders: ComputeNode[] = [];
 
-	deltaTimeUniform: ShaderNodeObject<UniformNode<number>> = uniform( 0 );
-	timeUniform: ShaderNodeObject<UniformNode<number>> = uniform( 0 );
+	deltaTimeUniform: UniformNode<number> = uniform( 0 );
+	timeUniform: UniformNode<number> = uniform( 0 );
+
+	#handleRender: ( scene: THREE.Scene<Object3DEventMap>, camera: THREE.Camera ) => void = () => {
+
+		console.log( 'define render handleer' );
+
+	};
 
 
 	#timeSinceLastUpdate = 0;
@@ -143,7 +149,7 @@ class App {
 	constructor() {
 	}
 
-	#getRenderer( rendererType: RendererEnum ) {
+	async #getRenderer( rendererType: RendererEnum ) {
 
 		const documentCanvas = document.getElementById( 'c' ) as HTMLCanvasElement;
 
@@ -161,14 +167,30 @@ class App {
 
 			this.rendererType = 'WebGL';
 
+			this.#handleRender = ( scene: THREE.Scene<Object3DEventMap>, camera: THREE.Camera ) => {
+
+				this.#renderer.render( scene, camera );
+
+			};
+
 		} else {
+
+			console.log( 'test getRenderer' );
 
 			this.#renderer = new WebGPURenderer( {
 				canvas: documentCanvas,
 				forceWebGL: rendererType === 'WebGLFallback' ? true : false
 			} );
 
+			await this.#renderer.init();
+
 			this.rendererType = 'WebGPU';
+
+			this.#handleRender = ( scene: THREE.Scene<Object3DEventMap>, camera: THREE.Camera ) => {
+
+				this.#renderer.render( scene, camera );
+
+			};
 
 		}
 
@@ -176,9 +198,9 @@ class App {
 
 	}
 
-	#setupRenderer( options: AppInitializationOptions ) {
+	async #setupRenderer( options: AppInitializationOptions ) {
 
-		this.#getRenderer( options.rendererType ? options.rendererType : 'WebGPU' );
+		await this.#getRenderer( options.rendererType ? options.rendererType : 'WebGPU' );
 
 		this.#renderer.setSize( window.innerWidth, window.innerHeight );
 		this.#renderer.setClearColor( 0x000000 );
@@ -460,7 +482,7 @@ class App {
 
 	}
 
-	scheduleComputeShaders( computeShaders: ShaderNodeObject<ComputeNode>[] ) {
+	scheduleComputeShaders( computeShaders: ComputeNode[] ) {
 
 		this.#computeShaders.push( ...computeShaders );
 
@@ -480,15 +502,7 @@ class App {
 
 		// App specific code executed per render
 		this.onRender( deltaTime );
-		if ( this.rendererType === 'WebGL' ) {
-
-			this.#renderer.render( this.#scene, this.#camera );
-
-		} else {
-
-			( this.#renderer as WebGPURenderer ).renderAsync( this.#scene, this.#camera );
-
-		}
+		this.#handleRender( this.#scene, this.#camera );
 
 	}
 
@@ -712,9 +726,42 @@ class App {
 
 	}
 
-	loadRGBE( path ) {
+	disposeEnvironment( tex: THREE.Texture ) {
 
-		const rgbeLoader = new RGBELoader();
+		if ( tex instanceof THREE.Texture ) {
+
+			tex.dispose();
+
+			if ( tex.source.data instanceof ImageBitmap ) {
+
+				tex.source.data.close();
+
+			}
+
+		}
+
+
+	}
+
+	loadHDRBackground( path ) {
+
+		const rgbeLoader = new HDRLoader();
+
+		// Dispose of existing environment
+		if ( this.#scene.environment !== null ) {
+
+			this.disposeEnvironment( this.#scene.environment );
+
+			console.log( this.#scene.environment );
+
+		}
+
+		if ( this.#scene.background && this.#scene.background instanceof THREE.Texture ) {
+
+			this.disposeEnvironment( this.#scene.background );
+
+		}
+
 		rgbeLoader.load( path, ( hdrTexture ) => {
 
 			hdrTexture.mapping = THREE.EquirectangularReflectionMapping;
@@ -741,6 +788,18 @@ class App {
 
 	}
 
+	get BackgroundMap() {
+
+		return this.Scene.background;
+
+	}
+
+	get EnvironmentMap() {
+
+		return this.Scene.environment;
+
+	}
+
 	setDPR( value ) {
 
 		this.#rendererSettings.dprValue = value;
@@ -751,6 +810,13 @@ class App {
 	get Camera() {
 
 		return this.#camera;
+
+	}
+
+	get PerspectiveCamera() {
+
+		return ( this.#camera as THREE.PerspectiveCamera );
+
 
 	}
 

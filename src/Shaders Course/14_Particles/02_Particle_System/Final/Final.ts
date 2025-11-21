@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { attribute, Fn, mix, sin, texture, time, uniform, vec2, vec3 } from 'three/tsl';
 
-import { App } from '../../../utils/App';
+import { App } from '../../../../utils/App';
 
 import { ParticleSystem, EmitterParameters, Emitter, PointEmitterShape, Particle } from '../../utils/particle-system';
 import { PointsNodeMaterial } from 'three/webgpu';
@@ -23,6 +23,8 @@ class ParticleProject extends App {
 	#uniformTypes = {};
 	#currentUniformType = 'Explosion';
 	#webGLShaders = {};
+
+	#createMaterialHandler;
 
 	constructor() {
 
@@ -71,6 +73,8 @@ class ParticleProject extends App {
 
 	createWebGLMaterial( uniforms: ParticleUniformsType, blending?: THREE.Blending )	 {
 
+		console.log( 'test' );
+
 		const spinSpeed = ( typeof uniforms.spinSpeed === 'number' ) ? uniforms.spinSpeed : uniforms.spinSpeed.value;
 
 		const material = new THREE.ShaderMaterial( {
@@ -95,6 +99,8 @@ class ParticleProject extends App {
 	}
 
 	createMaterial( uniforms: ParticleUniformsType, blending?: THREE.Blending ) {
+
+		console.log( this.rendererType );
 
 		return this.rendererType === 'WebGPU' ? this.createWebGPUMaterial( uniforms, blending ) : this.createWebGLMaterial( uniforms, blending );
 
@@ -299,7 +305,7 @@ class ParticleProject extends App {
 
 	async onSetupProject( ): Promise<void> {
 
-		this.loadRGBE( './resources/moonless_golf_2k.hdr' );
+		this.loadHDRBackground( './resources/moonless_golf_2k.hdr' );
 		this.Camera.position.set( 40, 1, 40 );
 		this.Camera.position.z = 150;
 		this.Camera.lookAt( new THREE.Vector3( 0, 0, 0 ) );
@@ -308,6 +314,12 @@ class ParticleProject extends App {
 
     	// Load shaders
 			this.#webGLShaders[ 'points' ] = await this.loadShaders( './resources/shaders/points' );
+			this.#createMaterialHandler = this.createWebGLMaterial;
+
+		} else {
+
+			this.#createMaterialHandler = this.createWebGPUMaterial;
+
 
 		}
 

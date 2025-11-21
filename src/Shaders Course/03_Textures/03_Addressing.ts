@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { uniform, Fn, texture, uv } from 'three/tsl';
-import { App } from '../utils/App';
+import { App } from '../../utils/App';
 import { MeshBasicNodeMaterial } from 'three/webgpu';
 
 

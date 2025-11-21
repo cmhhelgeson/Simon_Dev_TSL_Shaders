@@ -12,8 +12,7 @@ import {
 	pow,
 	uniform,
 } from 'three/tsl';
-import { UniformNode } from 'three/webgpu';
-import { Node, ShaderNodeObject, } from 'three/tsl';
+import { UniformNode, Node, WebGPURenderer } from 'three/webgpu';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
@@ -48,7 +47,7 @@ const init = async () => {
 	const varyingColor = varyingProperty( 'vec3', 'vColor' );
 	const varyingT = varyingProperty( 'float', 'vT' );
 
-	const vertexShaders: Record<ShaderType, ShaderNodeObject<Node>> = {
+	const vertexShaders: Record<ShaderType, Node> = {
 		'Varying Color': Fn( () => {
 
 			varyingColor.assign( vec3( 1.0, 0.0, 0.0 ) );
@@ -88,7 +87,7 @@ const init = async () => {
 
 	};
 
-	const fragmentShaders: Record<ShaderType, ShaderNodeObject<Node>> = {
+	const fragmentShaders: Record<ShaderType, Node> = {
 
 		'Varying Color': Fn( () => {
 
@@ -168,7 +167,7 @@ const init = async () => {
 	scene.add( light );
 	scene.add( light2 );
 
-	renderer = new THREE.WebGPURenderer( { antialias: true } );
+	renderer = new WebGPURenderer( { antialias: true } );
 	renderer.setSize( window.innerWidth, window.innerHeight );
 	renderer.setAnimationLoop( animate );
 	renderer.outputColorSpace = THREE.LinearSRGBColorSpace;

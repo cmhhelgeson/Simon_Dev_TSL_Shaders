@@ -1,8 +1,6 @@
 import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
-import { App } from '../../utils/App';
+import { App } from '../../../utils/App';
 import * as THREE from 'three';
-import { PointsNodeMaterial, SpriteNodeMaterial } from 'three/webgpu';
-import { attribute, float } from 'three/tsl';
 
 
 class GPGPUProject extends App {
@@ -17,7 +15,7 @@ class GPGPUProject extends App {
 
 	async onSetupProject( projectFolder?: GUI ): Promise<void> {
 
-		await this.loadRGBE( './resources/moonless_golf_2k.hdr' );
+		await this.loadHDRBackground( './resources/moonless_golf_2k.hdr' );
 		this.Camera.position.z = 4;
 		await this.#setupGPUParticlesStateless();
 		this.setDPR( 0.5 );

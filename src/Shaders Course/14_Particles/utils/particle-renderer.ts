@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { attribute, instancedBufferAttribute, instancedDynamicBufferAttribute, mix, ShaderNodeObject, sin, texture, time, vec2, vec3 } from 'three/tsl';
+import { attribute, instancedBufferAttribute, instancedDynamicBufferAttribute, mix, sin, texture, time, vec2, vec3 } from 'three/tsl';
 import { PointsNodeMaterial, SpriteNodeMaterial, UniformNode } from 'three/webgpu';
 import MATH from './math';
 import { Fn } from 'three/src/nodes/TSL.js';
@@ -21,11 +21,11 @@ export interface ParticleUniformsType {
 	colorOverLifeTexture: THREE.DataTexture
 	map: THREE.Texture,
 	twinkleOverLifeTexture: THREE.DataTexture,
-	spinSpeed: number | ShaderNodeObject<UniformNode<number>>
+	spinSpeed: number | UniformNode<number>
 }
 
 export interface ParticleUniformsTypeWebGPU extends ParticleUniformsType {
-	spinSpeed: number | ShaderNodeObject<UniformNode<number>>
+	spinSpeed: number | UniformNode<number>
 }
 
 
@@ -40,14 +40,14 @@ export interface ParticleRendererParams {
 	maxDisplayParticles: number,
 	scene: THREE.Scene,
 	group: THREE.Group,
-	uniforms: Record<string, ShaderNodeObject<UniformNode<number>>>
+	uniforms: Record<string, UniformNode<number>>
 }
 
 export class ParticleRenderer {
 
 	#backend: ParticleRendererBackend;
 
-	constructor( renderer: 'WebGL' | 'WebGPU' = 'WebGPU' ) {
+	constructor( renderer: 'WebGL' | 'WebGPU' | 'WebGLFallback' = 'WebGPU' ) {
 
 		this.#backend = renderer === 'WebGPU' ? new ParticleRendererWebGPUBackend() : new ParticleRendererWebGLBackend();
 

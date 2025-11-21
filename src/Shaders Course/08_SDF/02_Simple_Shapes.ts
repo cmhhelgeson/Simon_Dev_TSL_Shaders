@@ -16,7 +16,7 @@ import {
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { SDFCircle, DrawGrid } from './util';
-import { App } from '../utils/App';
+import { App } from '../../utils/App';
 import { MeshBasicNodeMaterial } from 'three/webgpu';
 
 class SimpleShapes extends App {

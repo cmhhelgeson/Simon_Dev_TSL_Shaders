@@ -2,11 +2,12 @@
 import * as THREE from 'three';
 import { uniform } from 'three/tsl';
 
-import { App } from '../../../utils/App';
+import { App } from '../../../../utils/App';
 
 import MATH from '../../utils/math';
+import { ParticleRenderer } from '../../utils/particle-renderer';
 
-import { ParticleRenderer, ParticleSystem, EmitterParameters, Emitter, PointEmitterShape } from '../../utils/particle-system';
+import { ParticleSystem, EmitterParameters, Emitter, PointEmitterShape } from '../../utils/particle-system';
 import { SpriteNodeMaterial } from 'three/webgpu';
 
 class ParticleProject extends App {
@@ -167,7 +168,7 @@ class ParticleProject extends App {
 
 	async onSetupProject( ): Promise<void> {
 
-		this.loadRGBE( './resources/moonless_golf_2k.hdr' );
+		this.loadHDRBackground( './resources/moonless_golf_2k.hdr' );
 
 		this.#createPointsParticleSystem();
 

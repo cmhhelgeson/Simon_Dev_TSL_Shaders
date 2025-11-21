@@ -11,12 +11,10 @@ import {
 	uv,
 	vec3,
 	time,
-	ShaderNodeObject
 } from 'three/tsl';
 import { MeshBasicNodeMaterial, Node } from 'three/webgpu';
 
-import { App } from '../utils/App';
-
+import { App } from '../../utils/App';
 
 // step(edge, x): Generate a step function by comparing x to edge
 // if (x < edge) return 0.0;
@@ -56,7 +54,7 @@ class StepMixSmoothstep extends App {
 		const blue = vec3( 0.0, 0.0, 1.0 );
 		const white = vec3( 1.0, 1.0, 1.0 );
 
-		const shaders: Record<ShaderType, ShaderNodeObject<Node>> = {
+		const shaders: Record<ShaderType, Node> = {
 
 			'Step': Fn( () => {
 

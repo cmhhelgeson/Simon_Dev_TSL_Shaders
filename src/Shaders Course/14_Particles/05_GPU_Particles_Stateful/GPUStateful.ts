@@ -1,8 +1,8 @@
 import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
-import { App } from '../../utils/App';
+import { App } from '../../../utils/App';
 import * as THREE from 'three';
-import { ComputeNode, MeshBasicNodeMaterial, PointsNodeMaterial, SpriteNodeMaterial, StorageBufferNode, StorageInstancedBufferAttribute } from 'three/webgpu';
-import { attribute, float, Fn, storage, fract, instanceIndex, instancedArray, int, mix, sin, smoothstep, Switch, texture, time, vec3, deltaTime, ShaderNodeObject, vec4, distance, If, exp, negate, normalize, uniform, clamp } from 'three/tsl';
+import { ComputeNode, MeshBasicNodeMaterial, PointsNodeMaterial, SpriteNodeMaterial, StorageBufferNode, StorageInstancedBufferAttribute, Node } from 'three/webgpu';
+import { attribute, float, Fn, storage, fract, instanceIndex, instancedArray, int, mix, sin, smoothstep, Switch, texture, time, vec3, deltaTime, vec4, distance, If, exp, negate, normalize, uniform, clamp } from 'three/tsl';
 import { MeshSurfaceSampler } from 'three/addons/math/MeshSurfaceSampler.js';
 import { createTextMesh } from '../utils/text-utils';
 import { curlNoiseWGSL, noise34 } from '../utils/noise';
@@ -11,8 +11,8 @@ import { CalculateAttractorForce, CalculateRepulsorForce } from '../utils/attrac
 
 class GPGPUProject extends App {
 
-	#storageBuffers: Record<string, ShaderNodeObject<StorageBufferNode>> = {};
-	#computeShaders: Record<string, ShaderNodeObject<ComputeNode>> = {};
+	#storageBuffers: Record<string, StorageBufferNode> = {};
+	#computeShaders: Record<string, ComputeNode> = {};
 
 	#uniforms = {
 
@@ -30,7 +30,7 @@ class GPGPUProject extends App {
 
 	async onSetupProject( projectFolder?: GUI ): Promise<void> {
 
-		await this.loadRGBE( './resources/moonless_golf_2k.hdr' );
+		await this.loadHDRBackground( './resources/moonless_golf_2k.hdr' );
 		this.Camera.position.z = 20;
 		await this.#setupGPUParticlesStatelessSphere();
 

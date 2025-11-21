@@ -19,7 +19,7 @@ import {
 } from 'three/tsl';
 
 import { DrawGrid } from './util';
-import { App } from '../utils/App';
+import { App } from '../../utils/App';
 import { MeshBasicNodeMaterial } from 'three/webgpu';
 
 

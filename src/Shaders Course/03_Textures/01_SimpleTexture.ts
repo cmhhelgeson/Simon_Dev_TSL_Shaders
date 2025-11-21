@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { uniform, Fn, texture, viewportCoordinate, textureSize } from 'three/tsl';
-import { App } from '../utils/App';
+import { App } from '../../utils/App';
 import { MeshBasicNodeMaterial } from 'three/webgpu';
 
 class SimpleTexture extends App {

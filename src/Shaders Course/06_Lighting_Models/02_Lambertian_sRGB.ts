@@ -12,13 +12,12 @@ import {
 	dot,
 	If,
 	uint,
-	toOutputColorSpace,
 } from 'three/tsl';
-import { Node, ShaderNodeObject } from 'three/tsl';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
+import { MeshStandardNodeMaterial, Node, WebGPURenderer } from 'three/webgpu';
 
 let renderer, camera, scene, gui;
 
@@ -67,7 +66,7 @@ const init = async () => {
 	scene.background = cubemap;
 
 	const loader = new GLTFLoader();
-	const suzanneMaterial = new THREE.MeshStandardNodeMaterial();
+	const suzanneMaterial = new MeshStandardNodeMaterial();
 
 	const lights: Record<string, THREE.Light> = {
 		'HemisphereLight': new THREE.HemisphereLight( 0x0095cb, 0xcb9659, 1 ),
@@ -78,7 +77,7 @@ const init = async () => {
 	scene.add( lights[ 'HemisphereLight' ] );
 	scene.add( lights[ 'DirectionalLight' ] );
 
-	const shaders: Record<ShaderType, ShaderNodeObject<Node>> = {
+	const shaders: Record<ShaderType, Node> = {
 		// Basic Ambient lighting
 		'Basic Ambient': Fn( () => {
 
@@ -113,7 +112,7 @@ const init = async () => {
 
 			If( linearToSRGBCond.equal( 1 ), () => {
 
-				color.assign( toOutputColorSpace( color ) );
+				//color.assign( colorSpaceToWorking( color ) );
 
 			} );
 
@@ -140,7 +139,7 @@ const init = async () => {
 
 			If( linearToSRGBCond.equal( 1 ), () => {
 
-				color.assign( toOutputColorSpace( color ) );
+				//color.assign( toOutputColorSpace( color ) );
 
 			} );
 
@@ -172,7 +171,7 @@ const init = async () => {
 
 	} );
 
-	renderer = new THREE.WebGPURenderer( { antialias: true } );
+	renderer = new WebGPURenderer( { antialias: true } );
 	renderer.setSize( window.innerWidth, window.innerHeight );
 	renderer.setAnimationLoop( animate );
 	renderer.outputColorSpace = THREE.LinearSRGBColorSpace;

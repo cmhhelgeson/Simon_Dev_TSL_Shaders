@@ -12,7 +12,7 @@
 //	Material -> Material
 // 	Instance -> Mesh
 
-import { App } from '../App';
+import { App } from '../../../utils/App';
 import * as THREE from 'three';
 
 

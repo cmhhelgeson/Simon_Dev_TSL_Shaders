@@ -1,18 +1,14 @@
 import * as THREE from 'three';
 import { MeshBasicNodeMaterial, Node } from 'three/webgpu';
-import { vec3, Fn, uv, ShaderNodeObject, Var } from 'three/tsl';
-import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
-import { App } from '../utils/App';
+import { vec3, Fn, uv } from 'three/tsl';
+import { App } from '../../utils/App';
 
-let renderer, camera, scene, gui;
 
 type EffectType = 'Show UV X' | 'Show UV Y' | 'Show UV' | 'Homework'
 
 class Varyings extends App {
 
 	async onSetupProject(): Promise<void> {
-
-
 
 		const geometry = new THREE.PlaneGeometry( 2, 2 );
 		const material = new MeshBasicNodeMaterial();
@@ -27,7 +23,7 @@ class Varyings extends App {
 		// three/src/nodes/accessors/UV.js
 		// export const uv = ( index ) => attribute( 'uv' + ( index > 0 ? index : '' ), 'vec2' );
 
-		const effects: Record<EffectType, ShaderNodeObject<Node>> = {
+		const effects: Record<EffectType, Node> = {
 			'Show UV X': Fn( () => {
 
 				const vUV = uv();

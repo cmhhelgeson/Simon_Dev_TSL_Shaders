@@ -10,7 +10,6 @@ import {
 	floor,
 	mix,
 	uniform,
-	ShaderNodeObject
 } from 'three/tsl';
 
 import { MeshBasicNodeMaterial, Node } from 'three/webgpu';
@@ -65,7 +64,7 @@ class NoiseIntro extends App {
 
 		}, { position: 'vec2', return: 'float' } );
 
-		const shaders: Record<ShaderType, ShaderNodeObject<Node>> = {
+		const shaders: Record<ShaderType, Node> = {
 			'Random Noise': Fn( () => {
 
 				const { seed } = effectController;

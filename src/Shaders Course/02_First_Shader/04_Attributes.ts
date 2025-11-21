@@ -1,10 +1,7 @@
 import * as THREE from 'three';
 import { attribute, Fn } from 'three/tsl';
 import { App } from '../../utils/App';
-import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
 import { MeshBasicNodeMaterial } from 'three/webgpu';
-
-let renderer, camera, scene;
 
 class Attributes extends App {
 

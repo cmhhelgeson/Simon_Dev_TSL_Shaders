@@ -1,8 +1,7 @@
 import * as THREE from 'three';
 import { uniform, Fn, mix, clamp, min, max, select, smoothstep, abs, uv, vec3 } from 'three/tsl';
-import { ShaderNodeObject } from 'three/tsl';
 
-import { App } from '../utils/App';
+import { App } from '../../utils/App';
 import { MeshBasicNodeMaterial, Node } from 'three/webgpu';
 
 
@@ -48,7 +47,7 @@ class MinMax extends App {
 
 		};
 
-		const shaders: Record<ShaderType, ShaderNodeObject<Node>> = {
+		const shaders: Record<ShaderType, Node> = {
 
 			'Lines': Fn( () => {
 

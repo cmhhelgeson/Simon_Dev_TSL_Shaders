@@ -20,7 +20,7 @@ import {
 
 import { DrawGrid, SDFBox } from './util';
 import { MeshBasicNodeMaterial } from 'three/webgpu';
-import { App } from '../utils/App';
+import { App } from '../../utils/App';
 import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
 
 class Transformations extends App {

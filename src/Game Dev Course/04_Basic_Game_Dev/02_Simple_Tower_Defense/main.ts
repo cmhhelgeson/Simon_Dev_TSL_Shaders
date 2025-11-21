@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import { App } from '../../App';
+import { App } from '../../../utils/App';
 import { GLTF } from 'three/examples/jsm/Addons.js';
+import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
 
 
 // GLTF Scene can contain an array of animations
@@ -73,7 +74,7 @@ class SimpleTowerDefense extends App {
 		this.Scene.backgroundIntensity = 0.5;
 		this.Scene.environmentIntensity = 0.5;
 
-		this.loadRGBE( './resources/skybox/rosendal_park_sunset_1k.hdr' );
+		this.loadHDRBackground( './resources/skybox/rosendal_park_sunset_1k.hdr' );
 
 
 	}

@@ -21,7 +21,7 @@ class GPGPUProject extends App {
 
 	async onSetupProject( projectFolder?: GUI ): Promise<void> {
 
-		await this.loadRGBE( './resources/moonless_golf_2k.hdr' );
+		await this.loadHDRBackground( './resources/moonless_golf_2k.hdr' );
 		this.Camera.position.z = 4;
 		await this.#setupGPUParticlesStatelessSphere();
 

@@ -3,7 +3,6 @@ import * as THREE from 'three/webgpu';
 import { WebGPURenderer } from 'three/webgpu';
 
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { Pane } from 'tweakpane';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 
@@ -333,7 +332,7 @@ class App {
 			} else {
 
 				this.#step( deltaTime );
-				this.#render( deltaTime );
+				this.#render( );
 
 			}
 

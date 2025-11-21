@@ -1,11 +1,8 @@
 import * as THREE from 'three';
 import { uniform, Fn, texture, uv, vec3, textureSize, floor, vec2, mix, fract, If, uint, smoothstep } from 'three/tsl';
 
-import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { MeshBasicNodeMaterial } from 'three/webgpu';
-import { App } from '../utils/App';
-
-let renderer, camera, scene, gui;
+import { App } from '../../utils/App';
 
 const externalFilterModes = {
 	'NearestFilter': THREE.NearestFilter,

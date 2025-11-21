@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { uniform, Fn, texture, mix } from 'three/tsl';
 import { MeshBasicNodeMaterial } from 'three/webgpu';
-import { App } from '../utils/App';
+import { App } from '../../utils/App';
 
 
 class Alpha extends App {

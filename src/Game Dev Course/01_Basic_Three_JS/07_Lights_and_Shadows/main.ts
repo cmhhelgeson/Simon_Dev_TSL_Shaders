@@ -47,7 +47,7 @@
 //		Provide Resolution up close, while also catching far away details
 //		at a lower resolution.
 //		Cost is re-rendering the scene a few time
-import { App } from '../../App';
+import { App } from '../../../utils/App';
 import * as THREE from 'three';
 
 interface SettingsType {
