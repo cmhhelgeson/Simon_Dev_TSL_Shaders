@@ -1,0 +1,133 @@
+Having well-known, established patterns across the codebase allows
+multiple people to work across it at the same time.
+
+You want to construct your game such that, for instance,
+you can build it with one physics engine, then swap out that
+physics engine for a separate one, all while the game still
+remains in place.
+
+Decoupling: Break game down into small, discrete pieces.
+One person changing physics shouldn't have an cross-contaminating
+effect on rendering or time management for instance.
+
+Balance simplicity and flexibility. 
+Simplicity negates flexibility and flexibility negates simplicity.
+
+Predicability: Code that behaves consistently.
+	Code will behave the same way given the same inputs.
+	If you're using a random number generator, it needs
+	to be seeded with the same value from run to run.
+Determinism: Same inputs always produce the same outputs
+
+
+Patterns:
+	Singleton:
+		Ensures that only one instance of a class exists.
+		A global point of access to a single instance.
+		Good to have for things like logger, resource manager, game manager, other global state
+		Advantages:
+			- Ensures a single instance, reducing the risk of inconsistent state
+			Can do lazy initialization (i.e logger or resource manager only
+			created when it's needed rather than at the start)
+				- Counter to deterministic code
+		Disadvantages:
+			- Introduces tight coupling issues, where one piece of code
+			can depend highly on the state of a singleton.
+			- Need to be careful in multi-threaded environment
+	Factory:
+		- Defines interface for creating an object
+		- Allows subclasses to alter how object will be created
+		- Exact type of object may not be known till runtime
+		- Object creation is complex and readability can be improved by isolating
+		creation logic from usage logic
+		- Advantages: 
+			- Decouple creation from usage
+		- Disadvantages:
+			- Additional layer of abstraction that increases code complexity
+	Abstract Factory:
+		- Interface for creating related objects
+		- Enforces relationship between objects
+		- Good for when family of object is related and needs to be used together
+		- Makes objects consistent if they are used together
+		- Increased flexibility at cost of complexity
+	Prototype:
+		- Create new objects by copying an existing one
+		- For instance, it may be cheaper to clone or copy an existing monster
+			over creating a new one. If you have to read a JSON file with the monster's
+			parameters each time you create it, then it may be cheaper just to clone
+			that monster.
+		- However, the cloning process itself can be labor-intensive and high-maintenance
+	Composite: 
+		- Compose objects into tree structures
+		- Treat a group of objects as a single object (analogue to THREE.Group()?)
+		- Entities in games often touch on multiple systems (rendering, physics, etc)
+		- Example: 
+				- Game Monster: 
+						: Rendering Component
+						: Logic of Monster
+						: Physics
+						: All Composed Together into one single "component"
+				- Scene Graph is an example (again THREE.Group())
+		- Advantages: Treat individual objects and compositions the same way
+		- Disadvantages: Complexity, especially on large projects
+	Decorator: 
+		- Allows behavior to be added to an individual object
+		- Crucially, adding behavior to this object does not affect other
+			objects of the same class
+		- Use cases: temporary power-ups
+		- Simon does not like using this pattern
+		- Advantages: Extend objects without code
+		- Disadvantages: (say the line Bart) C-O-M-P-L-E-X-I-T-Y
+	Adapter:
+		- Allows incompatible interfaces to work together
+		- Good for integrating legacy systems, or allowing new systems to used
+			old one with minimal changes
+		- Advantages: Allows the reuse of existing functionality
+		- Disadvantages: Complexity, may end up adapting adapters that 
+			adapted the original system that was adapted (adaptation ouroboros)
+	Facade: 
+		- A simplified interface for a complex subsystem
+		- Use cases: abstraction layer over complex library
+		- Instead of interacting with this complexity directly, you interact
+			with the facade
+		- Advantages: Reduces complexity, makes it harder to get wrong
+		- Disadvantages: 
+			 - You will be restricted by the limitations imposed by the facade
+			 - Overhead of implementing the system itself and the facade
+	Observer:
+		- Defines a one to many dependency between objects
+		- When one object changes state, its dependents change
+				: For front-end devs, think about how when a piece of React state changes
+				: all its dependent DOM elements change as well
+		- Use cases:
+				- Where Changes in on part of the application need to propogate out everywhere
+				- UI being a major instance
+		- Advantages: Loose coupling between subjects and observers
+		- Disadvantages: Increase complexity and overhead
+	State:
+		- Object will alter its behavior when its internal state changes,
+			almost as if it has changed its class
+		- Objects changes behavior based on their state. Think of a racing
+			game where a car than transform into a car or a submarine. The change
+			in state (from car to aeroplane) will change the object's internal behavior
+		- State pattern used extensively with state machines
+		- Advantages:
+			- Makes state transitions explicit and manageable
+			- Encapsulates state specific behavior
+			- Can drive all game logic
+		- Disadvantages:
+			- C-O-M-P-L-E-X-I-T-Y
+	Strategy:
+		- Defines a family of algorithms to encapsulate, and makes the interchangeable
+		- Advantages:
+			- Swap in new algorithms without changing surrounding logic
+	Command:
+		- Encapsulates request as an object
+		- Use cases: Redo/undo, queueing and executing requests at different times
+		- Decoupling Advantage
+		- Complexity Disadvantage
+
+You want to understand the common design patterns to be come more effective as a developer.
+They exist to make your code easier to use or maintain or scale.
+When developing the code, refer back to the design patterns.
+
