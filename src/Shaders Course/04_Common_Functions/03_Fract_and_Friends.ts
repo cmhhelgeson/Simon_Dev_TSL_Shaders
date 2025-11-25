@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { fract, Fn, mix, If, round, ceil, viewportSize, floor, uniform, max, smoothstep, abs, uv, vec3 } from 'three/tsl';
 
-import { App } from '../utils/App';
-import { MeshBasicNodeMaterial } from 'three/webgpu';
+import { App } from '../../utils/App';
+import { MeshBasicNodeMaterial, Node } from 'three/webgpu';
 
 // abs(a) - returns the absolute value of a
 // return a < 0 > -a : a;
@@ -72,7 +72,7 @@ class FractAndFriends extends App {
 			const xAxis = smoothstep( 0, 0.002, abs( vUv.y.sub( 0.5 ) ) );
 			const yAxis = smoothstep( 0, 0.002, abs( vUv.x.sub( 0.5 ) ) );
 
-			const createFunctionLine = ( xVal ) => {
+			const createFunctionLine = ( xVal: Node | number ) => {
 
 				return smoothstep( 0.0, 0.075, abs( pos.y.sub( xVal ) ) );
 

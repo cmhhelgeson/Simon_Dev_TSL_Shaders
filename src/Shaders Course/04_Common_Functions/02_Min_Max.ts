@@ -41,7 +41,7 @@ class MinMax extends App {
 		const blue = vec3( 0.0, 0.0, 1.0 );
 		const white = vec3( 1.0, 1.0, 1.0 );
 
-		const fakeClamp = ( val, minVal, maxVal ) => {
+		const fakeClamp = ( val: Node | number, minVal: Node | number, maxVal: Node | number ) => {
 
 			return min( maxVal, max( minVal, val ) );
 
@@ -74,14 +74,14 @@ class MinMax extends App {
 
 		};
 
-		material.colorNode = shaders[ effectController.currentShader ];
+		material.colorNode = shaders[ effectController.currentShader as ShaderType ];
 
 		const quad = new THREE.Mesh( geometry, material );
 		this.Scene.add( quad );
 
 		this.DebugGui.add( effectController, 'currentShader', Object.keys( shaders ) ).onChange( () => {
 
-			material.colorNode = shaders[ effectController.currentShader ];
+			material.colorNode = shaders[ effectController.currentShader as ShaderType ];
 			material.needsUpdate = true;
 
 		} );

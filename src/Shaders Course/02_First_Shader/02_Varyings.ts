@@ -57,7 +57,7 @@ class Varyings extends App {
 
 		};
 
-		const effectController = {
+		const effectController: Record<string, EffectType> = {
 			effect: 'Show UV X'
 		};
 

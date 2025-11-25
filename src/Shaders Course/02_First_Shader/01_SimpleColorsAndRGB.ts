@@ -1,4 +1,3 @@
-/* eslint-disable compat/compat */
 import * as THREE from 'three';
 import { vec3, Fn, uniform } from 'three/tsl';
 import { MeshBasicNodeMaterial } from 'three/webgpu';

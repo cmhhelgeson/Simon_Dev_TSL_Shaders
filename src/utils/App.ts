@@ -1,6 +1,6 @@
 /* eslint-disable compat/compat */
 import * as THREE from 'three';
-import { ComputeNode, Renderer, UniformNode, WebGPURenderer, Scene, Camera, Object3DEventMap } from 'three/webgpu';
+import { ComputeNode, UniformNode, WebGPURenderer, Scene, Camera, Object3DEventMap, PostProcessing } from 'three/webgpu';
 
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
@@ -11,8 +11,10 @@ import { Font, FontLoader } from 'three/addons/loaders/FontLoader.js';
 import { GLTF, GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { uniform } from 'three/tsl';
+import { RenderCallback, ThreeRenderer } from './types';
+import { PostProcessingMachine } from './PostProcessingMachine';
 
-type RendererEnum = 'WebGL' | 'WebGPU' | 'WebGLFallback'
+type RendererEnum = 'WebGPU' | 'WebGLFallback'
 
 interface AppInitializationOptions {
 	/* The name of the application and the title of the page */
@@ -69,28 +71,28 @@ type GLTFLoadCallback = ( gltf: GLTF ) => void;
 class App {
 
 	/**
-	 * @type {Renderer | THREE.WebGLRenderer}
+	 * @type {THRE}
    * @private
    * The renderer instance, can either be the modern Three.js Renderer or the legacy WebGLRenderer
    */
-	#renderer: Renderer | THREE.WebGLRenderer;
+	#renderer!: ThreeRenderer;
 	/**
  	 * @type {RendererEnum}
    * Specifies which renderer type is currently being used.
    */
-	rendererType: RendererEnum;
+	rendererType!: RendererEnum;
 	/**
  	 * @type {THREE.PerspectiveCamera | THREE.OrthographicCamera}
    * @private
    * The camera used in the application.
    */
-	#camera: THREE.PerspectiveCamera | THREE.OrthographicCamera;
-	#scene: THREE.Scene;
-	#clock: THREE.Clock;
-	#controls: OrbitControls;
-	#stats: Stats;
-	#debugUI: GUI;
-	#debugUIMap = {};
+	#camera!: THREE.PerspectiveCamera | THREE.OrthographicCamera;
+	#scene!: THREE.Scene;
+	#clock!: THREE.Clock;
+	#controls!: OrbitControls;
+	#stats!: Stats;
+	#debugUI!: GUI;
+	#debugUIMap: Record<string, GUI> = {};
 	#rendererSettings: RendererSettings = {
 		// Time Settings
 		useDeltaTime: true,
@@ -114,16 +116,19 @@ class App {
 		dprValue: window.devicePixelRatio,
 	};
 
-	#gltfLoader: GLTFLoader;
-	#fontLoader: FontLoader;
-	#ktx2Loader: KTX2Loader;
+	#gltfLoader!: GLTFLoader;
+	#fontLoader!: FontLoader;
+	#ktx2Loader!: KTX2Loader;
+
+	#postProcessingPipelines: Record<string, PostProcessing > = {};
+	#postProcessingMachine: PostProcessingMachine | null = null;
 
 	#computeShaders: ComputeNode[] = [];
 
 	deltaTimeUniform: UniformNode<number> = uniform( 0 );
 	timeUniform: UniformNode<number> = uniform( 0 );
 
-	#handleRender: ( scene: THREE.Scene<Object3DEventMap>, camera: THREE.Camera ) => void = () => {
+	#handleRender: ( renderer: ThreeRenderer, scene: THREE.Scene<Object3DEventMap>, camera: THREE.Camera ) => void = () => {
 
 		console.log( 'define render handleer' );
 
@@ -159,40 +164,22 @@ class App {
 
 		}
 
-		if ( rendererType === 'WebGL' ) {
+		console.log( 'test getRenderer' );
 
-			this.#renderer = new THREE.WebGLRenderer( {
-				canvas: documentCanvas
-			} );
+		this.#renderer = new WebGPURenderer( {
+			canvas: documentCanvas,
+			forceWebGL: rendererType === 'WebGLFallback' ? true : false
+		} );
 
-			this.rendererType = 'WebGL';
+		await this.#renderer.init();
 
-			this.#handleRender = ( scene: THREE.Scene<Object3DEventMap>, camera: THREE.Camera ) => {
+		this.rendererType = 'WebGPU';
 
-				this.#renderer.render( scene, camera );
+		this.#handleRender = ( renderer: ThreeRenderer, scene: THREE.Scene<Object3DEventMap>, camera: THREE.Camera ) => {
 
-			};
+			renderer.render( scene, camera );
 
-		} else {
-
-			console.log( 'test getRenderer' );
-
-			this.#renderer = new WebGPURenderer( {
-				canvas: documentCanvas,
-				forceWebGL: rendererType === 'WebGLFallback' ? true : false
-			} );
-
-			await this.#renderer.init();
-
-			this.rendererType = 'WebGPU';
-
-			this.#handleRender = ( scene: THREE.Scene<Object3DEventMap>, camera: THREE.Camera ) => {
-
-				this.#renderer.render( scene, camera );
-
-			};
-
-		}
+		};
 
 		this.#renderer.shadowMap.enabled = true;
 
@@ -488,13 +475,9 @@ class App {
 
 	}
 
-	compute( fn ) {
+	compute( fn: ComputeNode | ComputeNode[] ) {
 
-		if ( this.rendererType !== 'WebGL' ) {
-
-			( this.#renderer as WebGPURenderer ).computeAsync( fn );
-
-		}
+		this.#renderer.computeAsync( fn );
 
 	}
 
@@ -502,7 +485,7 @@ class App {
 
 		// App specific code executed per render
 		this.onRender( deltaTime );
-		this.#handleRender( this.#scene, this.#camera );
+		this.#handleRender( this.#renderer, this.#scene, this.#camera );
 
 	}
 
@@ -597,11 +580,7 @@ class App {
 
 	}
 
-	async loadGLSLShader( filePath ) {
-
-		// Load shaders
-		//const vsh = await fetch( './shaders/points-vsh.glsl' );
-		//const fsh = await fetch( './shaders/points-fsh.glsl' );
+	async loadGLSLShader( filePath: string ) {
 
 		const shaderFile = await fetch( filePath );
 		const shaderText = await shaderFile.text();
@@ -617,7 +596,7 @@ class App {
 
 	}
 
-	async loadKTX2( path, srgb = true ): Promise<THREE.CompressedTexture> {
+	async loadKTX2( path: string, srgb = true ): Promise<THREE.CompressedTexture> {
 
 		if ( this.#ktx2Loader === undefined ) {
 
@@ -643,7 +622,7 @@ class App {
 
 	}
 
-	async loadTexture( path, srgb = true ): Promise<THREE.Texture> {
+	async loadTexture( path: string, srgb = true ): Promise<THREE.Texture> {
 
 		if ( path.endsWith( '.ktx2' ) ) {
 
@@ -685,7 +664,7 @@ class App {
 
 	}
 
-	async loadFont( path ): Promise<Font> {
+	async loadFont( path: string ): Promise<Font> {
 
 		if ( this.#fontLoader === undefined ) {
 
@@ -706,7 +685,7 @@ class App {
 
 	}
 
-	async loadGLTF( path: string ): Promise<THREE.Group> {
+	async loadGLTF( path: string ) {
 
 		if ( this.#gltfLoader === undefined ) {
 
@@ -743,7 +722,7 @@ class App {
 
 	}
 
-	loadHDRBackground( path ) {
+	loadHDRBackground( path: string ) {
 
 		const rgbeLoader = new HDRLoader();
 
@@ -782,6 +761,19 @@ class App {
 
 	}
 
+	createPostProcessingPipeline( name: string ) {
+
+		// lazily create post-processing
+		if ( this.#postProcessingMachine === null ) {
+
+			this.#postProcessingMachine = new PostProcessingMachine( this.#renderer );
+
+		}
+
+		return this.#postProcessingPipelines[ name ] = this.#postProcessingMachine.createPostProcessingPipeline();
+
+	}
+
 	get Scene() {
 
 		return this.#scene;
@@ -800,10 +792,9 @@ class App {
 
 	}
 
-	setDPR( value ) {
+	setDPR( dprValue: number ) {
 
-		this.#rendererSettings.dprValue = value;
-
+		this.#rendererSettings.dprValue = dprValue;
 
 	}
 
@@ -816,7 +807,6 @@ class App {
 	get PerspectiveCamera() {
 
 		return ( this.#camera as THREE.PerspectiveCamera );
-
 
 	}
 
@@ -836,6 +826,18 @@ class App {
 
 		return this.#debugUI;
 
+	}
+
+	get PostProcessing() {
+
+		return this.#postProcessingPipelines;
+
+	}
+
+
+	changeRenderHandler( renderCallback: RenderCallback ) {
+
+		this.#handleRender = renderCallback;
 
 	}
 

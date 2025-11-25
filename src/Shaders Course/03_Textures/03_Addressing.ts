@@ -4,7 +4,7 @@ import { App } from '../../utils/App';
 import { MeshBasicNodeMaterial } from 'three/webgpu';
 
 
-const textureWrappings = {
+const textureWrappings: Record<string, THREE.Wrapping> = {
 	'Repeat': THREE.RepeatWrapping,
 	'Mirrored Repeat': THREE.MirroredRepeatWrapping,
 	'ClampToEdge': THREE.ClampToEdgeWrapping,

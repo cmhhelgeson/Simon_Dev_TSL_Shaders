@@ -121,7 +121,7 @@ class AmbientAndHemisphereLights extends App {
 
 			}
 
-			suzanneMaterial.fragmentNode = shaders[ effectController[ 'Current Shader' ] ];
+			suzanneMaterial.fragmentNode = shaders[ effectController[ 'Current Shader' ] as ShaderType ];
 			suzanneMaterial.needsUpdate = true;
 
 		} );

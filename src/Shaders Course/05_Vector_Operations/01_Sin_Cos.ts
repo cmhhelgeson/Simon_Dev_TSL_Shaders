@@ -179,14 +179,14 @@ class SinCos extends App {
 
 		};
 
-		material.colorNode = shaders[ effectController.currentShader ];
+		material.colorNode = shaders[ effectController.currentShader as ShaderType ];
 
 		const quad = new THREE.Mesh( geometry, material );
 		this.Scene.add( quad );
 
 		this.DebugGui.add( effectController, 'currentShader', Object.keys( shaders ) ).onChange( () => {
 
-			material.colorNode = shaders[ effectController.currentShader ];
+			material.colorNode = shaders[ effectController.currentShader as ShaderType ];
 			material.needsUpdate = true;
 
 		} );

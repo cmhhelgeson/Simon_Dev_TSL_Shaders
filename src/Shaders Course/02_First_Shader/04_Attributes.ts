@@ -9,7 +9,7 @@ class Attributes extends App {
 
 		const geometry = new THREE.PlaneGeometry( 2, 2 );
 
-		const colors = [
+		const colors: THREE.Color[] = [
 			new THREE.Color( 0xFF0000 ),
 			new THREE.Color( 0x00FF00 ),
 			new THREE.Color( 0x0000FF ),
