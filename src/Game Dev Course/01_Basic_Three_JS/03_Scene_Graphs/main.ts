@@ -1,7 +1,7 @@
 /* eslint-disable compat/compat */
 import * as THREE from 'three/webgpu';
 
-import { App } from '../App';
+import { App } from '../../../utils/App';
 
 // Scene Graph: Basic data strucutre to manage complexity of scene
 // Graph represents everything in scene and everythign that scene

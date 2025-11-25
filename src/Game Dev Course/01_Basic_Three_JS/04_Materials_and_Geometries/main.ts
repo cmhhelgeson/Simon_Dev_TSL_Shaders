@@ -18,7 +18,7 @@ import * as THREE from 'three';
 
 class MeshMaterialExample extends App {
 
-	#redMaterial: THREE.MeshBasicMaterial;
+	#redMaterial!: THREE.MeshBasicMaterial;
 
 	constructor() {
 
@@ -30,7 +30,7 @@ class MeshMaterialExample extends App {
 	async onSetupProject() {
 
 		this.Camera.position.set( 0, 3, 5 );
-		this.Camera.fov = 60;
+		this.PerspectiveCamera.fov = 60;
 		this.Camera.lookAt( new THREE.Vector3( 0, 0, 0 ) );
 
 		this.CameraControls.target.set( 0, 0, 0 );

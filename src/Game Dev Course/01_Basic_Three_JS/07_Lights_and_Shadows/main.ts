@@ -73,7 +73,7 @@ class LightsExample extends App {
 	async onSetupProject() {
 
 		this.Camera.position.set( 0, 3, 15 );
-		this.Camera.fov = 70;
+		this.PerspectiveCamera.fov = 70;
 		this.Camera.lookAt( new THREE.Vector3( 0, 0, 0 ) );
 
 		this.#createScene();

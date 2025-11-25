@@ -14,9 +14,9 @@ class App {
 	// If you're managing multiple user's application state, this
 	// becomes necessary. Each user may have a renderer, but each
 	// user does not need access to another user's renderer.
-	#renderer: WebGPURenderer;
-	#camera: THREE.PerspectiveCamera;
-	#scene: THREE.Scene;
+	#renderer!: WebGPURenderer;
+	#camera!: THREE.PerspectiveCamera;
+	#scene!: THREE.Scene;
 
 	constructor() {
 

@@ -1,10 +1,8 @@
 import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
 import * as THREE from 'three';
 import { ComputeNode, MeshBasicNodeMaterial, PointsNodeMaterial, SpriteNodeMaterial, StorageBufferNode, StorageInstancedBufferAttribute } from 'three/webgpu';
-import { attribute, float, Fn, storage, fract, instanceIndex, instancedArray, int, mix, sin, smoothstep, Switch, texture, time, vec3, deltaTime, vec4, distance, If, exp, negate, normalize, uniform, clamp, vec2 } from 'three/tsl';
-import { MeshSurfaceSampler } from 'three/addons/math/MeshSurfaceSampler.js';
-import { CalculateAttractorForce, CalculateRepulsorForce } from '../utils/attractionShader';
-import { App } from '../utils/App';
+import { attribute, float, Fn, storage, fract, instanceIndex, instancedArray, int, mix, sin, smoothstep, Switch, texture, time, vec3, deltaTime, vec4, distance, If, exp, negate, normalize, uniform, vec2 } from 'three/tsl';
+import { App } from '../../utils/App';
 
 export const groundHash = Fn( ( [ p ] ) => {
 
@@ -56,41 +54,22 @@ class GrassSetup extends App {
 
 	async #setupGrassInitialScene() {
 
-		this.threejs_ = new THREE.WebGLRenderer();
-		document.body.appendChild( this.threejs_.domElement );
+		this.Scene.background = new THREE.Color( 0.7, 0.8, 1.0 );
 
-		window.addEventListener( 'resize', () => {
-
-			this.onWindowResize_();
-
-		}, false );
-
-		this.scene_ = new THREE.Scene();
-		this.scene_.background = new THREE.Color( 0.7, 0.8, 1.0 );
-
-		const fov = 60;
-		const aspect = 1920 / 1080;
-		const near = 0.1;
-		const far = 10000.0;
-		this.camera_ = new THREE.PerspectiveCamera( fov, aspect, near, far );
-		this.camera_.position.set( 10, 5, 5 );
+		this.Camera.position.set( 10, 5, 5 );
+		this.PerspectiveCamera.fov = 60;
 
 		const light = new THREE.DirectionalLight( 0xFFFFFF, 1.0 );
 		light.position.set( 1, 1, 1 );
 		light.lookAt( 0, 0, 0 );
-		this.scene_.add( light );
+		this.Scene.add( light );
 
-		const controls = new OrbitControls( this.camera_, this.threejs_.domElement );
-		controls.target.set( 0, 0, 0 );
-		controls.update();
+		this.CameraControls.target.set( 0, 0, 0 );
 
 		this.materials_ = [];
 
 		await this.setupProject_();
 
-		this.previousRAF_ = null;
-		this.onWindowResize_();
-		this.raf_();
 
 	}
 

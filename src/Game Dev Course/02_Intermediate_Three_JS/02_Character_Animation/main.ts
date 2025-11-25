@@ -100,7 +100,7 @@ class CharacterAnimation extends App {
 			} );
 
 			const prevAnimation = null;
-			const actions = [];
+			const actions: Record<string, THREE.AnimationAction> = {};
 
 			for ( let animIndex = 0; animIndex < gltf.animations.length; animIndex ++ ) {
 

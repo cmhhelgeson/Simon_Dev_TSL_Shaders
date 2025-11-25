@@ -21,7 +21,7 @@ const hash3 = ( pNode ) => {
 
 };
 
-const noise3D = ( p ) => {
+const noise3D = ( p: Node | number ) => {
 
 	const i = floor( p );
 	const f = fract( p );
@@ -74,7 +74,7 @@ const noise3D = ( p ) => {
 
 };
 
-const fbm = ( pNode ) => {
+const fbm = ( pNode: Node ) => {
 
 	const {
 		amplitudePersistence,
@@ -96,13 +96,13 @@ const fbm = ( pNode ) => {
 
 };
 
-const mod289 = ( x ) => {
+const mod289 = ( x: Node ) => {
 
 	return x.sub( floor( x / 289.0 ).mul( 289.0 ) );
 
 };
 
-const permute = ( x ) => {
+const permute = ( x: Node ) => {
 
 	return mod289(
 		( x.mul( 34.0 ).add( 1.0 ) ).mul( x )
@@ -111,7 +111,7 @@ const permute = ( x ) => {
 
 };
 
-const taylorInvSqrt = ( r ) => {
+const taylorInvSqrt = ( r: Node ) => {
 
 	return float( 1.79284291400159 ).sub( r.mul( 0.85373472095314 ) );
 
@@ -159,8 +159,8 @@ class Stars extends App {
 		];
 
 		const GetCellInfo = (
-			pixelCoords,
-			cellSize,
+			pixelCoords: Node,
+			cellSize: Node,
 			seed,
 			seedChange
 		) => {

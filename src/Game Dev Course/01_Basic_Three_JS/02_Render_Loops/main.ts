@@ -64,14 +64,14 @@ import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 
 class App {
 
-	#renderer: WebGPURenderer;
-	#camera: THREE.PerspectiveCamera;
-	#scene: THREE.Scene;
+	#renderer!: WebGPURenderer;
+	#camera!: THREE.PerspectiveCamera;
+	#scene!: THREE.Scene;
 	#clock: THREE.Clock = new THREE.Clock( true );
-	#controls: OrbitControls;
-	#mesh: THREE.Mesh;
-	#debugUI: GUI;
-	#debugUIMap = {};
+	#controls!: OrbitControls;
+	#mesh!: THREE.Mesh;
+	#debugUI!: GUI;
+	#debugUIMap: Record<string, GUI> = {};
 	#rendererSettings = {
 		// Time Settings
 		useDeltaTime: true,
@@ -115,7 +115,7 @@ class App {
 
 	initialize() {
 
-		this.#renderer = new THREE.WebGPURenderer( { canvas: document.getElementById( 'c' ) } );
+		this.#renderer = new THREE.WebGPURenderer( { canvas: document.getElementById( 'c' ) as HTMLCanvasElement } );
 		this.#renderer.setSize( window.innerWidth, window.innerHeight );
 		this.#renderer.setClearColor( 0x000000 );
 		document.body.appendChild( this.#renderer.domElement );
