@@ -773,7 +773,7 @@ class App {
 
 	}
 
-	async loadShaders( path ) {
+	async loadShaders( path: string ) {
 
 		const vsh = await fetch( `${path}-vsh.glsl` ).then( ( res ) => res.text() );
 		const fsh = await fetch( `${path}-fsh.glsl` ).then( ( res ) => res.text() );
