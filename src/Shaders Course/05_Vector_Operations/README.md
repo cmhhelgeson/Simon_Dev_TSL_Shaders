@@ -1,1 +1,1 @@
-TODO
+- [ ] 1. Sin/Cos Completed

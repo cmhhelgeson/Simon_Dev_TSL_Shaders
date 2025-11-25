@@ -1,1 +1,2 @@
-TODO
+- [ ] Completed Tutorial
+- [ ] Extended Tutorial

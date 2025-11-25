@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import {
-	fract,
 	length,
 	smoothstep,
 	float,
@@ -24,7 +23,6 @@ import {
 	mod,
 	Loop,
 	time,
-	step,
 	pow,
 	saturate,
 	exp,

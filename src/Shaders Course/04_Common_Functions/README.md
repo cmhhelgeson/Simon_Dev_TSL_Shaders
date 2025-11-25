@@ -1,1 +1,4 @@
-TODO
+- [ ] 1. Step/Mix/Smoothstep Completed
+- [ ] 2. Min/Max Completed
+- [ ] 3. Fract and Friends Completed
+- [ ] 4. Inverse Lerp Remap Derivative Completed

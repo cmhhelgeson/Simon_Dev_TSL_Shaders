@@ -148,7 +148,7 @@ window.addEventListener( 'DOMContentLoaded', async () => {
 	await APP_.initialize( {
 		debug: true,
 		projectName: 'Specular Lights',
-		rendererType: 'WebGL',
+		rendererType: 'WebGPU',
 		initialCameraMode: 'perspective',
 	} );
 
