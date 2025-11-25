@@ -13,13 +13,11 @@ import {
 	If,
 	uint,
 } from 'three/tsl';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
-import { MeshStandardNodeMaterial, Node, WebGPURenderer } from 'three/webgpu';
+import { App } from '../../utils/App';
 
-let renderer, camera, scene, gui;
+import { MeshStandardNodeMaterial, Node } from 'three/webgpu';
 
 type ShaderType =
 'Basic Ambient' |
@@ -29,253 +27,242 @@ type ShaderType =
 'HemisphereLight' |
 'DirectionalLight'
 
-const init = async () => {
+class Lambertian extends App {
 
-	camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 100 );
-	camera.position.z = 4;
+	async onSetupProject(): Promise<void> {
 
-	scene = new THREE.Scene();
 
-	// Cubemap texture
-	const path = './resources/Cold_Sunset/';
-	const urls = [
-		path + 'Cold_Sunset__Cam_2_Left+X.png',
-		path + 'Cold_Sunset__Cam_3_Right-X.png',
-		path + 'Cold_Sunset__Cam_4_Up+Y.png',
-		path + 'Cold_Sunset__Cam_5_Down-Y.png',
-		path + 'Cold_Sunset__Cam_0_Front+Z.png',
-		path + 'Cold_Sunset__Cam_1_Back-Z.png',
-	];
+		this.Camera.position.z = 4;
 
-	const effectController = {
-		'Current Shader': 'Basic Ambient',
-		// Material Properties
-		objectColor: uniform( color( 1.0, 1.0, 1.0 ) ),
-		linearToSRGBCond: uniform( uint( 1 ) ),
-		linearToSRGB: true,
-		// Hemi Lighting Shader
-		skyColor: uniform( color( 0.0, 0.3, 0.6 ) ),
-		groundColor: uniform( color( 0.6, 0.3, 0.1 ) ),
-		// Direct Light Position
-		lightX: uniform( 0.0 ),
-		lightY: uniform( 0.0 ),
+		// Cubemap texture
+		const path = './resources/Cold_Sunset/';
+		const urls = [
+			path + 'Cold_Sunset__Cam_2_Left+X.png',
+			path + 'Cold_Sunset__Cam_3_Right-X.png',
+			path + 'Cold_Sunset__Cam_4_Up+Y.png',
+			path + 'Cold_Sunset__Cam_5_Down-Y.png',
+			path + 'Cold_Sunset__Cam_0_Front+Z.png',
+			path + 'Cold_Sunset__Cam_1_Back-Z.png',
+		];
 
-	};
+		const effectController = {
+			'Current Shader': 'Basic Ambient',
+			// Material Properties
+			objectColor: uniform( color( 1.0, 1.0, 1.0 ) ),
+			linearToSRGBCond: uniform( uint( 1 ) ),
+			linearToSRGB: true,
+			// Hemi Lighting Shader
+			skyColor: uniform( color( 0.0, 0.3, 0.6 ) ),
+			groundColor: uniform( color( 0.6, 0.3, 0.1 ) ),
+			// Direct Light Position
+			lightX: uniform( 0.0 ),
+			lightY: uniform( 0.0 ),
 
-	const cubemap = new THREE.CubeTextureLoader().load( urls );
-	scene.background = cubemap;
+		};
 
-	const loader = new GLTFLoader();
-	const suzanneMaterial = new MeshStandardNodeMaterial();
+		const cubemap = new THREE.CubeTextureLoader().load( urls );
+		this.Scene.background = cubemap;
 
-	const lights: Record<string, THREE.Light> = {
-		'HemisphereLight': new THREE.HemisphereLight( 0x0095cb, 0xcb9659, 1 ),
-		'DirectionalLight': new THREE.DirectionalLight( 0x0095cb, 10 ),
-	};
+		const loader = new GLTFLoader();
+		const suzanneMaterial = new MeshStandardNodeMaterial();
 
-	lights[ 'HemisphereLight' ].position.set( 0, 20, 0 );
-	scene.add( lights[ 'HemisphereLight' ] );
-	scene.add( lights[ 'DirectionalLight' ] );
+		const lights: Record<string, THREE.Light> = {
+			'HemisphereLight': new THREE.HemisphereLight( 0x0095cb, 0xcb9659, 1 ),
+			'DirectionalLight': new THREE.DirectionalLight( 0x0095cb, 10 ),
+		};
 
-	const shaders: Record<ShaderType, Node> = {
+		lights[ 'HemisphereLight' ].position.set( 0, 20, 0 );
+		this.Scene.add( lights[ 'HemisphereLight' ] );
+		this.Scene.add( lights[ 'DirectionalLight' ] );
+
+		const shaders: Record<ShaderType, Node> = {
 		// Basic Ambient lighting
-		'Basic Ambient': Fn( () => {
+			'Basic Ambient': Fn( () => {
 
-			const baseColor = vec3( 0.5 );
+				const baseColor = vec3( 0.5 );
     	// Ambient Lighting
     	const ambient = vec3( 0.5 );
     	return baseColor.mul( ambient );
 
 
-		} )(),
+			} )(),
 
-		// Return mesh normals
-		'Basic Normal': Fn( () => {
+			// Return mesh normals
+			'Basic Normal': Fn( () => {
 
-			// Equivalent of normalize(vNormal);
-			return normalize( normalGeometry );
+				// Equivalent of normalize(vNormal);
+				return normalize( normalGeometry );
 
 
-		} )(),
+			} )(),
 
-		// Direct lighting
-		'Basic Direct': Fn( () => {
+			// Direct lighting
+			'Basic Direct': Fn( () => {
 
-			const { skyColor, objectColor, lightX, lightY, linearToSRGBCond } = effectController;
+				const { skyColor, objectColor, lightX, lightY, linearToSRGBCond } = effectController;
 
-			const lightDir = normalize( vec3( lightX, lightY, 1.0 ) );
-			const dp = max( 0.0, dot( lightDir, normalGeometry ) );
+				const lightDir = normalize( vec3( lightX, lightY, 1.0 ) );
+				const dp = max( 0.0, dot( lightDir, normalGeometry ) );
 
-			const diffuse = dp.mul( skyColor );
+				const diffuse = dp.mul( skyColor );
 
-			const color = objectColor.mul( diffuse ).toVar( 'color' );
+				const color = objectColor.mul( diffuse ).toVar( 'color' );
 
-			If( linearToSRGBCond.equal( 1 ), () => {
+				If( linearToSRGBCond.equal( 1 ), () => {
 
-				//color.assign( colorSpaceToWorking( color ) );
+					//color.assign( colorSpaceToWorking( color ) );
+
+				} );
+
+
+				return color;
+
+
+			} )(),
+
+			// Crudely emulate THREE.HemisphereLight.
+			'Basic Hemi': Fn( () => {
+
+				const { skyColor, groundColor, objectColor, linearToSRGBCond } = effectController;
+
+				const ambient = vec3( 0.5 );
+				const lighting = vec3( 0.0 ).toVar( 'lighting' );
+
+				const hemiMix = remap( normalGeometry.y, - 1.0, 1.0, 0.0, 1.0 );
+				const hemi = mix( groundColor, skyColor, hemiMix );
+
+				lighting.assign( ambient.mul( 0.0 ).add( hemi ) );
+
+				const color = objectColor.mul( lighting ).toVar( 'color' );
+
+				If( linearToSRGBCond.equal( 1 ), () => {
+
+					//color.assign( toOutputColorSpace( color ) );
+
+				} );
+
+
+				return color;
+
+			} )(),
+
+			// Actual THREE.HemisphereLight implementation
+			'HemisphereLight': Fn( () => {} ),
+			// Actual THREE.DirectionalLight implementation
+			'DirectionalLight': Fn( () => {} ),
+
+		};
+
+		const defaultFragmentNode = suzanneMaterial.fragmentNode;
+		suzanneMaterial.fragmentNode = shaders[ 'Basic Ambient' ];
+
+
+		loader.load( './resources/suzanne.glb', function ( gltf ) {
+
+			gltf.scene.traverse( c => {
+
+				c.material = suzanneMaterial;
 
 			} );
 
-
-			return color;
-
-
-		} )(),
-
-		// Crudely emulate THREE.HemisphereLight.
-		'Basic Hemi': Fn( () => {
-
-			const { skyColor, groundColor, objectColor, linearToSRGBCond } = effectController;
-
-			const ambient = vec3( 0.5 );
-			const lighting = vec3( 0.0 ).toVar( 'lighting' );
-
-			const hemiMix = remap( normalGeometry.y, - 1.0, 1.0, 0.0, 1.0 );
-			const hemi = mix( groundColor, skyColor, hemiMix );
-
-			lighting.assign( ambient.mul( 0.0 ).add( hemi ) );
-
-			const color = objectColor.mul( lighting ).toVar( 'color' );
-
-			If( linearToSRGBCond.equal( 1 ), () => {
-
-				//color.assign( toOutputColorSpace( color ) );
-
-			} );
-
-
-			return color;
-
-		} )(),
-
-		// Actual THREE.HemisphereLight implementation
-		'HemisphereLight': Fn( () => {} ),
-		// Actual THREE.DirectionalLight implementation
-		'DirectionalLight': Fn( () => {} ),
-
-	};
-
-	const defaultFragmentNode = suzanneMaterial.fragmentNode;
-	suzanneMaterial.fragmentNode = shaders[ 'Basic Ambient' ];
-
-
-	loader.load( './resources/suzanne.glb', function ( gltf ) {
-
-		gltf.scene.traverse( c => {
-
-			c.material = suzanneMaterial;
+			this.Scene.add( gltf.scene );
 
 		} );
 
-		scene.add( gltf.scene );
+		this.CameraControls.enableZoom = false;
+		this.CameraControls.enablePan = false;
+		this.CameraControls.minPolarAngle = Math.PI / 4;
+		this.CameraControls.maxPolarAngle = Math.PI / 1.5;
 
-	} );
+		window.addEventListener( 'mousemove', ( e ) => {
 
-	renderer = new WebGPURenderer( { antialias: true } );
-	renderer.setSize( window.innerWidth, window.innerHeight );
-	renderer.setAnimationLoop( animate );
-	renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
-	document.body.appendChild( renderer.domElement );
+			const { lightX, lightY } = effectController;
+			// 0 to width -> 0 to 1 -> 0 -> 2 -> -1 to 1
+			lightX.value = ( e.offsetX / window.innerWidth ) * 5 - 2.5;
+			lightY.value = ( e.offsetY / window.innerHeight ) * 5 - 2.5;
+			lights[ 'DirectionalLight' ].position.x = lightX.value;
+			lights[ 'DirectionalLight' ].position.y = lightY.value;
 
-	const controls = new OrbitControls( camera, renderer.domElement );
-	controls.enableZoom = false;
-	controls.enablePan = false;
-	controls.minPolarAngle = Math.PI / 4;
-	controls.maxPolarAngle = Math.PI / 1.5;
+		} );
 
-	window.addEventListener( 'mousemove', ( e ) => {
+		this.DebugGui.add( effectController, 'linearToSRGB' ).onChange( () => {
 
-		const { lightX, lightY } = effectController;
-		// 0 to width -> 0 to 1 -> 0 -> 2 -> -1 to 1
-		lightX.value = ( e.offsetX / window.innerWidth ) * 5 - 2.5;
-		lightY.value = ( e.offsetY / window.innerHeight ) * 5 - 2.5;
-		lights[ 'DirectionalLight' ].position.x = lightX.value;
-		lights[ 'DirectionalLight' ].position.y = lightY.value;
+			const { linearToSRGB, linearToSRGBCond } = effectController;
 
-	} );
-
-	window.addEventListener( 'resize', onWindowResize );
-
-	gui = new GUI();
-	gui.add( effectController, 'linearToSRGB' ).onChange( () => {
-
-		const { linearToSRGB, linearToSRGBCond } = effectController;
-
-		linearToSRGBCond.value = linearToSRGB === true ? 1 : 0;
+			linearToSRGBCond.value = linearToSRGB === true ? 1 : 0;
 
 
-	} );
-	gui.add( effectController, 'Current Shader', Object.keys( shaders ) ).onChange( () => {
+		} );
 
-		const currentShader = effectController[ 'Current Shader' ];
+		this.DebugGui.add( effectController, 'Current Shader', Object.keys( shaders ) ).onChange( () => {
 
-		if ( currentShader === 'HemisphereLight' || currentShader === 'DirectionalLight' ) {
+			const currentShader = effectController[ 'Current Shader' ];
 
-			suzanneMaterial.fragmentNode = defaultFragmentNode;
-			suzanneMaterial.needsUpdate = true;
-			for ( const lightName of Object.keys( lights ) ) {
+			if ( currentShader === 'HemisphereLight' || currentShader === 'DirectionalLight' ) {
 
-				lights[ lightName ].visible = ( lightName === currentShader );
+				suzanneMaterial.fragmentNode = defaultFragmentNode;
+				suzanneMaterial.needsUpdate = true;
+				for ( const lightName of Object.keys( lights ) ) {
+
+					lights[ lightName ].visible = ( lightName === currentShader );
+
+				}
+
+				return;
 
 			}
 
-			return;
-
-		}
-
-		suzanneMaterial.fragmentNode = shaders[ effectController[ 'Current Shader' ] ];
-		suzanneMaterial.needsUpdate = true;
-
-	} );
-
-	gui.addColor( { color: effectController.objectColor.value.getHex( THREE.SRGBColorSpace ) }, 'color' )
-		.name( 'objectColor' )
-		.onChange( function ( value ) {
-
-			effectController.objectColor.value.set( value );
-			suzanneMaterial.colorNode = Fn( () => {
-
-				return effectController.objectColor;
-
-			} )();
+			suzanneMaterial.fragmentNode = shaders[ effectController[ 'Current Shader' ] ];
 			suzanneMaterial.needsUpdate = true;
 
 		} );
 
+		this.DebugGui.addColor( { color: effectController.objectColor.value.getHex( THREE.SRGBColorSpace ) }, 'color' )
+			.name( 'objectColor' )
+			.onChange( function ( value ) {
 
-	gui.addColor( { color: effectController.skyColor.value.getHex( THREE.SRGBColorSpace ) }, 'color' )
-		.name( 'skyColor' )
-		.onChange( function ( value ) {
+				effectController.objectColor.value.set( value );
+				suzanneMaterial.colorNode = Fn( () => {
 
-			effectController.skyColor.value.set( value );
-			lights[ 'HemisphereLight' ].color.setHex( value );
-			lights[ 'DirectionalLight' ].color.setHex( value );
+					return effectController.objectColor;
 
-		} );
+				} )();
+				suzanneMaterial.needsUpdate = true;
 
-	gui.addColor( { color: effectController.groundColor.value.getHex( THREE.SRGBColorSpace ) }, 'color' )
-		.name( 'groundColor' )
-		.onChange( function ( value ) {
+			} );
 
-			effectController.groundColor.value.set( value );
-			lights[ 'HemisphereLight' ].groundColor.setHex( value );
 
-		} );
+		this.DebugGui.addColor( { color: effectController.skyColor.value.getHex( THREE.SRGBColorSpace ) }, 'color' )
+			.name( 'skyColor' )
+			.onChange( function ( value ) {
 
-};
+				effectController.skyColor.value.set( value );
+				lights[ 'HemisphereLight' ].color.setHex( value );
+				lights[ 'DirectionalLight' ].color.setHex( value );
 
-const onWindowResize = () => {
+			} );
 
-	camera.aspect = window.innerWidth / window.innerHeight;
-	camera.updateProjectionMatrix();
-	renderer.setSize( window.innerWidth, window.innerHeight );
+		this.DebugGui.addColor( { color: effectController.groundColor.value.getHex( THREE.SRGBColorSpace ) }, 'color' )
+			.name( 'groundColor' )
+			.onChange( function ( value ) {
 
-};
+				effectController.groundColor.value.set( value );
+				lights[ 'HemisphereLight' ].groundColor.setHex( value );
 
-function animate() {
+			} );
 
-	renderer.render( scene, camera );
+	}
 
 }
 
-init();
+const APP_ = new Lambertian();
+window.addEventListener( 'DOMContentLoaded', async () => {
+
+	await APP_.initialize( {
+		debug: true,
+		projectName: 'Lambertian Lights',
+		rendererType: 'WebGPU',
+		initialCameraMode: 'perspective',
+	} );
+
+} );

@@ -718,7 +718,7 @@ class App {
 
 			this.#gltfLoader.load( path, ( gltf: GLTF ) => {
 
-				resolve( gltf.scene );
+				resolve( gltf );
 
 			} );
 

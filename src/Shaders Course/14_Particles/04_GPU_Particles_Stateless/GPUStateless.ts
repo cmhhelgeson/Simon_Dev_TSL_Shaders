@@ -1,5 +1,5 @@
 import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
-import { App } from '../../utils/App';
+import { App } from '../../../utils/App';
 import * as THREE from 'three';
 import { MeshBasicNodeMaterial, PointsNodeMaterial, SpriteNodeMaterial } from 'three/webgpu';
 import { attribute, float, Fn, fract, int, mix, sin, smoothstep, Switch, texture, time, vec3 } from 'three/tsl';

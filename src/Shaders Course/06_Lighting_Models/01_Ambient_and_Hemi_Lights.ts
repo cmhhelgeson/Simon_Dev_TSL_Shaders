@@ -9,192 +9,168 @@ import {
 	normalize,
 	color,
 } from 'three/tsl';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { App } from '../../utils/App';
 
-import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
-import { MeshStandardNodeMaterial, Node, WebGPURenderer } from 'three/webgpu';
-
-let renderer, camera, scene, gui;
+import { MeshStandardNodeMaterial, Node } from 'three/webgpu';
 
 type ShaderType = 'Basic Ambient' | 'Basic Normal' | 'Basic Hemi' | 'HemisphereLight';
+class AmbientAndHemisphereLights extends App {
 
-const init = async () => {
+	async onSetupProject(): Promise<void> {
 
-	camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 100 );
-	camera.position.z = 4;
+		this.Camera.position.z = 4;
 
-	scene = new THREE.Scene();
+		// Cubemap texture
+		const path = './resources/Cold_Sunset/';
+		const urls = [
+			path + 'Cold_Sunset__Cam_2_Left+X.png',
+			path + 'Cold_Sunset__Cam_3_Right-X.png',
+			path + 'Cold_Sunset__Cam_4_Up+Y.png',
+			path + 'Cold_Sunset__Cam_5_Down-Y.png',
+			path + 'Cold_Sunset__Cam_0_Front+Z.png',
+			path + 'Cold_Sunset__Cam_1_Back-Z.png',
+		];
 
-	// Cubemap texture
-	const path = './resources/Cold_Sunset/';
-	const urls = [
-		path + 'Cold_Sunset__Cam_2_Left+X.png',
-		path + 'Cold_Sunset__Cam_3_Right-X.png',
-		path + 'Cold_Sunset__Cam_4_Up+Y.png',
-		path + 'Cold_Sunset__Cam_5_Down-Y.png',
-		path + 'Cold_Sunset__Cam_0_Front+Z.png',
-		path + 'Cold_Sunset__Cam_1_Back-Z.png',
-	];
+		const effectController = {
+			'Current Shader': 'Basic Ambient',
+			// Material Properties
+			objectColor: uniform( color( 1.0, 1.0, 1.0 ) ),
+			// Hemi Lighting Shader
+			skyColor: uniform( color( 0.0, 0.3, 0.6 ) ),
+			groundColor: uniform( color( 0.6, 0.3, 0.1 ) )
 
-	const effectController = {
-		'Current Shader': 'Basic Ambient',
-		// Material Properties
-		objectColor: uniform( color( 1.0, 1.0, 1.0 ) ),
-		// Hemi Lighting Shader
-		skyColor: uniform( color( 0.0, 0.3, 0.6 ) ),
-		groundColor: uniform( color( 0.6, 0.3, 0.1 ) )
+		};
 
-	};
+		const cubemap = new THREE.CubeTextureLoader().load( urls );
+		this.Scene.background = cubemap;
 
-	const cubemap = new THREE.CubeTextureLoader().load( urls );
-	scene.background = cubemap;
+		const suzanneMaterial = new MeshStandardNodeMaterial();
 
-	const loader = new GLTFLoader();
-	const suzanneMaterial = new MeshStandardNodeMaterial();
+		const hemiLight = new THREE.HemisphereLight( 0xffffff, 0xffffff, 1 );
+		hemiLight.color.setHSL( 0.6, 1, 0.6 );
+		hemiLight.groundColor.setHSL( 0.095, 1, 0.75 );
+		hemiLight.position.set( 0, 20, 0 );
+		this.Scene.add( hemiLight );
 
-	const hemiLight = new THREE.HemisphereLight( 0xffffff, 0xffffff, 1 );
-	hemiLight.color.setHSL( 0.6, 1, 0.6 );
-	hemiLight.groundColor.setHSL( 0.095, 1, 0.75 );
-	hemiLight.position.set( 0, 20, 0 );
-	scene.add( hemiLight );
+		const shaders: Record<ShaderType, Node> = {
 
-	const shaders: Record<ShaderType, Node> = {
+			// Basic Ambient lighting
+			'Basic Ambient': Fn( () => {
 
-		// Basic Ambient lighting
-		'Basic Ambient': Fn( () => {
-
-			const baseColor = effectController.objectColor;
+				const baseColor = effectController.objectColor;
     	// Ambient Lighting
     	const ambient = vec3( 0.5 );
     	return baseColor.mul( ambient );
 
 
-		} )(),
+			} )(),
 
-		// Return mesh normals
-		'Basic Normal': Fn( () => {
+			// Return mesh normals
+			'Basic Normal': Fn( () => {
 
-			// Equivalent of normalize(vNormal);
-			return normalize( normalGeometry );
+				// Equivalent of normalize(vNormal);
+				return normalize( normalGeometry );
 
-		} )(),
+			} )(),
 
-		// Crudely emulate THREE.HemisphereLight.
-		'Basic Hemi': Fn( () => {
+			// Crudely emulate THREE.HemisphereLight.
+			'Basic Hemi': Fn( () => {
 
-			const { skyColor, groundColor, objectColor } = effectController;
+				const { skyColor, groundColor, objectColor } = effectController;
 
-			const ambient = vec3( 0.5 );
-			const lighting = vec3( 0.0 ).toVar( 'lighting' );
+				const ambient = vec3( 0.5 );
+				const lighting = vec3( 0.0 ).toVar( 'lighting' );
 
-			const hemiMix = remap( normalGeometry.y, - 1.0, 1.0, 0.0, 1.0 );
-			const hemi = mix( groundColor, skyColor, hemiMix );
+				const hemiMix = remap( normalGeometry.y, - 1.0, 1.0, 0.0, 1.0 );
+				const hemi = mix( groundColor, skyColor, hemiMix );
 
-			lighting.assign( ambient.mul( 0.0 ).add( hemi ) );
+				lighting.assign( ambient.mul( 0.0 ).add( hemi ) );
 
-			return objectColor.mul( lighting );
+				return objectColor.mul( lighting );
 
-		} )(),
+			} )(),
 
-		// Actual Three.HemisphereLight implementation
-		'HemisphereLight': Fn( () => {} ),
+			// Actual Three.HemisphereLight implementation
+			'HemisphereLight': Fn( () => {} ),
 
-	};
+		};
 
-	const defaultFragmentNode = suzanneMaterial.fragmentNode;
-	suzanneMaterial.fragmentNode = shaders[ 'Basic Ambient' ];
+		const defaultFragmentNode = suzanneMaterial.fragmentNode;
+		suzanneMaterial.fragmentNode = shaders[ 'Basic Ambient' ];
+
+		const suzanne = await this.loadGLTF( './resources/models/pumpkin.glb' );
+
+		this.Scene.add( suzanne );
 
 
-	loader.load( './resources/suzanne.glb', function ( gltf ) {
+		this.CameraControls.enableZoom = false;
+		this.CameraControls.enableZoom = false;
+		this.CameraControls.enablePan = false;
+		this.CameraControls.minPolarAngle = Math.PI / 4;
+		this.CameraControls.maxPolarAngle = Math.PI / 1.5;
 
-		gltf.scene.traverse( c => {
 
-			c.material = suzanneMaterial;
+		this.DebugGui.add( effectController, 'Current Shader', Object.keys( shaders ) ).onChange( () => {
 
-		} );
+			if ( effectController[ 'Current Shader' ] === 'HemisphereLight' ) {
 
-		scene.add( gltf.scene );
+				suzanneMaterial.fragmentNode = defaultFragmentNode;
+				suzanneMaterial.needsUpdate = true;
+				return;
 
-	} );
+			}
 
-	renderer = new WebGPURenderer( { antialias: true } );
-	renderer.setSize( window.innerWidth, window.innerHeight );
-	renderer.setAnimationLoop( animate );
-	renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
-	document.body.appendChild( renderer.domElement );
-
-	const controls = new OrbitControls( camera, renderer.domElement );
-	controls.enableZoom = false;
-	controls.enablePan = false;
-	controls.minPolarAngle = Math.PI / 4;
-	controls.maxPolarAngle = Math.PI / 1.5;
-
-	window.addEventListener( 'resize', onWindowResize );
-
-	gui = new GUI();
-	gui.add( effectController, 'Current Shader', Object.keys( shaders ) ).onChange( () => {
-
-		if ( effectController[ 'Current Shader' ] === 'HemisphereLight' ) {
-
-			suzanneMaterial.fragmentNode = defaultFragmentNode;
-			suzanneMaterial.needsUpdate = true;
-			return;
-
-		}
-
-		suzanneMaterial.fragmentNode = shaders[ effectController[ 'Current Shader' ] ];
-		suzanneMaterial.needsUpdate = true;
-
-	} );
-
-	gui.addColor( { color: effectController.objectColor.value.getHex( THREE.SRGBColorSpace ) }, 'color' )
-		.name( 'objectColor' )
-		.onChange( function ( value ) {
-
-			effectController.objectColor.value.set( value );
-			suzanneMaterial.colorNode = Fn( () => {
-
-				return effectController.objectColor;
-
-			} )();
+			suzanneMaterial.fragmentNode = shaders[ effectController[ 'Current Shader' ] ];
 			suzanneMaterial.needsUpdate = true;
 
 		} );
 
+		this.DebugGui.addColor( { color: effectController.objectColor.value.getHex( THREE.SRGBColorSpace ) }, 'color' )
+			.name( 'objectColor' )
+			.onChange( function ( value ) {
 
-	gui.addColor( { color: effectController.skyColor.value.getHex( THREE.SRGBColorSpace ) }, 'color' )
-		.name( 'skyColor' )
-		.onChange( function ( value ) {
+				effectController.objectColor.value.set( value );
+				/*suzanneMaterial.colorNode = Fn( () => {
 
-			effectController.skyColor.value.set( value );
-			hemiLight.color.setHex( value );
+					return effectController.objectColor;
 
-		} );
+				} )(); */
+				suzanneMaterial.needsUpdate = true;
 
-	gui.addColor( { color: effectController.groundColor.value.getHex( THREE.SRGBColorSpace ) }, 'color' )
-		.name( 'groundColor' )
-		.onChange( function ( value ) {
+			} );
 
-			effectController.groundColor.value.set( value );
-			hemiLight.groundColor.setHex( value );
 
-		} );
+		this.DebugGui.addColor( { color: effectController.skyColor.value.getHex( THREE.SRGBColorSpace ) }, 'color' )
+			.name( 'skyColor' )
+			.onChange( function ( value ) {
 
-};
+				effectController.skyColor.value.set( value );
+				hemiLight.color.setHex( value );
 
-const onWindowResize = () => {
+			} );
 
-	camera.aspect = window.innerWidth / window.innerHeight;
-	camera.updateProjectionMatrix();
-	renderer.setSize( window.innerWidth, window.innerHeight );
+		this.DebugGui.addColor( { color: effectController.groundColor.value.getHex( THREE.SRGBColorSpace ) }, 'color' )
+			.name( 'groundColor' )
+			.onChange( function ( value ) {
 
-};
+				effectController.groundColor.value.set( value );
+				hemiLight.groundColor.setHex( value );
 
-function animate() {
+			} );
 
-	renderer.render( scene, camera );
+	}
 
 }
 
-init();
+const APP_ = new AmbientAndHemisphereLights();
+window.addEventListener( 'DOMContentLoaded', async () => {
+
+	await APP_.initialize( {
+		debug: true,
+		projectName: 'Ambient and Hemi Lights',
+		rendererType: 'WebGPU',
+		initialCameraMode: 'perspective',
+	} );
+
+} );
