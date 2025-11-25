@@ -10,16 +10,13 @@ import {
 	color,
 	dot,
 	mix,
-	saturate
+	saturate,
 } from 'three/tsl';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
-import { MeshBasicNodeMaterial, PostProcessing, WebGPURenderer } from 'three/webgpu';
-
-let renderer, camera, scene, gui;
-
-// Post Processing Outputs
-let postScene, postColor;
+import { MeshBasicNodeMaterial } from 'three/webgpu';
+import { App } from '../../utils/App';
+import { ThreeRenderer } from '../../utils/types';
 
 const effectController = {
 	remapUVXBegin: uniform( 0.25 ),
@@ -63,85 +60,82 @@ const postProcessFunction = Fn( ( [ color ] ) => {
 	return c;
 
 
+}, {
+	name: 'postProcessFunction',
+	type: 'vec3',
+	inputs: [
+		{ name: 'colorInput', type: 'vec3' }
+	]
 } );
 
-const init = async () => {
+class ColorManipulation extends App {
 
-	camera = new THREE.OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
-	scene = new THREE.Scene();
-	const geometry = new THREE.PlaneGeometry( 2, 2 );
+	async onSetupProject( projectFolder?: GUI ): Promise<void> {
 
-	const material = new MeshBasicNodeMaterial();
+		const geometry = new THREE.PlaneGeometry( 2, 2 );
 
-	const textureLoader = new THREE.TextureLoader();
-	const tomatoTexture = textureLoader.load( './resources/tomato.jpg' );
+		this.changeRenderHandler( ( renderer: ThreeRenderer, scene: THREE.Scene, camera: THREE.Camera ) => {
 
-	material.colorNode = Fn( () => {
+			const { postScene, postColor } = this.PostProcessing;
 
-		const { remapUVXBegin, remapUVXEnd } = effectController;
+			// Altering the code a bit to work within a more typical postProcessing context
+			const halfWidth = window.innerWidth / 2;
 
-		const vUv = uv().toVar( 'vUv' );
+			renderer.setViewport( 0, 0, halfWidth, window.innerHeight );
 
-		vUv.x.assign( remap( uv().x, 0.0, 1.0, remapUVXBegin, remapUVXEnd ) );
-		return texture( tomatoTexture, vUv );
+			postScene.render();
 
-	} )();
+			renderer.autoClear = false;
 
-	const quad = new THREE.Mesh( geometry, material );
-	scene.add( quad );
+			renderer.setViewport( halfWidth, 0, halfWidth, window.innerHeight );
+			postColor.render();
 
-	renderer = new WebGPURenderer( { antialias: true } );
-	renderer.setSize( window.innerWidth, window.innerHeight );
-	renderer.setAnimationLoop( animate );
-	renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
-	document.body.appendChild( renderer.domElement );
-
-	postScene = new PostProcessing( renderer );
-	postColor = new PostProcessing( renderer );
-
-	const scenePass = pass( scene, camera );
-	postScene.outputNode = scenePass;
-	postColor.outputNode = postProcessFunction( scenePass );
-
-	window.addEventListener( 'resize', onWindowResize );
-
-	gui = new GUI();
-	gui.add( effectController.remapUVXBegin, 'value', 0.01, 0.9 ).name( 'remapXBegin' );
-	gui.add( effectController.remapUVXEnd, 'value', 0.01, 0.9 ).name( 'remapXEnd' );
-	const postProcessingFolder = gui.addFolder( 'Post Processing' );
-	postProcessingFolder.add( effectController.saturation, 'value', 0.0, 2.0 ).name( 'saturation' );
-	postProcessingFolder.add( effectController.brightness, 'value', - 1.0, 1.0 ).step( 0.1 ).name( 'brightness' );
-	postProcessingFolder.add( effectController.contrast, 'value', 0.0, 2.0 ).step( 0.1 ).name( 'contrast' );
-	postProcessingFolder.add( effectController.midpoint, 'value', - 1.0, 1.0 ).step( 0.01 ).name( 'midpoint' );
+			renderer.autoClear = true;
 
 
-};
+		} );
 
-const onWindowResize = () => {
+		const material = new MeshBasicNodeMaterial();
 
-	camera.aspect = window.innerWidth / window.innerHeight;
-	camera.updateProjectionMatrix();
-	renderer.setSize( window.innerWidth, window.innerHeight );
+		const tomatoTexture = await this.loadTexture( './resources/tomato.jpg' );
 
-};
+		material.colorNode = Fn( () => {
 
-function animate() {
+			const { remapUVXBegin, remapUVXEnd } = effectController;
 
-	// Altering the code a bit to work within a more typical postProcessing context
-	const halfWidth = window.innerWidth / 2;
+			const vUv = uv().toVar( 'vUv' );
 
-	renderer.setViewport( 0, 0, halfWidth, window.innerHeight );
+			vUv.x.assign( remap( uv().x, 0.0, 1.0, remapUVXBegin, remapUVXEnd ) );
+			return texture( tomatoTexture, vUv );
 
-	postScene.render();
+		} )();
 
-	renderer.autoClear = false;
+		const quad = new THREE.Mesh( geometry, material );
+		this.Scene.add( quad );
 
-	renderer.setViewport( halfWidth, 0, halfWidth, window.innerHeight );
-	postColor.render();
+		const scenePass = pass( this.Scene, this.Camera );
 
-	renderer.autoClear = true;
+		this.createPostProcessingPipeline( 'postScene' ).outputNode = scenePass;
+		this.createPostProcessingPipeline( 'postColor' ).outputNode = postProcessFunction( scenePass );
 
+		this.DebugGui.add( effectController.remapUVXBegin, 'value', 0.01, 0.9 ).name( 'remapXBegin' );
+		this.DebugGui.add( effectController.remapUVXEnd, 'value', 0.01, 0.9 ).name( 'remapXEnd' );
+		const postProcessingFolder = this.DebugGui.addFolder( 'Post Processing' );
+		postProcessingFolder.add( effectController.saturation, 'value', 0.0, 2.0 ).name( 'saturation' );
+		postProcessingFolder.add( effectController.brightness, 'value', - 1.0, 1.0 ).step( 0.1 ).name( 'brightness' );
+		postProcessingFolder.add( effectController.contrast, 'value', 0.0, 2.0 ).step( 0.1 ).name( 'contrast' );
+		postProcessingFolder.add( effectController.midpoint, 'value', - 1.0, 1.0 ).step( 0.01 ).name( 'midpoint' );
+
+	}
 
 }
 
-init();
+// While this will produce identical output to the code below, tidy code
+// and encapsulation is the key to preventing sprawl.
+const app = new ColorManipulation();
+app.initialize( {
+	debug: true,
+	projectName: 'Post FX Intro',
+	rendererType: 'WebGPU',
+	initialCameraMode: 'orthographic',
+} );

@@ -26,6 +26,8 @@ import {
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { pixelationPass } from 'three/examples/jsm/tsl/display/PixelationPassNode.js';
 import { MeshBasicNodeMaterial, PostProcessing, WebGPURenderer } from 'three/webgpu';
+import { ThreeRenderer } from '../../utils/types';
+import { App } from '../../utils/App';
 
 let renderer, camera, scene, gui;
 
@@ -98,86 +100,76 @@ const postProcessFunction = Fn( ( [ color ] ) => {
 
 } );
 
-const init = async () => {
+class ColorBoost extends App {
 
-	camera = new THREE.OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
-	scene = new THREE.Scene();
-	const geometry = new THREE.PlaneGeometry( 2, 2 );
+	async onSetupProject( projectFolder?: GUI ): Promise<void> {
 
-	const material = new MeshBasicNodeMaterial();
+		this.ColorSpace = THREE.LinearSRGBColorSpace;
 
-	const textureLoader = new THREE.TextureLoader();
-	const tomatoTexture = textureLoader.load( './resources/tomato.jpg' );
+		this.changeRenderHandler( ( renderer: ThreeRenderer, scene: THREE.Scene, camera: THREE.Camera )=> {
 
-	material.colorNode = Fn( () => {
+			const { postScene, postColor } = this.PostProcessing;
 
-		const { remapUVXBegin, remapUVXEnd } = effectController;
+			// Altering the code a bit to work within a more typical postProcessing context
+			const halfWidth = window.innerWidth / 2;
 
-		const vUv = uv().toVar( 'vUv' );
+			renderer.setViewport( 0, 0, halfWidth, window.innerHeight );
 
-		vUv.x.assign( remap( uv().x, 0.0, 1.0, remapUVXBegin, remapUVXEnd ) );
-		return texture( tomatoTexture, vUv );
+			postScene.render();
 
-	} )();
+			renderer.autoClear = false;
 
-	const quad = new THREE.Mesh( geometry, material );
-	scene.add( quad );
+			renderer.setViewport( halfWidth, 0, halfWidth, window.innerHeight );
+			postColor.render();
 
-	renderer = new WebGPURenderer( { antialias: true } );
-	renderer.setSize( window.innerWidth, window.innerHeight );
-	renderer.setAnimationLoop( animate );
-	renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
-	document.body.appendChild( renderer.domElement );
+			renderer.autoClear = true;
 
-	postScene = new PostProcessing( renderer );
-	postColor = new PostProcessing( renderer );
+		} );
 
-	const scenePass = pixelationPass( scene, camera, effectController.pixelSize, uniform( 0 ), uniform( 0 ) );
-	postScene.outputNode = scenePass;
-	postColor.outputNode = postProcessFunction( scenePass );
+		const geometry = new THREE.PlaneGeometry( 2, 2 );
 
-	window.addEventListener( 'resize', onWindowResize );
+		const material = new MeshBasicNodeMaterial();
 
-	gui = new GUI();
-	gui.add( effectController.remapUVXBegin, 'value', 0.01, 0.9 ).name( 'remapXBegin' );
-	gui.add( effectController.remapUVXEnd, 'value', 0.01, 0.9 ).name( 'remapXEnd' );
-	const postProcessingFolder = gui.addFolder( 'Post Processing' );
-	postProcessingFolder.add( effectController.saturation, 'value', 0.0, 2.0 ).name( 'saturation' );
-	postProcessingFolder.add( effectController.brightness, 'value', - 1.0, 1.0 ).step( 0.1 ).name( 'brightness' );
-	postProcessingFolder.add( effectController.contrast, 'value', 0.0, 2.0 ).step( 0.1 ).name( 'contrast' );
-	postProcessingFolder.add( effectController.midpoint, 'value', - 1.0, 1.0 ).step( 0.01 ).name( 'midpoint' );
-	// Change how specific the color boost is.
-	postProcessingFolder.add( effectController.colorWeightPower, 'value', 1.0, 200.0 ).step( 1 ).name( 'colorWeightPower' );
-	postProcessingFolder.add( effectController.pixelSize, 'value', 1, 20 ).step( 1 ).name( 'pixelSize' );
+		const tomatoTexture = await this.loadTexture( './resources/tomato.jpg' );
 
+		material.colorNode = Fn( () => {
 
-};
+			const { remapUVXBegin, remapUVXEnd } = effectController;
 
-const onWindowResize = () => {
+			const vUv = uv().toVar( 'vUv' );
 
-	camera.aspect = window.innerWidth / window.innerHeight;
-	camera.updateProjectionMatrix();
-	renderer.setSize( window.innerWidth, window.innerHeight );
+			vUv.x.assign( remap( uv().x, 0.0, 1.0, remapUVXBegin, remapUVXEnd ) );
+			return texture( tomatoTexture, vUv );
 
-};
+		} )();
 
-function animate() {
+		const quad = new THREE.Mesh( geometry, material );
+		this.Scene.add( quad );
 
-	// Altering the code a bit to work within a more typical postProcessing context
-	const halfWidth = window.innerWidth / 2;
+		const scenePass = pixelationPass( this.Scene, this.Camera, effectController.pixelSize, uniform( 0 ), uniform( 0 ) );
+		this.createPostProcessingPipeline( 'postScene' ).outputNode = scenePass;
+		this.createPostProcessingPipeline( 'postColor' ).outputNode = postProcessFunction( scenePass );
 
-	renderer.setViewport( 0, 0, halfWidth, window.innerHeight );
+		this.DebugGui.add( effectController.remapUVXBegin, 'value', 0.01, 0.9 ).name( 'remapXBegin' );
+		this.DebugGui.add( effectController.remapUVXEnd, 'value', 0.01, 0.9 ).name( 'remapXEnd' );
+		const postProcessingFolder = this.DebugGui.addFolder( 'Post Processing' );
+		postProcessingFolder.add( effectController.saturation, 'value', 0.0, 2.0 ).name( 'saturation' );
+		postProcessingFolder.add( effectController.brightness, 'value', - 1.0, 1.0 ).step( 0.1 ).name( 'brightness' );
+		postProcessingFolder.add( effectController.contrast, 'value', 0.0, 2.0 ).step( 0.1 ).name( 'contrast' );
+		postProcessingFolder.add( effectController.midpoint, 'value', - 1.0, 1.0 ).step( 0.01 ).name( 'midpoint' );
+		// Change how specific the color boost is.
+		postProcessingFolder.add( effectController.colorWeightPower, 'value', 1.0, 200.0 ).step( 1 ).name( 'colorWeightPower' );
+		postProcessingFolder.add( effectController.pixelSize, 'value', 1, 20 ).step( 1 ).name( 'pixelSize' );
 
-	postScene.render();
-
-	renderer.autoClear = false;
-
-	renderer.setViewport( halfWidth, 0, halfWidth, window.innerHeight );
-	postColor.render();
-
-	renderer.autoClear = true;
-
+	}
 
 }
 
-init();
+const app = new ColorBoost();
+app.initialize( {
+	debug: true,
+	projectName: 'Color Boost',
+	rendererType: 'WebGPU',
+	initialCameraMode: 'orthographic',
+} );
+

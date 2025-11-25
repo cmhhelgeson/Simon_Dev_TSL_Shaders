@@ -30,6 +30,8 @@ class PostFXIntro extends App {
 
 	async onSetupProject( projectFolder?: GUI ): Promise<void> {
 
+		this.ColorSpace = THREE.LinearSRGBColorSpace;
+
 		this.changeRenderHandler( ( renderer: ThreeRenderer, scene: THREE.Scene, camera: THREE.Camera ) => {
 
 			const { postScene, postSobel, postBleach, postPixelation } = this.PostProcessing;
@@ -61,8 +63,7 @@ class PostFXIntro extends App {
 
 		const material = new MeshBasicNodeMaterial();
 
-		const textureLoader = new THREE.TextureLoader();
-		const tomatoTexture = textureLoader.load( './resources/tomato.jpg' );
+		const tomatoTexture = await this.loadTexture( './resources/tomato.jpg' );
 
 		material.colorNode = Fn( () => {
 
@@ -96,10 +97,12 @@ class PostFXIntro extends App {
 
 // While this will produce identical output to the code below, tidy code
 // and encapsulation is the key to preventing sprawl.
+
+// TODO: Figure out linear SRGB Issue
 const app = new PostFXIntro();
 app.initialize( {
 	debug: true,
 	projectName: 'Post FX Intro',
 	rendererType: 'WebGPU',
-	initialCameraMode: 'orthographic',
+	initialCameraMode: 'perspective',
 } );

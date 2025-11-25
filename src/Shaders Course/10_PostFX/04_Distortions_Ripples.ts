@@ -24,12 +24,9 @@ import {
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { pixelationPass } from 'three/examples/jsm/tsl/display/PixelationPassNode.js';
-import { MeshBasicNodeMaterial, PostProcessing, WebGPURenderer } from 'three/webgpu';
-
-let renderer, camera, scene, gui;
-
-// Post Processing Outputs
-let postScene, postColor;
+import { MeshBasicNodeMaterial } from 'three/webgpu';
+import { App } from '../../utils/App';
+import { ThreeRenderer } from '../../utils/types';
 
 // TODO: Modify ripple to always be in center of screen irrespective of remapped x range
 const effectController = {
@@ -103,89 +100,7 @@ const postProcessFunction = Fn( ( [ color ] ) => {
 
 } );
 
-const init = async () => {
-
-	camera = new THREE.OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
-	scene = new THREE.Scene();
-	const geometry = new THREE.PlaneGeometry( 2, 2 );
-
-	const material = new MeshBasicNodeMaterial();
-
-	const textureLoader = new THREE.TextureLoader();
-	const tomatoTexture = textureLoader.load( './resources/tomato.jpg' );
-
-	material.colorNode = Fn( () => {
-
-		const { mouseX, mouseY, remapUVXBegin, remapUVXEnd, rippleRingSize, rippleSpeed, rippleStrength } = effectController;
-
-		const vUv = uv().toVar( 'vUv' );
-
-		vUv.x.assign( remap( vUv.x, 0.0, 1.0, remapUVXBegin, remapUVXEnd ) );
-
-		const mousePos = vec2( mouseX, mouseY ).toVar( 'mousePos' );
-
-		const distToCenter = length( vUv.sub( mousePos ) ).toVar( 'distToCenter' );
-		const d = sin( distToCenter.mul( rippleRingSize ).sub( time.mul( rippleSpeed ) ) ).toVar( 'd' );
-		const dir = normalize( vUv.sub( mousePos ) );
-		const rippleCoords = vUv.add( d.mul( dir ).mul( rippleStrength ) );
-
-
-		return texture( tomatoTexture, rippleCoords );
-
-	} )();
-
-	console.log( material );
-
-	const quad = new THREE.Mesh( geometry, material );
-	scene.add( quad );
-
-	renderer = new WebGPURenderer( { antialias: true } );
-	renderer.setSize( window.innerWidth, window.innerHeight );
-	renderer.setAnimationLoop( animate );
-	renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
-	document.body.appendChild( renderer.domElement );
-
-	postScene = new PostProcessing( renderer );
-	postColor = new PostProcessing( renderer );
-
-	const scenePass = pixelationPass( scene, camera, effectController.pixelSize, uniform( 0 ), uniform( 0 ) );
-	postScene.outputNode = scenePass;
-	postColor.outputNode = postProcessFunction( scenePass );
-
-	window.addEventListener( 'resize', onWindowResize );
-	window.addEventListener( 'mousemove', onMouseMove );
-
-	//const rawShader = await renderer.debug.getShaderAsync( scene, camera, quad );
-	//console.log( rawShader );
-
-	gui = new GUI();
-	gui.add( effectController.remapUVXBegin, 'value', 0.01, 0.9 ).name( 'remapXBegin' );
-	gui.add( effectController.remapUVXEnd, 'value', 0.01, 0.9 ).name( 'remapXEnd' );
-	const rippleFolder = gui.addFolder( 'Ripple' );
-	rippleFolder.add( effectController.rippleRingSize, 'value', 20, 200 ).step( 1 ).name( 'rippleRingSize' );
-	rippleFolder.add( effectController.rippleSpeed, 'value', 0, 10 ).step( 1 ).name( 'rippleSpeed' );
-	rippleFolder.add( effectController.rippleStrength, 'value', 0.00, 0.1 ).step( 0.001 ).name( 'rippleStrength' );
-	const postProcessingFolder = gui.addFolder( 'Post Processing' );
-	postProcessingFolder.add( effectController.saturation, 'value', 0.0, 2.0 ).name( 'saturation' );
-	postProcessingFolder.add( effectController.brightness, 'value', - 1.0, 1.0 ).step( 0.1 ).name( 'brightness' );
-	postProcessingFolder.add( effectController.contrast, 'value', 0.0, 2.0 ).step( 0.1 ).name( 'contrast' );
-	postProcessingFolder.add( effectController.midpoint, 'value', - 1.0, 1.0 ).step( 0.01 ).name( 'midpoint' );
-	// Change how specific the color boost is.
-	postProcessingFolder.add( effectController.colorWeightPower, 'value', 1.0, 200.0 ).step( 1 ).name( 'colorWeightPower' );
-	postProcessingFolder.add( effectController.pixelSize, 'value', 1, 20 ).step( 1 ).name( 'pixelSize' );
-
-
-};
-
-const onWindowResize = () => {
-
-	camera.aspect = window.innerWidth / window.innerHeight;
-	camera.updateProjectionMatrix();
-	renderer.setSize( window.innerWidth, window.innerHeight );
-
-};
-
-const onMouseMove = ( e ) => {
+const onMouseMove = ( e: MouseEvent ) => {
 
 	const { mouseX, mouseY } = effectController;
 
@@ -204,23 +119,91 @@ const onMouseMove = ( e ) => {
 
 };
 
-function animate() {
+class DistortionsRipples extends App {
 
-	// Altering the code a bit to work within a more typical postProcessing context
-	const halfWidth = window.innerWidth / 2;
+	async onSetupProject( projectFolder?: GUI ): Promise<void> {
 
-	renderer.setViewport( 0, 0, halfWidth, window.innerHeight );
+		this.changeRenderHandler( ( renderer: ThreeRenderer, scene: THREE.Scene, camera: THREE.Camera )=> {
 
-	postScene.render();
+			const { postScene, postColor } = this.PostProcessing;
 
-	renderer.autoClear = false;
+			// Altering the code a bit to work within a more typical postProcessing context
+			const halfWidth = window.innerWidth / 2;
 
-	renderer.setViewport( halfWidth, 0, halfWidth, window.innerHeight );
-	postColor.render();
+			renderer.setViewport( 0, 0, halfWidth, window.innerHeight );
 
-	renderer.autoClear = true;
+			postScene.render();
 
+			renderer.autoClear = false;
+
+			renderer.setViewport( halfWidth, 0, halfWidth, window.innerHeight );
+			postColor.render();
+
+			renderer.autoClear = true;
+
+		} );
+
+		const geometry = new THREE.PlaneGeometry( 2, 2 );
+
+		const material = new MeshBasicNodeMaterial();
+
+		const tomatoTexture = await this.loadTexture( './resources/tomato.jpg' );
+
+		material.colorNode = Fn( () => {
+
+			const { mouseX, mouseY, remapUVXBegin, remapUVXEnd, rippleRingSize, rippleSpeed, rippleStrength } = effectController;
+
+			const vUv = uv().toVar( 'vUv' );
+
+			vUv.x.assign( remap( vUv.x, 0.0, 1.0, remapUVXBegin, remapUVXEnd ) );
+
+			const mousePos = vec2( mouseX, mouseY ).toVar( 'mousePos' );
+
+			const distToCenter = length( vUv.sub( mousePos ) ).toVar( 'distToCenter' );
+			const d = sin( distToCenter.mul( rippleRingSize ).sub( time.mul( rippleSpeed ) ) ).toVar( 'd' );
+			const dir = normalize( vUv.sub( mousePos ) );
+			const rippleCoords = vUv.add( d.mul( dir ).mul( rippleStrength ) );
+
+
+			return texture( tomatoTexture, rippleCoords );
+
+		} )();
+
+		const quad = new THREE.Mesh( geometry, material );
+		this.Scene.add( quad );
+
+		const scenePass = pixelationPass( this.Scene, this.Camera, effectController.pixelSize, uniform( 0 ), uniform( 0 ) );
+		this.createPostProcessingPipeline( 'postScene' ).outputNode = scenePass;
+		this.createPostProcessingPipeline( 'postColor' ).outputNode = postProcessFunction( scenePass );
+
+		window.addEventListener( 'mousemove', onMouseMove );
+
+		this.DebugGui.add( effectController.remapUVXBegin, 'value', 0.01, 0.9 ).name( 'remapXBegin' );
+		this.DebugGui.add( effectController.remapUVXEnd, 'value', 0.01, 0.9 ).name( 'remapXEnd' );
+		const rippleFolder = this.DebugGui.addFolder( 'Ripple' );
+		rippleFolder.add( effectController.rippleRingSize, 'value', 20, 200 ).step( 1 ).name( 'rippleRingSize' );
+		rippleFolder.add( effectController.rippleSpeed, 'value', 0, 10 ).step( 1 ).name( 'rippleSpeed' );
+		rippleFolder.add( effectController.rippleStrength, 'value', 0.00, 0.1 ).step( 0.001 ).name( 'rippleStrength' );
+		const postProcessingFolder = this.DebugGui.addFolder( 'Post Processing' );
+		postProcessingFolder.add( effectController.saturation, 'value', 0.0, 2.0 ).name( 'saturation' );
+		postProcessingFolder.add( effectController.brightness, 'value', - 1.0, 1.0 ).step( 0.1 ).name( 'brightness' );
+		postProcessingFolder.add( effectController.contrast, 'value', 0.0, 2.0 ).step( 0.1 ).name( 'contrast' );
+		postProcessingFolder.add( effectController.midpoint, 'value', - 1.0, 1.0 ).step( 0.01 ).name( 'midpoint' );
+		// Change how specific the color boost is.
+		postProcessingFolder.add( effectController.colorWeightPower, 'value', 1.0, 200.0 ).step( 1 ).name( 'colorWeightPower' );
+		postProcessingFolder.add( effectController.pixelSize, 'value', 1, 20 ).step( 1 ).name( 'pixelSize' );
+
+	}
 
 }
 
-init();
+const app = new DistortionsRipples();
+app.initialize( {
+	debug: true,
+	projectName: 'Distortions & Ripples',
+	rendererType: 'WebGPU',
+	initialCameraMode: 'orthographic',
+} );
+
+
+

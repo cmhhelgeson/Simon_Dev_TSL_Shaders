@@ -804,6 +804,12 @@ class App {
 
 	}
 
+	set ColorSpace( colorSpace: THREE.ColorSpace ) {
+
+		this.#renderer.outputColorSpace = colorSpace;
+
+	}
+
 	get PerspectiveCamera() {
 
 		return ( this.#camera as THREE.PerspectiveCamera );
