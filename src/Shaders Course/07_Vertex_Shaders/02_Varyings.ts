@@ -83,7 +83,7 @@ class Varyings extends App {
 
 		};
 
-		const fragmentShaders: Record<ShaderType, Node> = {
+		const fragmentShaders: Record<string, Node> = {
 
 			'Varying Color': Fn( () => {
 

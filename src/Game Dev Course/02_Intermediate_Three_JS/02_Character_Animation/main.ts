@@ -132,7 +132,6 @@ class CharacterAnimation extends App {
 
 		if ( this.#mixer ) {
 
-
 			this.#mixer.update( deltaTime );
 
 		}
@@ -148,6 +147,6 @@ const app = new CharacterAnimation();
 app.initialize( {
 	debug: true,
 	projectName: 'Character Animation',
-	rendererType: 'WebGL',
+	rendererType: 'WebGPU',
 	initialCameraMode: 'perspective',
 } );

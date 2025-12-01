@@ -8,9 +8,7 @@ import {
 	positionLocal,
 	rotate,
 } from 'three/tsl';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { MeshStandardNodeMaterial, Node } from 'three/webgpu';
 import { App } from '../../utils/App';
 
@@ -111,7 +109,6 @@ class BasicTransformations extends App {
 		const cubemap = new THREE.CubeTextureLoader().load( urls );
 		this.Scene.background = cubemap;
 
-		const loader = new GLTFLoader();
 		const suzanneMaterial = new MeshStandardNodeMaterial();
 		suzanneMaterial.positionNode = shaders[ 'Move Z' ];
 
@@ -124,17 +121,15 @@ class BasicTransformations extends App {
 		this.Scene.add( light );
 		this.Scene.add( light2 );
 
-		loader.load( './resources/suzanne.glb', ( gltf ) => {
+		const suzanne = await this.loadGLTF( './resources/suzanne.glb' );
+		suzanne.scene.traverse( c => {
 
-			gltf.scene.traverse( c => {
-
-				c.material = suzanneMaterial;
-
-			} );
-
-			this.Scene.add( gltf.scene );
+			c.material = suzanneMaterial;
 
 		} );
+
+		this.Scene.add( suzanne.scene );
+
 
 
 		this.CameraControls.enableZoom = false;

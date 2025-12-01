@@ -685,7 +685,7 @@ class App {
 
 	}
 
-	async loadGLTF( path: string ) {
+	async loadGLTF( path: string ): Promise<GLTF> {
 
 		if ( this.#gltfLoader === undefined ) {
 
