@@ -86,9 +86,9 @@ class App {
    * @private
    * The camera used in the application.
    */
-	#camera!: THREE.PerspectiveCamera | THREE.OrthographicCamera;
+	Camera!: THREE.PerspectiveCamera | THREE.OrthographicCamera;
 	#scene!: THREE.Scene;
-	#clock!: THREE.Clock;
+	#timer!: THREE.Timer;
 	#controls!: OrbitControls;
 	#stats!: Stats;
 	#debugUI!: GUI;
@@ -125,8 +125,8 @@ class App {
 
 	#computeShaders: ComputeNode[] = [];
 
-	deltaTimeUniform: UniformNode<number> = uniform( 0 );
-	timeUniform: UniformNode<number> = uniform( 0 );
+	deltaTimeUniform: UniformNode<'float', number> = uniform( 0 );
+	timeUniform: UniformNode<'float', number> = uniform( 0 );
 
 	#handleRender: ( renderer: ThreeRenderer, scene: THREE.Scene<Object3DEventMap>, camera: THREE.Camera ) => void = () => {
 
@@ -210,9 +210,9 @@ class App {
 
 		if ( cameraType === 'perspective' ) {
 
-			this.#camera = new THREE.PerspectiveCamera( 50, aspect, 0.1, 2000 );
+			this.Camera = new THREE.PerspectiveCamera( 50, aspect, 0.1, 2000 );
 
-			this.#controls = new OrbitControls( this.#camera, this.#renderer.domElement );
+			this.#controls = new OrbitControls( this.Camera, this.#renderer.domElement );
 			// Smooths camera movement
 			this.#controls.enableDamping = true;
 			// Explicitly set camera's target to the default of 0, 0, 0
@@ -221,7 +221,7 @@ class App {
 
 		} else {
 
-			this.#camera = new THREE.OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
+			this.Camera = new THREE.OrthographicCamera( - 1, 1, 1, - 1, 0, 1 );
 
 		}
 
@@ -242,7 +242,7 @@ class App {
 		await this.#setupRenderer( options );
 
 		this.#scene.backgroundBlurriness = 0.0;
-		this.#scene.backgroundIntensity = 0.01;
+		this.#scene.backgroundIntensity = 1.0;
 		this.#scene.environmentIntensity = 1.0;
 
 		// Initialize project
@@ -402,6 +402,12 @@ class App {
 
 	}
 
+	set toneMapping( toneMapping: THREE.ToneMapping ) {
+
+		this.#renderer.toneMapping = toneMapping;
+
+	}
+
 
 	#raf() {
 
@@ -409,8 +415,8 @@ class App {
 
 			const { useDeltaTime, clampMin, clampMax, fixedTimeStep, useFixedFrameRate, fixedCPUFPS, fixedGPUFPS } = this.#rendererSettings;
 
-			const timeElapsed = this.#clock.getDelta();
-			const totalTimeElapsed = this.#clock.getElapsedTime();
+			const timeElapsed = this.#timer.getDelta();
+			const totalTimeElapsed = this.#timer.getElapsed();
 			const deltaTime = useDeltaTime ? Math.min( Math.max( timeElapsed, clampMin ), clampMax ) : fixedTimeStep;
 
 			// We're still calculating literal time even when deltaTime is set arbitrarily
@@ -465,7 +471,9 @@ class App {
 
 		}
 
-		//this.#controls.update( deltaTime );
+		// Required every frame: enableDamping integrates toward the target over time,
+		// so without this the camera only moves while OrbitControls' own events fire.
+		this.#controls.update( deltaTime );
 
 	}
 
@@ -477,7 +485,7 @@ class App {
 
 	compute( fn: ComputeNode | ComputeNode[] ) {
 
-		this.#renderer.computeAsync( fn );
+		return this.#renderer.computeAsync( fn );
 
 	}
 
@@ -485,7 +493,7 @@ class App {
 
 		// App specific code executed per render
 		this.onRender( deltaTime );
-		this.#handleRender( this.#renderer, this.#scene, this.#camera );
+		this.#handleRender( this.#renderer, this.#scene, this.Camera );
 
 	}
 
@@ -526,15 +534,15 @@ class App {
 
 		if ( cameraResizeUpdate ) {
 
-			if ( this.#camera.type === 'PerspectiveCamera' ) {
+			if ( this.Camera.type === 'PerspectiveCamera' ) {
 
-				( this.#camera as THREE.PerspectiveCamera ).aspect = useFixedAspectRatio ?
+				( this.Camera as THREE.PerspectiveCamera ).aspect = useFixedAspectRatio ?
 					aspectWidth / aspectHeight :
 					window.innerWidth / window.innerHeight;
 
 			}
 
-			this.#camera.updateProjectionMatrix();
+			this.Camera.updateProjectionMatrix();
 
 		}
 
@@ -561,7 +569,7 @@ class App {
 
 		}
 
-		this.#clock = new THREE.Clock( true );
+		this.#timer = new THREE.Timer();
 
 		// Setup event listeners before render loop
 		window.addEventListener( 'resize', () => {
@@ -798,12 +806,6 @@ class App {
 
 	}
 
-	get Camera() {
-
-		return this.#camera;
-
-	}
-
 	set ColorSpace( colorSpace: THREE.ColorSpace ) {
 
 		this.#renderer.outputColorSpace = colorSpace;
@@ -812,7 +814,7 @@ class App {
 
 	get PerspectiveCamera() {
 
-		return ( this.#camera as THREE.PerspectiveCamera );
+		return ( this.Camera as THREE.PerspectiveCamera );
 
 	}
 

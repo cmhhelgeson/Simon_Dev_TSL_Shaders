@@ -67,7 +67,7 @@ class App {
 	#renderer!: WebGPURenderer;
 	#camera!: THREE.PerspectiveCamera;
 	#scene!: THREE.Scene;
-	#clock: THREE.Clock = new THREE.Clock( true );
+	#timer: THREE.Timer = new THREE.Timer();
 	#controls!: OrbitControls;
 	#mesh!: THREE.Mesh;
 	#debugUI!: GUI;
@@ -103,6 +103,8 @@ class App {
 	#timeSinceLastRender = 0;
 
 	constructor() {
+
+		//this.#clock.connect(document)
 
 		window.addEventListener( 'resize', () => {
 
@@ -301,7 +303,7 @@ class App {
 
 			const { useDeltaTime, clampMin, clampMax, fixedTimeStep, useFixedFrameRate, fixedCPUFPS, fixedGPUFPS } = this.#rendererSettings;
 
-			const timeElapsed = this.#clock.getDelta();
+			const timeElapsed = this.#timer.getDelta();
 			const deltaTime = useDeltaTime ? Math.min( Math.max( timeElapsed, clampMin ), clampMax ) : fixedTimeStep;
 
 			// We're still calculating literal time even when deltaTime is set arbitrarily
@@ -412,7 +414,6 @@ class App {
 
 		// Arguments: Width, height, and whether to resize the canvas
 		this.#renderer.setSize( canvasWidth, canvasHeight, this.#rendererSettings.resizeCanvas );
-		console.log( this.#rendererSettings.useDPR );
 		if ( this.#rendererSettings.useDPR ) {
 
 			this.#renderer.setPixelRatio( dpr );

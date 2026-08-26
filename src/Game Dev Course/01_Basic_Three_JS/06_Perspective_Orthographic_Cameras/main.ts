@@ -4,19 +4,17 @@ import * as THREE from 'three';
 import { WebGPURenderer } from 'three/webgpu';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Pane } from 'tweakpane';
-
-
 class App {
 
-	#threejs_: WebGPURenderer;
-	#camera_ : THREE.Camera;
+	#threejs_!: WebGPURenderer;
+	#camera_! : THREE.Camera;
 
-	#scene_: THREE.Scene;
-	#clock_: THREE.Clock;
-	#controls_: OrbitControls;
+	#scene_!: THREE.Scene;
+	#timer!: THREE.Timer;
+	#controls_!: OrbitControls;
 
-	#perspectiveCamera_ : THREE.PerspectiveCamera;
-	#orthographicCamera_: THREE.OrthographicCamera;
+	#perspectiveCamera_! : THREE.PerspectiveCamera;
+	#orthographicCamera_!: THREE.OrthographicCamera;
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	#debugParams_: any = {};
@@ -26,7 +24,7 @@ class App {
 
 	async initialize() {
 
-		this.#clock_ = new THREE.Clock( true );
+		this.#timer = new THREE.Timer();
 
 		window.addEventListener( 'resize', () => {
 
@@ -169,7 +167,7 @@ class App {
 
 		requestAnimationFrame( ( t ) => {
 
-			this.#step_( this.#clock_.getDelta() );
+			this.#step_( this.#timer_.getDelta() );
 			this.#render_();
 			this.#raf_();
 
@@ -183,7 +181,7 @@ class App {
 
 	}
 
-	#step_( timeElapsed ) {
+	#step_( timeElapsed: number ) {
 
 		this.#controls_.update( timeElapsed );
 		this.#orthographicCamera_.position.copy( this.#perspectiveCamera_.position );

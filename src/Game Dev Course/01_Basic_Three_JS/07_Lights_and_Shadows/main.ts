@@ -241,9 +241,9 @@ class LightsExample extends App {
 		this.CameraControls.update( deltaTime );
 		this.Stats.update();
 		    // this.#light_.position.set(
-		//     5 * Math.sin(this.#clock_.getElapsedTime() * 0.1),
+		//     5 * Math.sin(this.#timer.getElapsed() * 0.1),
 		//     5,
-		//     5 * Math.cos(this.#clock_.getElapsedTime() * 0.1));
+		//     5 * Math.cos(this.#timer.getElapsed() * 0.1));
 		// this.#lightHelper_.update();
 
 		this.#cube.rotation.z += 0.11 * deltaTime;

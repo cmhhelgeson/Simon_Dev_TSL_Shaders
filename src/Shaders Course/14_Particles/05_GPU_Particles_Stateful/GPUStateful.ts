@@ -8,7 +8,6 @@ import { createTextMesh } from '../utils/text-utils';
 import { curlNoiseWGSL, noise34 } from '../utils/noise';
 import { CalculateAttractorForce, CalculateRepulsorForce } from '../utils/attractionShader';
 
-
 class GPGPUProject extends App {
 
 	#storageBuffers: Record<string, StorageBufferNode> = {};
