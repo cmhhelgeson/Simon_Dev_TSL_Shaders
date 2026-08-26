@@ -4,25 +4,33 @@
   "main": "index.js",
   "scripts": {
     "dev": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "lint": "eslint ."
   },
   "devDependencies": {
-    "@types/node": "^24.10.1",
-    "@types/three": "^0.181.0",
-    "@typescript-eslint/parser": "^8.17.0",
-    "eslint": "^8.57.0",
-    "eslint-config-mdcs": "^5.0.0",
-    "eslint-plugin-compat": "^6.0.0",
-    "eslint-plugin-html": "8.1.3",
-    "eslint-plugin-import": "2.32.0",
-    "typescript": "5.9.3",
-    "typescript-eslint": "8.47.0",
-    "vite-plugin-top-level-await": "1.6.0"
+    "@eslint/js": "^10.0.1",
+    "@stylistic/eslint-plugin": "^5.10.0",
+    "@types/node": "^26.2.0",
+    "@types/three": "^0.185.4",
+    "eslint": "^10.8.1",
+    "eslint-plugin-compat": "^7.0.2",
+    "eslint-plugin-html": "^8.1.4",
+    "eslint-plugin-import-x": "^4.17.1",
+    "globals": "^17.9.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.66.0",
+    "vite": "^8.2.1",
+    "vite-plugin-glsl": "^1.6.1"
   },
   "dependencies": {
     "mersennetwister": "^0.2.3",
-    "three": "^0.181.2",
-    "vite": "7.2.4",
-    "vite-plugin-glsl": "^1.5.4"
-  }
+    "three": "^0.185.1",
+    "tweakpane": "^4.0.5"
+  },
+  "browserslist": [
+    "chrome >= 107",
+    "edge >= 107",
+    "firefox >= 104",
+    "safari >= 16"
+  ]
 }
