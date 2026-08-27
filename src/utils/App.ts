@@ -58,12 +58,22 @@ type RendererSettings = {
   useDPR: boolean;
   /** Aspect ratio controller, e.g., '16:9' */
   fixedAspectController: string;
+	/** Wether to lerp between the previous and current aspect ratios */
+	lerpAspectRatio: boolean;
+	previousAspectWidth: number;
+	previousAspectHeight: number;
+	/** Previous aspect width */
+	targetAspectWidth: number;
+	/** Previous aspect height */
+	targetAspectHeight: number;
   /** Width part of fixed aspect ratio */
   aspectWidth: number;
   /** Height part of fixed aspect ratio */
   aspectHeight: number;
   /** Manually specify the device pixel ratio of the scene */
   dprValue: number;
+	/** Specify the output color space of the renderer */
+	colorSpace: THREE.ColorSpace
 };
 
 type GLTFLoadCallback = ( gltf: GLTF ) => void;
@@ -110,10 +120,16 @@ class App {
 		useFixedAspectRatio: false,
 		useDPR: true,
 		// Canvas Values
-		fixedAspectController: '16:9',
+		fixedAspectController: '16:9 (HD)',
+		lerpAspectRatio: false,
+		previousAspectWidth: 16,
+		previousAspectHeight: 9,
+		targetAspectWidth: 16,
+		targetAspectHeight: 9,
 		aspectWidth: 16,
 		aspectHeight: 9,
 		dprValue: window.devicePixelRatio,
+		colorSpace: THREE.SRGBColorSpace,
 	};
 
 	#gltfLoader!: GLTFLoader;
@@ -133,6 +149,29 @@ class App {
 		console.log( 'define render handleer' );
 
 	};
+
+	_handleBasicStep(deltaTime: number, totalTimeElapsed: number) {
+
+		this.onStep( deltaTime, totalTimeElapsed );
+
+		// TODO: Determine some way to make scheduling of compute shaders more flexible
+		// I.E before or after this.onStep
+
+		for ( const computeShader of this.#computeShaders ) {
+
+			this.compute( computeShader );
+
+		}
+
+		// Required every frame: enableDamping integrates toward the target over time,
+		// so without this the camera only moves while OrbitControls' own events fire.
+		this.#controls.update( deltaTime );
+
+	}
+
+	#handleStep: (deltaTime: number, totalTimeElapsed: number) => void = () => {
+		console.error('define step handler')
+	}
 
 
 	#timeSinceLastUpdate = 0;
@@ -163,8 +202,6 @@ class App {
 			throw new Error( 'Cannot get canvas' );
 
 		}
-
-		console.log( 'test getRenderer' );
 
 		this.#renderer = new WebGPURenderer( {
 			canvas: documentCanvas,
@@ -234,10 +271,11 @@ class App {
 
 		}
 
-
 	}
 
 	async #setupProject( options: AppInitializationOptions ) {
+
+		this.#handleStep = this._handleBasicStep;
 
 		await this.#setupRenderer( options );
 
@@ -253,7 +291,169 @@ class App {
 
 	}
 
+	/**
+	 * Whether the animated aspect ratio has reached its target.
+	 *
+	 * Compared with an epsilon rather than equality: aspectWidth/aspectHeight are
+	 * produced by a float lerp, so they approach the target asymptotically and an
+	 * exact check would leave the lerping step handler installed forever.
+	 */
+	_isAtTargetAspectRatio() {
+
+		const { aspectWidth, aspectHeight, targetAspectWidth, targetAspectHeight } = this.#rendererSettings;
+
+		const EPSILON = 1e-4;
+
+		return Math.abs( aspectWidth - targetAspectWidth ) < EPSILON &&
+			Math.abs( aspectHeight - targetAspectHeight ) < EPSILON;
+
+	}
+
+	_changeAspectRatio() {
+
+		let newAspectWidth = 0;
+		let newAspectHeight = 0;
+
+		// Lazy way, no parsing
+			switch ( this.#rendererSettings.fixedAspectController ) {
+
+				case '16:9 (HD)': {
+
+					newAspectWidth = 16;
+					newAspectHeight = 9;
+					break;
+
+				}
+
+				case '4:3 (CRT)': {
+
+					newAspectWidth = 4;
+					newAspectHeight = 3;
+					break;
+
+				}
+
+				case '1:85:1 (Standard)': {
+
+					newAspectWidth = 1.85;
+					newAspectHeight = 1;
+					break;
+
+				}
+
+				case '2.39:1 (Anamorphic)': {
+
+					newAspectWidth = 2.39;
+					newAspectHeight = 1;
+					break;
+
+				}
+
+				case '2.76:1 (Ultra Panavasion)': {
+
+					newAspectWidth = 2.76;
+					newAspectHeight = 1;
+					break;
+
+				}
+
+				case '1.90:1 ("Imax")': {
+
+					newAspectWidth = 1.90;
+					newAspectHeight = 1;
+					break;
+
+				}
+
+				case '1.43:1 (Imax Film)': {
+
+					newAspectWidth = 1.43;
+					newAspectHeight = 1;
+					break;
+
+				}
+
+				case '4:1 (Gance)': {
+
+					newAspectWidth = 4.0;
+					newAspectHeight = 1;
+					break;
+
+				}
+
+				case '1:1': {
+
+					newAspectWidth = 1.0;
+					newAspectHeight = 1.0;
+					break;
+
+				}
+
+			}
+
+		if (this.#rendererSettings.lerpAspectRatio) {
+
+			// Set target aspect ratio
+			this.#rendererSettings.targetAspectWidth = newAspectWidth;
+			this.#rendererSettings.targetAspectHeight = newAspectHeight;
+
+			// Set prev aspect ratio
+			this.#rendererSettings.previousAspectWidth = this.#rendererSettings.aspectWidth;
+			this.#rendererSettings.previousAspectHeight = this.#rendererSettings.aspectHeight;
+
+			let startTimeElapsed = this.#timer.getElapsed();
+			const duration = 1.5;
+
+			this.#handleStep = (deltaTime: number, totalTimeElapsed: number) => {
+
+				// Early return if we are no longer using an aspect ratio
+				if(!this.#rendererSettings.useFixedAspectRatio) {
+
+					this._handleBasicStep(deltaTime, totalTimeElapsed);
+					this.#handleStep = this._handleBasicStep;
+					return;
+
+				}
+
+				const {previousAspectWidth, previousAspectHeight, targetAspectWidth, targetAspectHeight} = this.#rendererSettings;
+
+				let normalizedElapsed = Math.min((totalTimeElapsed - startTimeElapsed) / duration, 1);
+
+				this.#rendererSettings.aspectWidth = THREE.MathUtils.lerp(previousAspectWidth, targetAspectWidth, normalizedElapsed);
+				this.#rendererSettings.aspectHeight = THREE.MathUtils.lerp(previousAspectHeight, targetAspectHeight, normalizedElapsed);
+
+				this.#onWindowResize();
+				this._handleBasicStep(deltaTime, totalTimeElapsed);
+
+				if (this._isAtTargetAspectRatio()) {
+
+					this.#rendererSettings.aspectWidth = targetAspectWidth;
+					this.#rendererSettings.aspectHeight = targetAspectHeight;
+					this.#handleStep = this._handleBasicStep;
+					return;
+
+				}
+
+			}
+
+			return;
+
+		}
+
+		this.#rendererSettings.aspectWidth = this.#rendererSettings.targetAspectWidth = newAspectWidth;
+		this.#rendererSettings.aspectHeight = this.#rendererSettings.targetAspectHeight = newAspectHeight;
+
+		this.#onWindowResize();
+	}
+
 	#addRendererDebugGui() {
+
+		this.#debugUIMap['Color Space'] = this.#debugUI.addFolder('Color Space'); 
+		this.#debugUIMap['Color Space'].add(this.#renderer, 'outputColorSpace', [
+			THREE.SRGBColorSpace,
+			THREE.NoColorSpace,
+			THREE.LinearSRGBColorSpace,
+		]);
 
 		this.#debugUIMap[ 'Time Settings' ] = this.#debugUI.addFolder( 'Time Settings' );
 		this.#debugUIMap[ 'Time Settings' ].add( this.#rendererSettings, 'useDeltaTime' );
@@ -295,6 +495,7 @@ class App {
 
 		} );
 		this.#debugUIMap[ 'Resize Values' ] = this.#debugUI.addFolder( 'Resize Values' );
+		this.#debugUIMap[ 'Resize Values'].add(this.#rendererSettings, 'lerpAspectRatio'); 
 		this.#debugUIMap[ 'Resize Values' ].add( this.#rendererSettings, 'fixedAspectController', [
 			'16:9 (HD)',
 			'4:3 (CRT)',
@@ -307,84 +508,7 @@ class App {
 			'1:1'
 		] ).onChange( () => {
 
-			// Lazy way, no parsing
-			switch ( this.#rendererSettings.fixedAspectController ) {
-
-				case '16:9 (HD)': {
-
-					this.#rendererSettings.aspectWidth = 16;
-					this.#rendererSettings.aspectHeight = 9;
-					break;
-
-				}
-
-				case '4:3 (CRT)': {
-
-					this.#rendererSettings.aspectWidth = 4;
-					this.#rendererSettings.aspectHeight = 3;
-					break;
-
-				}
-
-				case '1:85:1 (Standard)': {
-
-					this.#rendererSettings.aspectWidth = 1.85;
-					this.#rendererSettings.aspectHeight = 1;
-					break;
-
-				}
-
-				case '2.39:1 (Anamorphic)': {
-
-					this.#rendererSettings.aspectWidth = 2.39;
-					this.#rendererSettings.aspectHeight = 1;
-					break;
-
-				}
-
-				case '2.76:1 (Ultra Panavasion)': {
-
-					this.#rendererSettings.aspectWidth = 2.76;
-					this.#rendererSettings.aspectHeight = 1;
-					break;
-
-				}
-
-				case '1.90:1 ("Imax")': {
-
-					this.#rendererSettings.aspectWidth = 1.90;
-					this.#rendererSettings.aspectHeight = 1;
-					break;
-
-				}
-
-				case '1.43:1 (Imax Film)': {
-
-					this.#rendererSettings.aspectWidth = 1.43;
-					this.#rendererSettings.aspectHeight = 1;
-					break;
-
-				}
-
-				case '4:1 (Gance)': {
-
-					this.#rendererSettings.aspectWidth = 4.0;
-					this.#rendererSettings.aspectHeight = 1;
-					break;
-
-				}
-
-				case '1:1': {
-
-					this.#rendererSettings.aspectWidth = 1.0;
-					this.#rendererSettings.aspectHeight = 1.0;
-					break;
-
-				}
-
-			}
-
-			this.#onWindowResize();
+			this._changeAspectRatio();
 
 		} ).name( 'Fixed Aspect Ratio' );
 
@@ -414,6 +538,10 @@ class App {
 		requestAnimationFrame( () => {
 
 			const { useDeltaTime, clampMin, clampMax, fixedTimeStep, useFixedFrameRate, fixedCPUFPS, fixedGPUFPS } = this.#rendererSettings;
+
+			// THREE.Timer only advances its counters inside update(); without this call
+			// getDelta() and getElapsed() both return 0 for the lifetime of the app.
+			this.#timer.update();
 
 			const timeElapsed = this.#timer.getDelta();
 			const totalTimeElapsed = this.#timer.getElapsed();
@@ -460,20 +588,7 @@ class App {
 	// State update function
 	#step( deltaTime: number, totalTimeElapsed: number ) {
 
-		this.onStep( deltaTime, totalTimeElapsed );
-
-		// TODO: Determine some way to make scheduling of compute shaders more flexible
-		// I.E before or after this.onStep
-
-		for ( const computeShader of this.#computeShaders ) {
-
-			this.compute( computeShader );
-
-		}
-
-		// Required every frame: enableDamping integrates toward the target over time,
-		// so without this the camera only moves while OrbitControls' own events fire.
-		this.#controls.update( deltaTime );
+		this.#handleStep(deltaTime, totalTimeElapsed);
 
 	}
 
@@ -503,7 +618,7 @@ class App {
 
 		let canvasWidth = window.innerWidth;
 		let canvasHeight = window.innerHeight;
-
+ 
 		const dpr = this.#rendererSettings.dprValue ? this.#rendererSettings.dprValue : window.devicePixelRatio;
 
 		if ( useFixedAspectRatio ) {

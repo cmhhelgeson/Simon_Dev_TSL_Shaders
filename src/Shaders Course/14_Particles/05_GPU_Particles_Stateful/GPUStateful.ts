@@ -10,7 +10,7 @@ import { CalculateAttractorForce, CalculateRepulsorForce } from '../utils/attrac
 
 class GPGPUProject extends App {
 
-	#storageBuffers: Record<string, StorageBufferNode> = {};
+	#storageBuffers: Record<string, StorageBufferNode<any>> = {};
 	#computeShaders: Record<string, ComputeNode> = {};
 
 	#uniforms = {

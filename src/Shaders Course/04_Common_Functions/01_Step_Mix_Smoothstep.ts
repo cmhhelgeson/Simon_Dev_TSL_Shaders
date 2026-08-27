@@ -22,6 +22,9 @@ import { App } from '../../utils/App';
 
 // mix(a, b, t)
 // return a + t * (b - a);
+// Example
+// mix(10, 20, 0) -> 10
+// mix(10, 20, 0.5) -> 10 + 0.5 times 20 - 10 -> 10 + 0.5 * 10 -> 10 + 5 -> 15
 // also known as lerp
 
 // smoothstep(edge1, edge2, x): Returns a smooth Hermite interpolation between 0 and 1 if x is in
