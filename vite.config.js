@@ -1,5 +1,4 @@
 import { defineConfig } from 'vite';
-import topLevelAwait from 'vite-plugin-top-level-await';
 import glsl from 'vite-plugin-glsl';
 
 export default defineConfig( {
@@ -12,13 +11,16 @@ export default defineConfig( {
 		}
 	},
 	plugins: [
-		topLevelAwait( {
-			promiseExportName: '__tla',
-			promiseImportName: i => `__tla_${i}`,
-		} ),
 		glsl()
 	],
 	server: {
 		port: 5173,
+		watch: {
+			// The project lives on /mnt/c, and WSL2 emits no inotify events for
+			// Windows-mounted drives — without polling the watcher never fires
+			// and HMR silently does nothing.
+			usePolling: true,
+			interval: 300,
+		},
 	}
 } );

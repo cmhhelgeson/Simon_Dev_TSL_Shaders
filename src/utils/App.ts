@@ -1,5 +1,5 @@
-/* eslint-disable compat/compat */
-import * as THREE from 'three';
+
+import * as THREE from 'three/webgpu';
 import { ComputeNode, UniformNode, WebGPURenderer, Scene, Camera, Object3DEventMap, PostProcessing } from 'three/webgpu';
 
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -13,8 +13,10 @@ import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { uniform } from 'three/tsl';
 import { RenderCallback, ThreeRenderer } from './types';
 import { PostProcessingMachine } from './PostProcessingMachine';
+import { GUIManager } from './GUIManager';
+import { LightManager } from './LightManager';
 
-type RendererEnum = 'WebGPU' | 'WebGLFallback'
+type RendererEnum = 'WebGPU' | 'WebGLFallback';
 
 interface AppInitializationOptions {
 	/* The name of the application and the title of the page */
@@ -32,32 +34,32 @@ interface AppInitializationOptions {
  * Configuration options for rendering and canvas behavior.
  */
 type RendererSettings = {
-  /** Use delta time between frames for updates */
-  useDeltaTime: boolean;
-  /** Use a fixed frame rate instead of delta time */
-  useFixedFrameRate: boolean;
-  /** Fixed time step in seconds */
-  fixedTimeStep: number;
-  /** Unified FPS target across systems */
-  fixedUnifiedFPS: number;
-  /** Target CPU frame rate */
-  fixedCPUFPS: number;
-  /** Target GPU frame rate */
-  fixedGPUFPS: number;
-  /** Minimum clamp for delta time */
-  clampMin: number;
-  /** Maximum clamp for delta time */
-  clampMax: number;
-  /** Enable automatic canvas resize on window size change */
-  resizeCanvas: boolean;
-  /** Update the camera's aspect and projection matrix when the canvas resizes */
-  cameraResizeUpdate: boolean;
-  /** Maintain a fixed aspect ratio */
-  useFixedAspectRatio: boolean;
-  /** Use device pixel ratio (DPR) to set resolution of display */
-  useDPR: boolean;
-  /** Aspect ratio controller, e.g., '16:9' */
-  fixedAspectController: string;
+	/** Use delta time between frames for updates */
+	useDeltaTime: boolean;
+	/** Use a fixed frame rate instead of delta time */
+	useFixedFrameRate: boolean;
+	/** Fixed time step in seconds */
+	fixedTimeStep: number;
+	/** Unified FPS target across systems */
+	fixedUnifiedFPS: number;
+	/** Target CPU frame rate */
+	fixedCPUFPS: number;
+	/** Target GPU frame rate */
+	fixedGPUFPS: number;
+	/** Minimum clamp for delta time */
+	clampMin: number;
+	/** Maximum clamp for delta time */
+	clampMax: number;
+	/** Enable automatic canvas resize on window size change */
+	resizeCanvas: boolean;
+	/** Update the camera's aspect and projection matrix when the canvas resizes */
+	cameraResizeUpdate: boolean;
+	/** Maintain a fixed aspect ratio */
+	useFixedAspectRatio: boolean;
+	/** Use device pixel ratio (DPR) to set resolution of display */
+	useDPR: boolean;
+	/** Aspect ratio controller, e.g., '16:9' */
+	fixedAspectController: string;
 	/** Wether to lerp between the previous and current aspect ratios */
 	lerpAspectRatio: boolean;
 	previousAspectWidth: number;
@@ -66,12 +68,12 @@ type RendererSettings = {
 	targetAspectWidth: number;
 	/** Previous aspect height */
 	targetAspectHeight: number;
-  /** Width part of fixed aspect ratio */
-  aspectWidth: number;
-  /** Height part of fixed aspect ratio */
-  aspectHeight: number;
-  /** Manually specify the device pixel ratio of the scene */
-  dprValue: number;
+	/** Width part of fixed aspect ratio */
+	aspectWidth: number;
+	/** Height part of fixed aspect ratio */
+	aspectHeight: number;
+	/** Manually specify the device pixel ratio of the scene */
+	dprValue: number;
 	/** Specify the output color space of the renderer */
 	colorSpace: THREE.ColorSpace
 };
@@ -101,8 +103,8 @@ class App {
 	#timer!: THREE.Timer;
 	#controls!: OrbitControls;
 	#stats!: Stats;
-	#debugUI!: GUI;
-	#debugUIMap: Record<string, GUI> = {};
+	#GUIManager!: GUIManager;
+	#LightManager!: LightManager;
 	#rendererSettings: RendererSettings = {
 		// Time Settings
 		useDeltaTime: true,
@@ -135,6 +137,7 @@ class App {
 	#gltfLoader!: GLTFLoader;
 	#fontLoader!: FontLoader;
 	#ktx2Loader!: KTX2Loader;
+	#textureLoader!: THREE.TextureLoader;
 
 	#postProcessingPipelines: Record<string, PostProcessing > = {};
 	#postProcessingMachine: PostProcessingMachine | null = null;
@@ -150,7 +153,7 @@ class App {
 
 	};
 
-	_handleBasicStep(deltaTime: number, totalTimeElapsed: number) {
+	_handleBasicStep( deltaTime: number, totalTimeElapsed: number ) {
 
 		this.onStep( deltaTime, totalTimeElapsed );
 
@@ -169,9 +172,11 @@ class App {
 
 	}
 
-	#handleStep: (deltaTime: number, totalTimeElapsed: number) => void = () => {
-		console.error('define step handler')
-	}
+	#handleStep: ( deltaTime: number, totalTimeElapsed: number ) => void = () => {
+
+		console.error( 'define step handler' );
+
+	};
 
 
 	#timeSinceLastUpdate = 0;
@@ -219,6 +224,7 @@ class App {
 		};
 
 		this.#renderer.shadowMap.enabled = true;
+		this.#renderer.shadowMap.type = THREE.PCFShadowMap;
 
 	}
 
@@ -264,7 +270,8 @@ class App {
 
 		this.#scene = new THREE.Scene();
 
-		this.#debugUI = new GUI();
+		this.#GUIManager = new GUIManager( new GUI() );
+		this.#LightManager = new LightManager();
 		if ( options.debug ) {
 
 			this.#addRendererDebugGui();
@@ -284,10 +291,16 @@ class App {
 		this.#scene.environmentIntensity = 1.0;
 
 		// Initialize project
-		//const projectFolder = this.#debugUI.addFolder( options.projectName ?? 'Project' );
+		//const projectFolder = this.#GUIManager.addFolder( options.projectName ?? 'Project' );
 
 		// Apply project specific parameters to the scene
-		await this.onSetupProject( );
+		await this.onSetupProject();
+
+	}
+
+	setClearColor( x: THREE.ColorRepresentation ) {
+
+		this.#renderer.setClearColor( x );
 
 	}
 
@@ -315,83 +328,83 @@ class App {
 		let newAspectHeight = 0;
 
 		// Lazy way, no parsing
-			switch ( this.#rendererSettings.fixedAspectController ) {
+		switch ( this.#rendererSettings.fixedAspectController ) {
 
-				case '16:9 (HD)': {
+			case '16:9 (HD)': {
 
-					newAspectWidth = 16;
-					newAspectHeight = 9;
-					break;
-
-				}
-
-				case '4:3 (CRT)': {
-
-					newAspectWidth = 4;
-					newAspectHeight = 3;
-					break;
-
-				}
-
-				case '1:85:1 (Standard)': {
-
-					newAspectWidth = 1.85;
-					newAspectHeight = 1;
-					break;
-
-				}
-
-				case '2.39:1 (Anamorphic)': {
-
-					newAspectWidth = 2.39;
-					newAspectHeight = 1;
-					break;
-
-				}
-
-				case '2.76:1 (Ultra Panavasion)': {
-
-					newAspectWidth = 2.76;
-					newAspectHeight = 1;
-					break;
-
-				}
-
-				case '1.90:1 ("Imax")': {
-
-					newAspectWidth = 1.90;
-					newAspectHeight = 1;
-					break;
-
-				}
-
-				case '1.43:1 (Imax Film)': {
-
-					newAspectWidth = 1.43;
-					newAspectHeight = 1;
-					break;
-
-				}
-
-				case '4:1 (Gance)': {
-
-					newAspectWidth = 4.0;
-					newAspectHeight = 1;
-					break;
-
-				}
-
-				case '1:1': {
-
-					newAspectWidth = 1.0;
-					newAspectHeight = 1.0;
-					break;
-
-				}
+				newAspectWidth = 16;
+				newAspectHeight = 9;
+				break;
 
 			}
 
-		if (this.#rendererSettings.lerpAspectRatio) {
+			case '4:3 (CRT)': {
+
+				newAspectWidth = 4;
+				newAspectHeight = 3;
+				break;
+
+			}
+
+			case '1:85:1 (Standard)': {
+
+				newAspectWidth = 1.85;
+				newAspectHeight = 1;
+				break;
+
+			}
+
+			case '2.39:1 (Anamorphic)': {
+
+				newAspectWidth = 2.39;
+				newAspectHeight = 1;
+				break;
+
+			}
+
+			case '2.76:1 (Ultra Panavasion)': {
+
+				newAspectWidth = 2.76;
+				newAspectHeight = 1;
+				break;
+
+			}
+
+			case '1.90:1 ("Imax")': {
+
+				newAspectWidth = 1.90;
+				newAspectHeight = 1;
+				break;
+
+			}
+
+			case '1.43:1 (Imax Film)': {
+
+				newAspectWidth = 1.43;
+				newAspectHeight = 1;
+				break;
+
+			}
+
+			case '4:1 (Gance)': {
+
+				newAspectWidth = 4.0;
+				newAspectHeight = 1;
+				break;
+
+			}
+
+			case '1:1': {
+
+				newAspectWidth = 1.0;
+				newAspectHeight = 1.0;
+				break;
+
+			}
+
+		}
+
+		if ( this.#rendererSettings.lerpAspectRatio ) {
 
 			// Set target aspect ratio
 			this.#rendererSettings.targetAspectWidth = newAspectWidth;
@@ -401,31 +414,31 @@ class App {
 			this.#rendererSettings.previousAspectWidth = this.#rendererSettings.aspectWidth;
 			this.#rendererSettings.previousAspectHeight = this.#rendererSettings.aspectHeight;
 
-			let startTimeElapsed = this.#timer.getElapsed();
+			const startTimeElapsed = this.#timer.getElapsed();
 			const duration = 1.5;
 
-			this.#handleStep = (deltaTime: number, totalTimeElapsed: number) => {
+			this.#handleStep = ( deltaTime: number, totalTimeElapsed: number ) => {
 
 				// Early return if we are no longer using an aspect ratio
-				if(!this.#rendererSettings.useFixedAspectRatio) {
+				if ( ! this.#rendererSettings.useFixedAspectRatio ) {
 
-					this._handleBasicStep(deltaTime, totalTimeElapsed);
+					this._handleBasicStep( deltaTime, totalTimeElapsed );
 					this.#handleStep = this._handleBasicStep;
 					return;
 
 				}
 
-				const {previousAspectWidth, previousAspectHeight, targetAspectWidth, targetAspectHeight} = this.#rendererSettings;
+				const { previousAspectWidth, previousAspectHeight, targetAspectWidth, targetAspectHeight } = this.#rendererSettings;
 
-				let normalizedElapsed = Math.min((totalTimeElapsed - startTimeElapsed) / duration, 1);
+				const normalizedElapsed = Math.min( ( totalTimeElapsed - startTimeElapsed ) / duration, 1 );
 
-				this.#rendererSettings.aspectWidth = THREE.MathUtils.lerp(previousAspectWidth, targetAspectWidth, normalizedElapsed);
-				this.#rendererSettings.aspectHeight = THREE.MathUtils.lerp(previousAspectHeight, targetAspectHeight, normalizedElapsed);
+				this.#rendererSettings.aspectWidth = THREE.MathUtils.lerp( previousAspectWidth, targetAspectWidth, normalizedElapsed );
+				this.#rendererSettings.aspectHeight = THREE.MathUtils.lerp( previousAspectHeight, targetAspectHeight, normalizedElapsed );
 
 				this.#onWindowResize();
-				this._handleBasicStep(deltaTime, totalTimeElapsed);
+				this._handleBasicStep( deltaTime, totalTimeElapsed );
 
-				if (this._isAtTargetAspectRatio()) {
+				if ( this._isAtTargetAspectRatio() ) {
 
 					this.#rendererSettings.aspectWidth = targetAspectWidth;
 					this.#rendererSettings.aspectHeight = targetAspectHeight;
@@ -434,7 +447,7 @@ class App {
 
 				}
 
-			}
+			};
 
 			return;
 
@@ -444,26 +457,28 @@ class App {
 		this.#rendererSettings.aspectHeight = this.#rendererSettings.targetAspectHeight = newAspectHeight;
 
 		this.#onWindowResize();
+
 	}
 
 	#addRendererDebugGui() {
 
-		this.#debugUIMap['Color Space'] = this.#debugUI.addFolder('Color Space'); 
-		this.#debugUIMap['Color Space'].add(this.#renderer, 'outputColorSpace', [
+		const colorSpaceFolder = this.#GUIManager.addFolder( 'Color Space' );
+		colorSpaceFolder.add( this.#renderer, 'outputColorSpace', [
 			THREE.SRGBColorSpace,
 			THREE.NoColorSpace,
 			THREE.LinearSRGBColorSpace,
-		]);
+		] );
 
-		this.#debugUIMap[ 'Time Settings' ] = this.#debugUI.addFolder( 'Time Settings' );
-		this.#debugUIMap[ 'Time Settings' ].add( this.#rendererSettings, 'useDeltaTime' );
-		this.#debugUIMap[ 'Time Settings' ].add( this.#rendererSettings, 'useFixedFrameRate' );
-		this.#debugUIMap[ 'Time Values' ] = this.#debugUI.addFolder( 'Time Values' );
-		this.#debugUIMap[ 'Time Values' ].add( this.#rendererSettings, 'fixedTimeStep', 0.01, 0.5 );
-		const fixedCPU = this.#debugUIMap[ 'Time Values' ].add( this.#rendererSettings, 'fixedCPUFPS', 1, 60 ).step( 1 );
-		const fixedGPU = this.#debugUIMap[ 'Time Values' ].add( this.#rendererSettings, 'fixedGPUFPS', 1, 60 ).step( 1 );
+		const timeSettings = this.#GUIManager.addFolder( 'Time Settings' );
+		timeSettings.add( this.#rendererSettings, 'useDeltaTime' );
+		timeSettings.add( this.#rendererSettings, 'useFixedFrameRate' );
+
+		const timeValues = this.#GUIManager.addFolder( 'Time Values' );
+		timeValues.add( this.#rendererSettings, 'fixedTimeStep', 0.01, 0.5 );
+		const fixedCPU = timeValues.add( this.#rendererSettings, 'fixedCPUFPS', 1, 60 ).step( 1 );
+		const fixedGPU = timeValues.add( this.#rendererSettings, 'fixedGPUFPS', 1, 60 ).step( 1 );
 		// Set CPU and GPU to run at same rate when useFixedFrameRate === true
-		this.#debugUIMap[ 'Time Values' ].add( this.#rendererSettings, 'fixedUnifiedFPS', 1, 60 ).step( 1 ).onChange( () => {
+		timeValues.add( this.#rendererSettings, 'fixedUnifiedFPS', 1, 60 ).step( 1 ).onChange( () => {
 
 			this.#rendererSettings.fixedCPUFPS = this.#rendererSettings.fixedUnifiedFPS;
 			fixedCPU.setValue( this.#rendererSettings.fixedUnifiedFPS );
@@ -471,32 +486,35 @@ class App {
 			fixedGPU.setValue( this.#rendererSettings.fixedUnifiedFPS );
 
 		} );
-		this.#debugUIMap[ 'Time Values' ].add( this.#rendererSettings, 'clampMin', 0.01, 1.0 );
-		this.#debugUIMap[ 'Time Values' ].add( this.#rendererSettings, 'clampMax', 0.01, 1.0 );
-		this.#debugUIMap[ 'Resize Settings' ] = this.#debugUI.addFolder( 'Resize Settings' );
-		this.#debugUIMap[ 'Resize Settings' ].add( this.#rendererSettings, 'resizeCanvas' ).onChange( () => {
+		timeValues.add( this.#rendererSettings, 'clampMin', 0.01, 1.0 );
+		timeValues.add( this.#rendererSettings, 'clampMax', 0.01, 1.0 );
+
+		const resizeSettings = this.#GUIManager.addFolder( 'Resize Settings' );
+
+		resizeSettings.add( this.#rendererSettings, 'resizeCanvas' ).onChange( () => {
 
 			this.#onWindowResize();
 
 		} );
-		this.#debugUIMap[ 'Resize Settings' ].add( this.#rendererSettings, 'cameraResizeUpdate' ).onChange( () => {
+		resizeSettings.add( this.#rendererSettings, 'cameraResizeUpdate' ).onChange( () => {
 
 			this.#onWindowResize();
 
 		} );
-		this.#debugUIMap[ 'Resize Settings' ].add( this.#rendererSettings, 'useFixedAspectRatio' ).onChange( () => {
+		resizeSettings.add( this.#rendererSettings, 'useFixedAspectRatio' ).onChange( () => {
 
 			this.#onWindowResize();
 
 		} );
-		this.#debugUIMap[ 'Resize Settings' ].add( this.#rendererSettings, 'useDPR' ).onChange( () => {
+		resizeSettings.add( this.#rendererSettings, 'useDPR' ).onChange( () => {
 
 			this.#onWindowResize();
 
 		} );
-		this.#debugUIMap[ 'Resize Values' ] = this.#debugUI.addFolder( 'Resize Values' );
-		this.#debugUIMap[ 'Resize Values'].add(this.#rendererSettings, 'lerpAspectRatio'); 
-		this.#debugUIMap[ 'Resize Values' ].add( this.#rendererSettings, 'fixedAspectController', [
+
+		const resizeValues = this.#GUIManager.addFolder( 'Resize Values' );
+		resizeValues.add( this.#rendererSettings, 'lerpAspectRatio' );
+		resizeValues.add( this.#rendererSettings, 'fixedAspectController', [
 			'16:9 (HD)',
 			'4:3 (CRT)',
 			'1:85:1 (Standard)',
@@ -512,17 +530,13 @@ class App {
 
 		} ).name( 'Fixed Aspect Ratio' );
 
-		this.#debugUIMap[ 'Resize Values' ].add( this.#rendererSettings, 'dprValue', [ 0.1, 0.5, 1.0, 2.0, 3.0, window.devicePixelRatio ] ).onChange( () => {
+		resizeValues.add( this.#rendererSettings, 'dprValue', [ 0.1, 0.5, 1.0, 2.0, 3.0, window.devicePixelRatio ] ).onChange( () => {
 
 			this.#onWindowResize();
 
 		} );
 
-		for ( const folderName in this.#debugUIMap ) {
-
-			this.#debugUIMap[ folderName ].close();
-
-		}
+		this.#GUIManager.closeAll();
 
 	}
 
@@ -588,7 +602,7 @@ class App {
 	// State update function
 	#step( deltaTime: number, totalTimeElapsed: number ) {
 
-		this.#handleStep(deltaTime, totalTimeElapsed);
+		this.#handleStep( deltaTime, totalTimeElapsed );
 
 	}
 
@@ -618,7 +632,7 @@ class App {
 
 		let canvasWidth = window.innerWidth;
 		let canvasHeight = window.innerHeight;
- 
+
 		const dpr = this.#rendererSettings.dprValue ? this.#rendererSettings.dprValue : window.devicePixelRatio;
 
 		if ( useFixedAspectRatio ) {
@@ -719,7 +733,7 @@ class App {
 
 	}
 
-	async loadKTX2( path: string, srgb = true ): Promise<THREE.CompressedTexture> {
+	async loadKTX2( path: string, colorSpace: THREE.ColorSpace = THREE.SRGBColorSpace ): Promise<THREE.CompressedTexture> {
 
 		if ( this.#ktx2Loader === undefined ) {
 
@@ -731,44 +745,48 @@ class App {
 
 			this.#ktx2Loader.load( path, ( texture ) => {
 
-				if ( srgb ) {
-
-					texture.encoding = THREE.sRGBEncoding;
-
-				}
-
+				// encoding/sRGBEncoding were removed in three r152; colorSpace replaced them.
+				texture.colorSpace = colorSpace;
 				resolve( texture );
 
-			} );
+			}, undefined, reject );
 
 		} );
 
 	}
 
-	async loadTexture( path: string, srgb = true ): Promise<THREE.Texture> {
+	async loadDataTexture( path: string ): Promise<THREE.Texture> {
+
+		return this.loadTexture( path, THREE.NoColorSpace );
+
+	}
+
+	/* A basic texture loader. Loads in srgb by default */
+	async loadTexture( path: string, colorSpace: THREE.ColorSpace = THREE.SRGBColorSpace ): Promise<THREE.Texture> {
 
 		if ( path.endsWith( '.ktx2' ) ) {
 
-			return this.loadKTX2( path, srgb );
+			return this.loadKTX2( path, colorSpace );
 
 		} else {
 
+			if ( this.#textureLoader === undefined ) {
+
+				this.#textureLoader = new THREE.TextureLoader();
+
+			}
+
 			return new Promise( ( resolve, reject ) => {
 
-				const loader = new THREE.TextureLoader();
-				loader.load( path, ( texture ) => {
+				this.#textureLoader.load( path, ( texture ) => {
 
-					if ( srgb ) {
-
-						texture.colorSpace = THREE.SRGBColorSpace;
-
-					}
-
+					texture.colorSpace = THREE.SRGBColorSpace;
 					resolve( texture );
 
-				} );
+				}, undefined, reject );
 
 			} );
+
 
 		}
 
@@ -801,7 +819,7 @@ class App {
 
 				resolve( font );
 
-			} );
+			}, undefined, reject );
 
 
 		} );
@@ -822,7 +840,7 @@ class App {
 
 				resolve( gltf );
 
-			} );
+			}, undefined, reject );
 
 		} );
 
@@ -945,9 +963,21 @@ class App {
 
 	}
 
+	get GUIManager() {
+
+		return this.#GUIManager;
+
+	}
+
 	get DebugGui() {
 
-		return this.#debugUI;
+		return this.#GUIManager.gui;
+
+	}
+
+	get LightManager() {
+
+		return this.#LightManager;
 
 	}
 

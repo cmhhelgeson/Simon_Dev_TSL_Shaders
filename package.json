@@ -11,7 +11,7 @@
     "@eslint/js": "^10.0.1",
     "@stylistic/eslint-plugin": "^5.10.0",
     "@types/node": "^26.2.0",
-    "@types/three": "^0.185.4",
+    "@types/three": "^0.186.0",
     "eslint": "^10.8.1",
     "eslint-plugin-compat": "^7.0.2",
     "eslint-plugin-html": "^8.1.4",
@@ -24,7 +24,7 @@
   },
   "dependencies": {
     "mersennetwister": "^0.2.3",
-    "three": "^0.185.1",
+    "three": "^0.186.0",
     "tweakpane": "^4.0.5"
   },
   "browserslist": [
