@@ -149,6 +149,8 @@ class NodeMaterials extends App {
 					colorNode: mix( rimColor, scaleColor, scaleMask )
 				} );
 
+			} else if (this.currentShader === '')
+
 			} else {
 
 				this.registerMaterial( {
