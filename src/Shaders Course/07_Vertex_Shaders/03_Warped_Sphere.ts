@@ -15,6 +15,7 @@ import {
 import { MeshStandardNodeMaterial, Node } from 'three/webgpu';
 
 import { App } from '../../utils/App';
+import { NodeMaterialNodeProperties } from 'three/src/materials/nodes/NodeMaterial.js';
 
 type ShaderType = 'Warp Sphere';
 
@@ -34,7 +35,7 @@ class WarpedSphere extends App {
 
 		const varyingColor = varyingProperty( 'vec3', 'vColor' );
 
-		const vertexShaders: Record<ShaderType, Node> = {
+		const vertexShaders: Record<ShaderType, NodeMaterialNodeProperties[ 'positionNode' ]> = {
 			'Warp Sphere': Fn( () => {
 
 				const { undulationUniform, undulationExtrusion } = effectController;
@@ -60,7 +61,7 @@ class WarpedSphere extends App {
 
 		};
 
-		const fragmentShaders: Record<ShaderType, Node> = {
+		const fragmentShaders: Record<ShaderType, NodeMaterialNodeProperties[ 'colorNode' ]> = {
 
 			'Warp Sphere': Fn( () => {
 
@@ -107,7 +108,8 @@ class WarpedSphere extends App {
 		this.CameraControls.maxPolarAngle = Math.PI / 1.5;
 
 
-		this.DebugGui.add( effectController, 'Current Shader', Object.keys( vertexShaders ) ).onChange( () => {
+		const gui = this.Inspector.createParameters( 'Warped Sphere' );
+		gui.add( effectController, 'Current Shader', Object.keys( vertexShaders ) ).onChange( () => {
 
 			sphereMaterial.positionNode = vertexShaders[ effectController[ 'Current Shader' ] ];
 			sphereMaterial.colorNode = fragmentShaders[ effectController[ 'Current Shader' ] ];
@@ -115,20 +117,20 @@ class WarpedSphere extends App {
 
 		} );
 
-		this.DebugGui.add( effectController, 'sphereDetail', 1, 100 ).step( 1 ).name( 'sphereDetail' ).onChange( () => {
+		gui.add( effectController, 'sphereDetail', 1, 100 ).step( 1 ).name( 'sphereDetail' ).onChange( () => {
 
 			sphereMesh.geometry.dispose();
 			sphereMesh.geometry = new THREE.IcosahedronGeometry( 1, effectController.sphereDetail );
 
 		} );
 
-		this.DebugGui.add( effectController, 'undulationSize', 0.01, 10.0 ).step( 0.01 ).onChange( () => {
+		gui.add( effectController, 'undulationSize', 0.01, 10.0 ).step( 0.01 ).onChange( () => {
 
 			effectController.undulationUniform.value = 50.0 / effectController.undulationSize;
 
 		} );
 
-		this.DebugGui.add( effectController.undulationExtrusion, 'value', 0.01, 0.5 ).step( 0.01 ).name( 'undulationExtrusion' );
+		gui.add( effectController.undulationExtrusion, 'value', 0.01, 0.5 ).step( 0.01 ).name( 'undulationExtrusion' );
 
 	}
 
@@ -137,6 +139,7 @@ class WarpedSphere extends App {
 const app = new WarpedSphere();
 app.initialize( {
 	debug: true,
+	withInspector: true,
 	projectName: 'Warped Sphere',
 	rendererType: 'WebGPU',
 	initialCameraMode: 'perspective',

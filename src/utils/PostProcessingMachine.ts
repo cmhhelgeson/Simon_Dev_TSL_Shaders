@@ -1,4 +1,4 @@
-import { PostProcessing, WebGPURenderer } from 'three/webgpu';
+import { RenderPipeline, WebGPURenderer } from 'three/webgpu';
 
 class WebGPUPostProcessingEngine {
 
@@ -12,7 +12,7 @@ class WebGPUPostProcessingEngine {
 
 	createPostProcessingPipeline() {
 
-		return new PostProcessing( this.#renderer );
+		return new RenderPipeline( this.#renderer );
 
 	}
 

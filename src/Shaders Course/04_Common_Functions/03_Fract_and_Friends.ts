@@ -123,9 +123,10 @@ class FractAndFriends extends App {
 		const quad = new THREE.Mesh( geometry, material );
 		this.Scene.add( quad );
 
-		this.DebugGui.add( effectController.cellWidth, 'value', 1, 100 ).step( 1 ).name( 'Cell Width (px)' );
-		this.DebugGui.add( effectController.lineWidth, 'value', 1.0, 8.0 ).name( 'Line Width' );
-		this.DebugGui.add( effectController, 'Display Function', [ 'CEIL', 'FLOOR', 'ROUND', 'FRACT' ] ).onChange( () => {
+		const gui = this.Inspector.createParameters( 'Chapter 4: Fract and Friends' );
+		gui.add( effectController.cellWidth, 'value', 1, 100 ).step( 1 ).name( 'Cell Width (px)' );
+		gui.add( effectController.lineWidth, 'value', 1.0, 8.0 ).name( 'Line Width' );
+		gui.add( effectController, 'Display Function', [ 'CEIL', 'FLOOR', 'ROUND', 'FRACT' ] ).onChange( () => {
 
 			effectController.functionMode.value = FunctionMode[ effectController[ 'Display Function' ] ];
 
@@ -142,6 +143,7 @@ window.addEventListener( 'DOMContentLoaded', async () => {
 	await APP_.initialize( {
 		projectName: 'Chapter 4: Fract and Friends',
 		debug: false,
+		withInspector: true,
 		rendererType: 'WebGPU',
 		initialCameraMode: 'orthographic'
 	} );

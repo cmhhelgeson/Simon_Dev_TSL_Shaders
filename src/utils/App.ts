@@ -15,6 +15,7 @@ import { RenderCallback, ThreeRenderer } from './types';
 import { PostProcessingMachine } from './PostProcessingMachine';
 import { GUIManager } from './GUIManager';
 import { LightManager } from './LightManager';
+import { Inspector } from 'three/examples/jsm/inspector/Inspector.js';
 
 type RendererEnum = 'WebGPU' | 'WebGLFallback';
 
@@ -23,6 +24,7 @@ interface AppInitializationOptions {
 	projectName?: string,
 	/* Flag indicating whether to provide the user debug functionality through the GUI */
 	debug: boolean,
+	withInspector?: boolean;
 	/* The renderer to use in the project */
 	rendererType?: RendererEnum,
 	/* Whether the scene is first rendered using a perspective or an orthographic camera */
@@ -103,7 +105,16 @@ class App {
 	#timer!: THREE.Timer;
 	#controls!: OrbitControls;
 	#stats!: Stats;
-	#GUIManager!: GUIManager;
+	/**
+	 * Legacy lil-gui panel. Created on first access so examples that only use
+	 * the Inspector never get an empty lil-gui panel on screen.
+	 */
+	#GUIManager: GUIManager | null = null;
+	/**
+	 * The three.js Inspector, which owns the debug parameter panel. Created
+	 * when `withInspector` or `debug` is set on initialization.
+	 */
+	#inspector!: Inspector;
 	#LightManager!: LightManager;
 	#rendererSettings: RendererSettings = {
 		// Time Settings
@@ -168,7 +179,11 @@ class App {
 
 		// Required every frame: enableDamping integrates toward the target over time,
 		// so without this the camera only moves while OrbitControls' own events fire.
-		this.#controls.update( deltaTime );
+		if ( this.#controls ) {
+
+			this.#controls.update( deltaTime );
+
+		}
 
 	}
 
@@ -270,8 +285,16 @@ class App {
 
 		this.#scene = new THREE.Scene();
 
-		this.#GUIManager = new GUIManager( new GUI() );
 		this.#LightManager = new LightManager();
+
+		// The debug parameters live in the Inspector, so `debug` implies it.
+		if ( options.withInspector || options.debug ) {
+
+			this.#inspector = new Inspector();
+			this.#renderer.inspector = this.#inspector;
+
+		}
+
 		if ( options.debug ) {
 
 			this.#addRendererDebugGui();
@@ -280,7 +303,10 @@ class App {
 
 	}
 
-	async #setupProject( options: AppInitializationOptions ) {
+	async #setupProject( options: AppInitializationOptions = {
+		debug: false,
+		withInspector: true,
+	} ) {
 
 		this.#handleStep = this._handleBasicStep;
 
@@ -462,18 +488,20 @@ class App {
 
 	#addRendererDebugGui() {
 
-		const colorSpaceFolder = this.#GUIManager.addFolder( 'Color Space' );
+		const root = this.#inspector.createParameters( 'Renderer' );
+
+		const colorSpaceFolder = root.addFolder( 'Color Space' );
 		colorSpaceFolder.add( this.#renderer, 'outputColorSpace', [
 			THREE.SRGBColorSpace,
 			THREE.NoColorSpace,
 			THREE.LinearSRGBColorSpace,
 		] );
 
-		const timeSettings = this.#GUIManager.addFolder( 'Time Settings' );
+		const timeSettings = root.addFolder( 'Time Settings' );
 		timeSettings.add( this.#rendererSettings, 'useDeltaTime' );
 		timeSettings.add( this.#rendererSettings, 'useFixedFrameRate' );
 
-		const timeValues = this.#GUIManager.addFolder( 'Time Values' );
+		const timeValues = root.addFolder( 'Time Values' );
 		timeValues.add( this.#rendererSettings, 'fixedTimeStep', 0.01, 0.5 );
 		const fixedCPU = timeValues.add( this.#rendererSettings, 'fixedCPUFPS', 1, 60 ).step( 1 );
 		const fixedGPU = timeValues.add( this.#rendererSettings, 'fixedGPUFPS', 1, 60 ).step( 1 );
@@ -489,7 +517,7 @@ class App {
 		timeValues.add( this.#rendererSettings, 'clampMin', 0.01, 1.0 );
 		timeValues.add( this.#rendererSettings, 'clampMax', 0.01, 1.0 );
 
-		const resizeSettings = this.#GUIManager.addFolder( 'Resize Settings' );
+		const resizeSettings = root.addFolder( 'Resize Settings' );
 
 		resizeSettings.add( this.#rendererSettings, 'resizeCanvas' ).onChange( () => {
 
@@ -512,7 +540,7 @@ class App {
 
 		} );
 
-		const resizeValues = this.#GUIManager.addFolder( 'Resize Values' );
+		const resizeValues = root.addFolder( 'Resize Values' );
 		resizeValues.add( this.#rendererSettings, 'lerpAspectRatio' );
 		resizeValues.add( this.#rendererSettings, 'fixedAspectController', [
 			'16:9 (HD)',
@@ -536,7 +564,14 @@ class App {
 
 		} );
 
-		this.#GUIManager.closeAll();
+		// Start collapsed so the renderer settings do not bury the example's own
+		// parameters.
+		colorSpaceFolder.close();
+		timeSettings.close();
+		timeValues.close();
+		resizeSettings.close();
+		resizeValues.close();
+		root.close();
 
 	}
 
@@ -963,21 +998,40 @@ class App {
 
 	}
 
+	/**
+	 * @deprecated Use {@link App#Inspector} and `createParameters()` instead.
+	 * Retained for the courses that have not been migrated off lil-gui yet.
+	 */
 	get GUIManager() {
+
+		if ( this.#GUIManager === null ) {
+
+			this.#GUIManager = new GUIManager( new GUI() );
+
+		}
 
 		return this.#GUIManager;
 
 	}
 
+	/**
+	 * @deprecated Use {@link App#Inspector} and `createParameters()` instead.
+	 */
 	get DebugGui() {
 
-		return this.#GUIManager.gui;
+		return this.GUIManager.gui;
 
 	}
 
 	get LightManager() {
 
 		return this.#LightManager;
+
+	}
+
+	get Inspector() {
+
+		return this.#inspector;
 
 	}
 

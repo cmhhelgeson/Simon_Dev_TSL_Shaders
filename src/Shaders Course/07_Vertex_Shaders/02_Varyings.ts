@@ -15,13 +15,14 @@ import {
 import { UniformNode, Node, MeshStandardNodeMaterial } from 'three/webgpu';
 
 import { App } from '../../utils/App';
+import { NodeMaterialNodeProperties } from 'three/src/materials/nodes/NodeMaterial.js';
 
 type ShaderType = 'Varying Color' | 'Red Blue Mix' | 'Varying vs Native';
 
 interface EffectControllerType {
-  'Current Shader': ShaderType,
-  tChanger: UniformNode<number>,
-  faceWidthSegments: number,
+	'Current Shader': ShaderType,
+	tChanger: UniformNode<'float', number>,
+	faceWidthSegments: number,
 }
 
 const red = vec3( 1.0, 0.0, 0.0 );
@@ -43,7 +44,7 @@ class Varyings extends App {
 		const varyingColor = varyingProperty( 'vec3', 'vColor' );
 		const varyingT = varyingProperty( 'float', 'vT' );
 
-		const vertexShaders: Record<ShaderType, Node> = {
+		const vertexShaders: Record<ShaderType, NodeMaterialNodeProperties[ 'positionNode' ]> = {
 			'Varying Color': Fn( () => {
 
 				varyingColor.assign( vec3( 1.0, 0.0, 0.0 ) );
@@ -83,7 +84,7 @@ class Varyings extends App {
 
 		};
 
-		const fragmentShaders: Record<string, Node> = {
+		const fragmentShaders: Record<string, NodeMaterialNodeProperties[ 'colorNode' ]> = {
 
 			'Varying Color': Fn( () => {
 
@@ -168,7 +169,8 @@ class Varyings extends App {
 		this.CameraControls.minPolarAngle = Math.PI / 4;
 		this.CameraControls.maxPolarAngle = Math.PI / 1.5;
 
-		this.DebugGui.add( effectController, 'Current Shader', Object.keys( vertexShaders ) ).onChange( () => {
+		const gui = this.Inspector.createParameters( 'Vertex Varyings' );
+		gui.add( effectController, 'Current Shader', Object.keys( vertexShaders ) ).onChange( () => {
 
 			boxMaterial.positionNode = vertexShaders[ effectController[ 'Current Shader' ] ];
 			boxMaterial.colorNode = fragmentShaders[ effectController[ 'Current Shader' ] ];
@@ -176,8 +178,8 @@ class Varyings extends App {
 
 		} );
 
-		this.DebugGui.add( effectController.tChanger, 'value', 1.0, 10.0 ).step( 1.0 ).name( 'tPower' );
-		this.DebugGui.add( effectController, 'faceWidthSegments', 1, 40 ).step( 1 ).onChange( () => {
+		gui.add( effectController.tChanger, 'value', 1.0, 10.0 ).step( 1.0 ).name( 'tPower' );
+		gui.add( effectController, 'faceWidthSegments', 1, 40 ).step( 1 ).onChange( () => {
 
 			boxMesh.geometry.dispose();
 			boxMesh.geometry = new THREE.BoxGeometry( 2, 2, 2, effectController.faceWidthSegments );
@@ -193,6 +195,7 @@ class Varyings extends App {
 const app = new Varyings();
 app.initialize( {
 	debug: true,
+	withInspector: true,
 	projectName: 'Vertex Varyings',
 	rendererType: 'WebGPU',
 	initialCameraMode: 'perspective',

@@ -147,9 +147,10 @@ class GPGPUProject extends App {
 
 		this.#computeShaders.computePosition = computePositionFn;
 
-		this.DebugGui.add( this.#uniforms.attractorIntensity, 'value', 10.0, 1000.0 ).step( 10.0 ).name( 'Attractor Intensity' );
+		const gui = this.Inspector.createParameters( 'GPGPU Particles Stateful' );
+		gui.add( this.#uniforms.attractorIntensity, 'value', 10.0, 1000.0 ).step( 10.0 ).name( 'Attractor Intensity' );
 		// Small radius means more strict pull
-		this.DebugGui.add( this.#uniforms.attractorRadius, 'value', 0.1, 10.0 ).step( 0.1 ).name( 'Attractor Radius' );
+		gui.add( this.#uniforms.attractorRadius, 'value', 0.1, 10.0 ).step( 0.1 ).name( 'Attractor Radius' );
 
 
 		//this.Camera.position.set( 0, 2.2, 9.4 );
@@ -172,6 +173,7 @@ window.addEventListener( 'DOMContentLoaded', async () => {
 
 	await APP_.initialize( {
 		debug: true,
+		withInspector: true,
 		projectName: 'GPGPU Particles Stateful',
 		rendererType: 'WebGPU',
 		initialCameraMode: 'perspective',

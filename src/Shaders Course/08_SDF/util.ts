@@ -1,6 +1,16 @@
 import { abs, clamp, dot, float, Fn, fract, length, max, min, mix, negate, sign, smoothstep, vec2, vec3 } from 'three/tsl';
+import { Node } from 'three/webgpu';
 
-export const DrawGrid = Fn( ( [ pixelCoords, baseColor, lineColor, cellWidth, lineWidth ] ) => {
+// Annotating the destructured tuple is what steers Fn to its array-argument
+// overload; without it TypeScript matches the ( builder: NodeBuilder ) => ...
+// signature instead and every parameter degrades to an untyped node.
+export const DrawGrid = Fn( ( [ pixelCoords, baseColor, lineColor, cellWidth, lineWidth ]: [
+	Node<'vec2'>,
+	Node<'vec3'>,
+	Node<'vec3'>,
+	Node<'float'>,
+	Node<'float'>
+] ) => {
 
 	const gridPosition = pixelCoords.div( cellWidth );
 	// Access each individual cell's uv space.
@@ -24,17 +34,7 @@ export const DrawGrid = Fn( ( [ pixelCoords, baseColor, lineColor, cellWidth, li
 	return: 'vec3'
 } );
 
-export const SDFCircle = Fn( ( [ position, radius ] ) => {
-
-	return length( position ).sub( radius );
-
-}, {
-	position: 'vec2',
-	radius: 'float',
-	return: 'float'
-} );
-
-export const SDFBox = Fn( ( [ position, bounds ] ) => {
+export const SDFBox = Fn( ( [ position, bounds ]: [ Node<'vec2'>, Node<'vec2'> ] ) => {
 
 	const d = abs( position ).sub( bounds );
 	return length( max( d, 0.0 ) ).add( min( max( d.x, d.y ), 0.0 ) );
@@ -45,7 +45,7 @@ export const SDFBox = Fn( ( [ position, bounds ] ) => {
 	return: 'float'
 } );
 
-export const SDFLine = Fn( ( [ p, a, b ] ) => {
+export const SDFLine = Fn( ( [ p, a, b ]: [ Node<'vec2'>, Node<'vec2'>, Node<'vec2'> ] ) => {
 
 	const pa = p.sub( b );
 	const ba = b.sub( a );

@@ -79,15 +79,16 @@ class MinMax extends App {
 		const quad = new THREE.Mesh( geometry, material );
 		this.Scene.add( quad );
 
-		this.DebugGui.add( effectController, 'currentShader', Object.keys( shaders ) ).onChange( () => {
+		const gui = this.Inspector.createParameters( 'Chapter 4: Min, Max' );
+		gui.add( effectController, 'currentShader', Object.keys( shaders ) ).onChange( () => {
 
 			material.colorNode = shaders[ effectController.currentShader as ShaderType ];
 			material.needsUpdate = true;
 
 		} );
 
-		this.DebugGui.add( effectController.clampMin, 'value', 0.0, 1.0 ).name( 'clampMin' );
-		this.DebugGui.add( effectController.clampMax, 'value', 0.0, 1.0 ).name( 'clampMax' );
+		gui.add( effectController.clampMin, 'value', 0.0, 1.0 ).name( 'clampMin' );
+		gui.add( effectController.clampMax, 'value', 0.0, 1.0 ).name( 'clampMax' );
 
 	}
 
@@ -100,6 +101,7 @@ window.addEventListener( 'DOMContentLoaded', async () => {
 	await APP_.initialize( {
 		projectName: 'Chapter 4: Min, Max',
 		debug: false,
+		withInspector: true,
 		rendererType: 'WebGPU',
 		initialCameraMode: 'orthographic'
 	} );

@@ -13,11 +13,10 @@ import {
 	If,
 	uint,
 } from 'three/tsl';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-
 import { App } from '../../utils/App';
 
-import { MeshStandardNodeMaterial, Node } from 'three/webgpu';
+import { MeshStandardNodeMaterial } from 'three/webgpu';
+import { NodeMaterialNodeProperties } from 'three/src/materials/nodes/NodeMaterial.js';
 
 type ShaderType =
 'Basic Ambient' |
@@ -25,7 +24,7 @@ type ShaderType =
 'Basic Direct' |
 'Basic Hemi' |
 'HemisphereLight' |
-'DirectionalLight'
+'DirectionalLight';
 
 class Lambertian extends App {
 
@@ -63,7 +62,6 @@ class Lambertian extends App {
 		const cubemap = new THREE.CubeTextureLoader().load( urls );
 		this.Scene.background = cubemap;
 
-		const loader = new GLTFLoader();
 		const suzanneMaterial = new MeshStandardNodeMaterial();
 
 		const lights: Record<string, THREE.Light> = {
@@ -75,14 +73,14 @@ class Lambertian extends App {
 		this.Scene.add( lights[ 'HemisphereLight' ] );
 		this.Scene.add( lights[ 'DirectionalLight' ] );
 
-		const shaders: Record<ShaderType, Node> = {
+		const shaders: Record<ShaderType, NodeMaterialNodeProperties[ 'fragmentNode' ]> = {
 		// Basic Ambient lighting
 			'Basic Ambient': Fn( () => {
 
 				const baseColor = vec3( 0.5 );
-    	// Ambient Lighting
-    	const ambient = vec3( 0.5 );
-    	return baseColor.mul( ambient );
+				// Ambient Lighting
+				const ambient = vec3( 0.5 );
+				return baseColor.mul( ambient );
 
 
 			} )(),
@@ -147,9 +145,9 @@ class Lambertian extends App {
 			} )(),
 
 			// Actual THREE.HemisphereLight implementation
-			'HemisphereLight': Fn( () => {} ),
+			'HemisphereLight': null,
 			// Actual THREE.DirectionalLight implementation
-			'DirectionalLight': Fn( () => {} ),
+			'DirectionalLight': null,
 
 		};
 
@@ -157,17 +155,14 @@ class Lambertian extends App {
 		suzanneMaterial.fragmentNode = shaders[ 'Basic Ambient' ];
 
 
-		loader.load( './resources/suzanne.glb', function ( gltf ) {
+		const suzanne = await this.loadGLTF( './resources/suzanne.glb' );
+		suzanne.scene.traverse( c => {
 
-			gltf.scene.traverse( c => {
-
-				c.material = suzanneMaterial;
-
-			} );
-
-			this.Scene.add( gltf.scene );
+			c.material = suzanneMaterial;
 
 		} );
+
+		this.Scene.add( suzanne.scene );
 
 		this.CameraControls.enableZoom = false;
 		this.CameraControls.enablePan = false;
@@ -185,7 +180,8 @@ class Lambertian extends App {
 
 		} );
 
-		this.DebugGui.add( effectController, 'linearToSRGB' ).onChange( () => {
+		const gui = this.Inspector.createParameters( 'Lambertian Lights' );
+		gui.add( effectController, 'linearToSRGB' ).onChange( () => {
 
 			const { linearToSRGB, linearToSRGBCond } = effectController;
 
@@ -194,7 +190,7 @@ class Lambertian extends App {
 
 		} );
 
-		this.DebugGui.add( effectController, 'Current Shader', Object.keys( shaders ) ).onChange( () => {
+		gui.add( effectController, 'Current Shader', Object.keys( shaders ) ).onChange( () => {
 
 			const currentShader = effectController[ 'Current Shader' ];
 
@@ -217,11 +213,12 @@ class Lambertian extends App {
 
 		} );
 
-		this.DebugGui.addColor( { color: effectController.objectColor.value.getHex( THREE.SRGBColorSpace ) }, 'color' )
+		// The Inspector edits the uniform's Color in place, so the callbacks only
+		// need to mirror the change onto whatever else consumes it.
+		gui.addColor( effectController.objectColor, 'value' )
 			.name( 'objectColor' )
-			.onChange( function ( value ) {
+			.onChange( () => {
 
-				effectController.objectColor.value.set( value );
 				suzanneMaterial.colorNode = Fn( () => {
 
 					return effectController.objectColor;
@@ -232,22 +229,20 @@ class Lambertian extends App {
 			} );
 
 
-		this.DebugGui.addColor( { color: effectController.skyColor.value.getHex( THREE.SRGBColorSpace ) }, 'color' )
+		gui.addColor( effectController.skyColor, 'value' )
 			.name( 'skyColor' )
-			.onChange( function ( value ) {
+			.onChange( ( value ) => {
 
-				effectController.skyColor.value.set( value );
-				lights[ 'HemisphereLight' ].color.setHex( value );
-				lights[ 'DirectionalLight' ].color.setHex( value );
+				lights[ 'HemisphereLight' ].color.copy( value );
+				lights[ 'DirectionalLight' ].color.copy( value );
 
 			} );
 
-		this.DebugGui.addColor( { color: effectController.groundColor.value.getHex( THREE.SRGBColorSpace ) }, 'color' )
+		gui.addColor( effectController.groundColor, 'value' )
 			.name( 'groundColor' )
-			.onChange( function ( value ) {
+			.onChange( ( value ) => {
 
-				effectController.groundColor.value.set( value );
-				lights[ 'HemisphereLight' ].groundColor.setHex( value );
+				lights[ 'HemisphereLight' ].groundColor.copy( value );
 
 			} );
 
@@ -260,6 +255,7 @@ window.addEventListener( 'DOMContentLoaded', async () => {
 
 	await APP_.initialize( {
 		debug: true,
+		withInspector: true,
 		projectName: 'Lambertian Lights',
 		rendererType: 'WebGPU',
 		initialCameraMode: 'perspective',

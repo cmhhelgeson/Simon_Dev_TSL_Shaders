@@ -174,12 +174,13 @@ class ParticleProject extends App {
 
 		// Currently it seems like the particles can only be reset when they are still active
 		// Even if the dispose method is commented out
-		this.DebugGui.add( { 'Reset Current Sim': () => this.#particleSystem?.killAllEmitters() }, 'Reset Current Sim' ).name( 'Reset Current Sim' );
+		const gui = this.Inspector.createParameters( 'Explosion Particles' );
+		gui.add( { 'Reset Current Sim': () => this.#particleSystem?.killAllEmitters() }, 'Reset Current Sim' ).name( 'Reset Current Sim' );
 
 		const simOptions = Object.keys( this.#uniformTypes );
 		const params = { selectedSim: this.#currentUniformType };
 
-		this.DebugGui.add( params, 'selectedSim', simOptions )
+		gui.add( params, 'selectedSim', simOptions )
 			.name( 'Simulation Type' )
 			.onChange( ( value: string ) => {
 
@@ -198,6 +199,7 @@ window.addEventListener( 'DOMContentLoaded', async () => {
 
 	await APP_.initialize( {
 		debug: true,
+		withInspector: true,
 		projectName: 'Explosion Particles',
 		rendererType: 'WebGPU',
 	} );

@@ -1,10 +1,11 @@
 import * as THREE from 'three';
-import { MeshBasicNodeMaterial, Node } from 'three/webgpu';
+import { MeshBasicNodeMaterial } from 'three/webgpu';
 import { vec3, Fn, uv } from 'three/tsl';
 import { App } from '../../utils/App';
+import { NodeMaterialNodeProperties } from 'three/src/materials/nodes/NodeMaterial.js';
 
 
-type EffectType = 'Show UV X' | 'Show UV Y' | 'Show UV' | 'Homework'
+type EffectType = 'Show UV X' | 'Show UV Y' | 'Show UV' | 'Homework';
 
 class Varyings extends App {
 
@@ -23,7 +24,7 @@ class Varyings extends App {
 		// three/src/nodes/accessors/UV.js
 		// export const uv = ( index ) => attribute( 'uv' + ( index > 0 ? index : '' ), 'vec2' );
 
-		const effects: Record<EffectType, Node> = {
+		const effects: Record<EffectType, NodeMaterialNodeProperties[ 'colorNode' ]> = {
 			'Show UV X': Fn( () => {
 
 				const vUV = uv();
@@ -66,7 +67,8 @@ class Varyings extends App {
 		const quad = new THREE.Mesh( geometry, material );
 		this.Scene.add( quad );
 
-		this.DebugGui.add( effectController, 'effect', effectNames ).onChange( () => {
+		const gui = this.Inspector.createParameters( 'Effects' );
+		gui.add( effectController, 'effect', effectNames ).onChange( () => {
 
 			material.colorNode = effects[ effectController.effect ];
 			material.needsUpdate = true;
@@ -84,6 +86,7 @@ window.addEventListener( 'DOMContentLoaded', async () => {
 	await APP_.initialize( {
 		projectName: 'Varyings',
 		debug: false,
+		withInspector: true,
 		rendererType: 'WebGPU',
 		initialCameraMode: 'orthographic'
 	} );

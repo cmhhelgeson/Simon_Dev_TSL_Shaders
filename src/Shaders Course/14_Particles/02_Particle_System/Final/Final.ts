@@ -327,7 +327,8 @@ class ParticleProject extends App {
 
 		// Currently it seems like the particles can only be reset when they are still active
 		// Even if the dispose method is commented out
-		this.DebugGui.add( { 'Reset Sim': () => this.#particleSystem?.killAllEmitters() }, 'Reset Sim' ).name( 'Reset Sim' );
+		const gui = this.Inspector.createParameters( 'Final Particles' );
+		gui.add( { 'Reset Sim': () => this.#particleSystem?.killAllEmitters() }, 'Reset Sim' ).name( 'Reset Sim' );
 
 	}
 
@@ -340,6 +341,7 @@ window.addEventListener( 'DOMContentLoaded', async () => {
 	await APP_.initialize( {
 		projectName: 'Final Particles',
 		debug: false,
+		withInspector: true,
 		rendererType: 'WebGPU',
 		initialCameraMode: 'perspective'
 	} );

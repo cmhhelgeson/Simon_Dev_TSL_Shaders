@@ -27,9 +27,10 @@ class SimpleColorsAndRGB extends App {
 		const quad = new THREE.Mesh( geometry, material );
 		this.Scene.add( quad );
 
-		this.DebugGui.add( effectController.red, 'value', 0.0, 1.0 ).name( 'red' );
-		this.DebugGui.add( effectController.green, 'value', 0.0, 1.0 ).name( 'green' );
-		this.DebugGui.add( effectController.blue, 'value', 0.0, 1.0 ).name( 'blue' );
+		const gui = this.Inspector.createParameters( 'Simple Colors and RGB' );
+		gui.add( effectController.red, 'value', 0.0, 1.0 ).name( 'red' );
+		gui.add( effectController.green, 'value', 0.0, 1.0 ).name( 'green' );
+		gui.add( effectController.blue, 'value', 0.0, 1.0 ).name( 'blue' );
 
 	}
 
@@ -42,6 +43,7 @@ window.addEventListener( 'DOMContentLoaded', async () => {
 	await APP_.initialize( {
 		projectName: 'Simple Colors and RGB',
 		debug: false,
+		withInspector: true,
 		rendererType: 'WebGPU',
 		initialCameraMode: 'orthographic'
 	} );

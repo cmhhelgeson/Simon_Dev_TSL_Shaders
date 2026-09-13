@@ -9,10 +9,10 @@ import {
 	normalize,
 	color,
 } from 'three/tsl';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { App } from '../../utils/App';
 
-import { MeshStandardNodeMaterial, Node } from 'three/webgpu';
+import { MeshStandardNodeMaterial } from 'three/webgpu';
+import { NodeMaterialNodeProperties } from 'three/src/materials/nodes/NodeMaterial.js';
 
 type ShaderType = 'Basic Ambient' | 'Basic Normal' | 'Basic Hemi' | 'HemisphereLight';
 class AmbientAndHemisphereLights extends App {
@@ -53,15 +53,15 @@ class AmbientAndHemisphereLights extends App {
 		hemiLight.position.set( 0, 20, 0 );
 		this.Scene.add( hemiLight );
 
-		const shaders: Record<ShaderType, Node> = {
+		const shaders: Record<ShaderType, NodeMaterialNodeProperties[ 'fragmentNode' ]> = {
 
 			// Basic Ambient lighting
 			'Basic Ambient': Fn( () => {
 
 				const baseColor = effectController.objectColor;
-    	// Ambient Lighting
-    	const ambient = vec3( 0.5 );
-    	return baseColor.mul( ambient );
+				// Ambient Lighting
+				const ambient = vec3( 0.5 );
+				return baseColor.mul( ambient );
 
 
 			} )(),
@@ -92,26 +92,35 @@ class AmbientAndHemisphereLights extends App {
 			} )(),
 
 			// Actual Three.HemisphereLight implementation
-			'HemisphereLight': Fn( () => {} ),
+			'HemisphereLight': null,
 
 		};
 
 		const defaultFragmentNode = suzanneMaterial.fragmentNode;
 		suzanneMaterial.fragmentNode = shaders[ 'Basic Ambient' ];
 
-		const suzanne = await this.loadGLTF( './resources/models/pumpkin.glb' );
+		const suzanne = await this.loadGLTF( './resources/suzanne.glb' );
+		suzanne.scene.traverse( c => {
 
-		this.Scene.add( suzanne );
+			if ( c instanceof THREE.Mesh ) {
+
+				c.material = suzanneMaterial;
+
+			}
+
+		} );
+
+		this.Scene.add( suzanne.scene );
 
 
-		this.CameraControls.enableZoom = false;
 		this.CameraControls.enableZoom = false;
 		this.CameraControls.enablePan = false;
 		this.CameraControls.minPolarAngle = Math.PI / 4;
 		this.CameraControls.maxPolarAngle = Math.PI / 1.5;
 
 
-		this.DebugGui.add( effectController, 'Current Shader', Object.keys( shaders ) ).onChange( () => {
+		const gui = this.Inspector.createParameters( 'Ambient and Hemi Lights' );
+		gui.add( effectController, 'Current Shader', Object.keys( shaders ) ).onChange( () => {
 
 			if ( effectController[ 'Current Shader' ] === 'HemisphereLight' ) {
 
@@ -126,11 +135,12 @@ class AmbientAndHemisphereLights extends App {
 
 		} );
 
-		this.DebugGui.addColor( { color: effectController.objectColor.value.getHex( THREE.SRGBColorSpace ) }, 'color' )
+		// The Inspector edits the uniform's Color in place, so the callbacks only
+		// need to mirror the change onto whatever else consumes it.
+		gui.addColor( effectController.objectColor, 'value' )
 			.name( 'objectColor' )
-			.onChange( function ( value ) {
+			.onChange( () => {
 
-				effectController.objectColor.value.set( value );
 				/*suzanneMaterial.colorNode = Fn( () => {
 
 					return effectController.objectColor;
@@ -141,21 +151,19 @@ class AmbientAndHemisphereLights extends App {
 			} );
 
 
-		this.DebugGui.addColor( { color: effectController.skyColor.value.getHex( THREE.SRGBColorSpace ) }, 'color' )
+		gui.addColor( effectController.skyColor, 'value' )
 			.name( 'skyColor' )
-			.onChange( function ( value ) {
+			.onChange( ( value ) => {
 
-				effectController.skyColor.value.set( value );
-				hemiLight.color.setHex( value );
+				hemiLight.color.copy( value );
 
 			} );
 
-		this.DebugGui.addColor( { color: effectController.groundColor.value.getHex( THREE.SRGBColorSpace ) }, 'color' )
+		gui.addColor( effectController.groundColor, 'value' )
 			.name( 'groundColor' )
-			.onChange( function ( value ) {
+			.onChange( ( value ) => {
 
-				effectController.groundColor.value.set( value );
-				hemiLight.groundColor.setHex( value );
+				hemiLight.groundColor.copy( value );
 
 			} );
 
@@ -168,6 +176,7 @@ window.addEventListener( 'DOMContentLoaded', async () => {
 
 	await APP_.initialize( {
 		debug: true,
+		withInspector: true,
 		projectName: 'Ambient and Hemi Lights',
 		rendererType: 'WebGPU',
 		initialCameraMode: 'perspective',

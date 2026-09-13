@@ -14,6 +14,7 @@ import {
 
 import { MeshBasicNodeMaterial, Node } from 'three/webgpu';
 import { App } from '../../utils/App';
+import { NodeMaterialNodeProperties } from 'three/src/materials/nodes/NodeMaterial.js';
 
 type ShaderType =
   'Random Noise' |
@@ -64,7 +65,7 @@ class NoiseIntro extends App {
 
 		}, { position: 'vec2', return: 'float' } );
 
-		const shaders: Record<ShaderType, Node> = {
+		const shaders: Record<ShaderType, NodeMaterialNodeProperties[ 'colorNode' ]> = {
 			'Random Noise': Fn( () => {
 
 				const { seed } = effectController;
@@ -94,15 +95,14 @@ class NoiseIntro extends App {
 		const quad = new THREE.Mesh( geometry, material );
 		this.Scene.add( quad );
 
-		this.DebugGui.add( effectController, 'Current Shader', Object.keys( shaders ) ).onChange( () => {
-
-			console.log( effectController[ 'Current Shader' ] );
+		const gui = this.Inspector.createParameters( 'Chapter 9: Noise Intro' );
+		gui.add( effectController, 'Current Shader', Object.keys( shaders ) ).onChange( () => {
 
 			material.colorNode = shaders[ effectController[ 'Current Shader' ] ];
 			material.needsUpdate = true;
 
 		} );
-		this.DebugGui.add( effectController.seed, 'value', 1.0, 30.0 ).name( 'seed' );
+		gui.add( effectController.seed, 'value', 1.0, 30.0 ).name( 'seed' );
 
 	}
 
@@ -115,6 +115,7 @@ window.addEventListener( 'DOMContentLoaded', async () => {
 	await APP_.initialize( {
 		projectName: 'Chapter 9: Noise Intro',
 		debug: false,
+		withInspector: true,
 		rendererType: 'WebGPU',
 		initialCameraMode: 'orthographic'
 	} );

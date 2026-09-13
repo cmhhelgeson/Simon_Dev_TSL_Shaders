@@ -178,13 +178,14 @@ class DistortionsRipples extends App {
 
 		window.addEventListener( 'mousemove', onMouseMove );
 
-		this.DebugGui.add( effectController.remapUVXBegin, 'value', 0.01, 0.9 ).name( 'remapXBegin' );
-		this.DebugGui.add( effectController.remapUVXEnd, 'value', 0.01, 0.9 ).name( 'remapXEnd' );
-		const rippleFolder = this.DebugGui.addFolder( 'Ripple' );
+		const gui = this.Inspector.createParameters( 'Distortions & Ripples' );
+		gui.add( effectController.remapUVXBegin, 'value', 0.01, 0.9 ).name( 'remapXBegin' );
+		gui.add( effectController.remapUVXEnd, 'value', 0.01, 0.9 ).name( 'remapXEnd' );
+		const rippleFolder = gui.addFolder( 'Ripple' );
 		rippleFolder.add( effectController.rippleRingSize, 'value', 20, 200 ).step( 1 ).name( 'rippleRingSize' );
 		rippleFolder.add( effectController.rippleSpeed, 'value', 0, 10 ).step( 1 ).name( 'rippleSpeed' );
 		rippleFolder.add( effectController.rippleStrength, 'value', 0.00, 0.1 ).step( 0.001 ).name( 'rippleStrength' );
-		const postProcessingFolder = this.DebugGui.addFolder( 'Post Processing' );
+		const postProcessingFolder = gui.addFolder( 'Post Processing' );
 		postProcessingFolder.add( effectController.saturation, 'value', 0.0, 2.0 ).name( 'saturation' );
 		postProcessingFolder.add( effectController.brightness, 'value', - 1.0, 1.0 ).step( 0.1 ).name( 'brightness' );
 		postProcessingFolder.add( effectController.contrast, 'value', 0.0, 2.0 ).step( 0.1 ).name( 'contrast' );
@@ -200,6 +201,7 @@ class DistortionsRipples extends App {
 const app = new DistortionsRipples();
 app.initialize( {
 	debug: true,
+	withInspector: true,
 	projectName: 'Distortions & Ripples',
 	rendererType: 'WebGPU',
 	initialCameraMode: 'orthographic',

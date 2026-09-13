@@ -30,6 +30,7 @@ import {
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { MeshBasicNodeMaterial, WebGPURenderer } from 'three/webgpu';
+import { sdfCircle } from '../../utils/tsl/sdf/shapes';
 
 let renderer, camera, scene, gui;
 
@@ -116,12 +117,6 @@ const init = async () => {
 		} );
 
 		return skyColor;
-
-	};
-
-	const sdfCircle = ( positionNode, radiusNode ) => {
-
-		return length( positionNode ).sub( radiusNode );
 
 	};
 

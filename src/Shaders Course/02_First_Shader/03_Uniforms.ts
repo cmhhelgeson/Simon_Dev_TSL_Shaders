@@ -24,16 +24,9 @@ class Uniforms extends App {
 		const quad = new THREE.Mesh( geometry, material );
 		this.Scene.add( quad );
 
-		this.DebugGui.addColor( { color: effectController.colorLeft.value.getHex( THREE.SRGBColorSpace ) }, 'color' ).onChange( ( value ) => {
-
-			effectController.colorLeft.value.set( value );
-
-		} ).name( 'colorLeft' );
-		this.DebugGui.addColor( { color: effectController.colorRight.value.getHex( THREE.SRGBColorSpace ) }, 'color' ).onChange( ( value ) => {
-
-			effectController.colorRight.value.set( value );
-
-		} ).name( 'colorRight' );
+		const gui = this.Inspector.createParameters( 'Uniforms' );
+		gui.addColor( effectController.colorLeft, 'value' ).name( 'colorLeft' );
+		gui.addColor( effectController.colorRight, 'value' ).name( 'colorRight' );
 
 	}
 
@@ -46,6 +39,7 @@ window.addEventListener( 'DOMContentLoaded', async () => {
 	await APP_.initialize( {
 		projectName: 'Uniforms',
 		debug: false,
+		withInspector: true,
 		rendererType: 'WebGPU',
 		initialCameraMode: 'orthographic'
 	} );

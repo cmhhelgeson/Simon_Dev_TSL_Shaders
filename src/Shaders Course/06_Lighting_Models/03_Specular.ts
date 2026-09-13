@@ -18,9 +18,9 @@ import {
 	float,
 } from 'three/tsl';
 
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { MeshStandardNodeMaterial, Node } from 'three/webgpu';
+import { MeshStandardNodeMaterial } from 'three/webgpu';
 import { App } from '../../utils/App';
+import { NodeMaterialNodeProperties } from 'three/src/materials/nodes/NodeMaterial.js';
 
 type ShaderType = 'Phong Specular';
 
@@ -51,7 +51,6 @@ class SpecularLighting extends App {
 		const cubemap = new THREE.CubeTextureLoader().load( urls );
 		this.Scene.background = cubemap;
 
-		const loader = new GLTFLoader();
 		const suzanneMaterial = new MeshStandardNodeMaterial();
 
 		const lights: Record<string, THREE.Light> = {
@@ -63,7 +62,7 @@ class SpecularLighting extends App {
 		this.Scene.add( lights[ 'HemisphereLight' ] );
 		this.Scene.add( lights[ 'DirectionalLight' ] );
 
-		const shaders: Record<ShaderType, Node> = {
+		const shaders: Record<ShaderType, NodeMaterialNodeProperties[ 'fragmentNode' ]> = {
 
 			// Crudely emulate Phong Specular Shading.
 			'Phong Specular': Fn( () => {
@@ -113,30 +112,26 @@ class SpecularLighting extends App {
 
 		suzanneMaterial.fragmentNode = shaders[ 'Phong Specular' ];
 
-		loader.load( './resources/suzanne.glb', ( gltf ) => {
+		const suzanne = await this.loadGLTF( './resources/suzanne.glb' );
+		suzanne.scene.traverse( c => {
 
-			gltf.scene.traverse( c => {
+			if ( c instanceof THREE.Mesh ) {
 
-				const testMaterial = new THREE.MeshBasicMaterial( { color: 0xff0000, wireframe: true } ); // Use a brigh
+				c.material = suzanneMaterial;
 
-				c.material = testMaterial;
-
-			} );
-
-			console.log( this.Scene );
-
-			gltf.scene.scale.set( 1, 1, 1 );
-
-			this.Scene.add( gltf.scene );
+			}
 
 		} );
+
+		this.Scene.add( suzanne.scene );
 
 		this.CameraControls.enableZoom = false;
 		this.CameraControls.enablePan = false;
 		this.CameraControls.minPolarAngle = Math.PI / 4;
 		this.CameraControls.maxPolarAngle = Math.PI / 1.5;
 
-		this.DebugGui.add( effectController.shininessValue, 'value', 0.0, 100.0 ).name( 'shininess' );
+		const gui = this.Inspector.createParameters( 'Specular Lights' );
+		gui.add( effectController.shininessValue, 'value', 0.0, 100.0 ).name( 'shininess' );
 
 	}
 
@@ -147,6 +142,7 @@ window.addEventListener( 'DOMContentLoaded', async () => {
 
 	await APP_.initialize( {
 		debug: true,
+		withInspector: true,
 		projectName: 'Specular Lights',
 		rendererType: 'WebGPU',
 		initialCameraMode: 'perspective',

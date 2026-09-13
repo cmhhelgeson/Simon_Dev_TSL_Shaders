@@ -39,13 +39,10 @@ class Addressing extends App {
 		const quad = new THREE.Mesh( geometry, material );
 		this.Scene.add( quad );
 
-		this.DebugGui.addColor( { color: effectController.tint.value.getHex( THREE.SRGBColorSpace ) }, 'color' ).onChange( ( value ) => {
-
-			effectController.tint.value.set( value );
-
-		} ).name( 'tint' );
-		this.DebugGui.add( effectController.uvSize, 'value', 1, 10 ).step( 1 ).name( 'uvSize' );
-		this.DebugGui.add( effectController, 'wrappingMode', Object.keys( textureWrappings ) ).onChange( () => {
+		const gui = this.Inspector.createParameters( 'Texture Addressing' );
+		gui.addColor( effectController.tint, 'value' ).name( 'tint' );
+		gui.add( effectController.uvSize, 'value', 1, 10 ).step( 1 ).name( 'uvSize' );
+		gui.add( effectController, 'wrappingMode', Object.keys( textureWrappings ) ).onChange( () => {
 
 			const wrappingMode = textureWrappings[ effectController.wrappingMode ];
 
@@ -66,6 +63,7 @@ window.addEventListener( 'DOMContentLoaded', async () => {
 	await APP_.initialize( {
 		projectName: 'Texture Addressing',
 		debug: false,
+		withInspector: true,
 		rendererType: 'WebGPU',
 		initialCameraMode: 'orthographic'
 	} );

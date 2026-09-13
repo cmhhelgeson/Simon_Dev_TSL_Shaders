@@ -15,6 +15,7 @@ import {
 import { MeshBasicNodeMaterial, Node } from 'three/webgpu';
 
 import { App } from '../../utils/App';
+import { NodeMaterialNodeProperties } from 'three/src/materials/nodes/NodeMaterial.js';
 
 // step(edge, x): Generate a step function by comparing x to edge
 // if (x < edge) return 0.0;
@@ -57,7 +58,7 @@ class StepMixSmoothstep extends App {
 		const blue = vec3( 0.0, 0.0, 1.0 );
 		const white = vec3( 1.0, 1.0, 1.0 );
 
-		const shaders: Record<ShaderType, Node> = {
+		const shaders: Record<ShaderType, NodeMaterialNodeProperties[ 'colorNode' ]> = {
 
 			'Step': Fn( () => {
 
@@ -116,16 +117,17 @@ class StepMixSmoothstep extends App {
 		const quad = new THREE.Mesh( geometry, material );
 		this.Scene.add( quad );
 
-		this.DebugGui.add( effectController, 'currentShader', Object.keys( shaders ) ).onChange( () => {
+		const gui = this.Inspector.createParameters( 'Step, Mix, Smoothstep' );
+		gui.add( effectController, 'currentShader', Object.keys( shaders ) ).onChange( () => {
 
 			material.colorNode = shaders[ effectController.currentShader as ShaderType ];
 			material.needsUpdate = true;
 
 		} );
-		const stepFolder = this.DebugGui.addFolder( 'Step Shader' );
+		const stepFolder = gui.addFolder( 'Step Shader' );
 		stepFolder.add( effectController.stepEdgeX, 'value', 0, 1.0 ).name( 'stepEdgeX' );
 		stepFolder.add( effectController.stepEdgeY, 'value', 0, 1.0 ).name( 'stepEdgeY' );
-		const smoothstepFolder = this.DebugGui.addFolder( 'Smoothstep Shader' );
+		const smoothstepFolder = gui.addFolder( 'Smoothstep Shader' );
 		smoothstepFolder.add( effectController.smoothstepRangeStart, 'value', 0.001, 0.5, 0.001 ).name( 'Range Start' );
 		smoothstepFolder.add( effectController.smoothstepRangeEnd, 'value', 0.001, 0.5, 0.001 ).name( 'Range End' );
 
@@ -140,6 +142,7 @@ window.addEventListener( 'DOMContentLoaded', async () => {
 	await APP_.initialize( {
 		projectName: 'Step, Mix, Smoothstep',
 		debug: false,
+		withInspector: true,
 		rendererType: 'WebGPU',
 		initialCameraMode: 'orthographic'
 	} );

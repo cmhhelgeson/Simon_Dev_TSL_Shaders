@@ -18,10 +18,10 @@ type ShaderType =
   'Rotate X' |
   'Rotate Y' |
   'Rotate Z' |
-  'Rotate All'
+  'Rotate All';
 
 interface EffectControllerType {
-  'Current Shader': ShaderType,
+	'Current Shader': ShaderType,
 }
 
 class BasicTransformations extends App {
@@ -124,7 +124,11 @@ class BasicTransformations extends App {
 		const suzanne = await this.loadGLTF( './resources/suzanne.glb' );
 		suzanne.scene.traverse( c => {
 
-			c.material = suzanneMaterial;
+			if ( c instanceof THREE.Mesh ) {
+
+				c.material = suzanneMaterial;
+
+			}
 
 		} );
 
@@ -137,7 +141,8 @@ class BasicTransformations extends App {
 		this.CameraControls.minPolarAngle = Math.PI / 4;
 		this.CameraControls.maxPolarAngle = Math.PI / 1.5;
 
-		this.DebugGui.add( effectController, 'Current Shader', Object.keys( shaders ) ).onChange( () => {
+		const gui = this.Inspector.createParameters( 'Basic Transformations' );
+		gui.add( effectController, 'Current Shader', Object.keys( shaders ) ).onChange( () => {
 
 			suzanneMaterial.positionNode = shaders[ effectController[ 'Current Shader' ] ];
 			suzanneMaterial.needsUpdate = true;
@@ -151,6 +156,7 @@ class BasicTransformations extends App {
 const app = new BasicTransformations();
 app.initialize( {
 	debug: true,
+	withInspector: true,
 	projectName: 'Basic Transformations',
 	rendererType: 'WebGPU',
 	initialCameraMode: 'perspective',

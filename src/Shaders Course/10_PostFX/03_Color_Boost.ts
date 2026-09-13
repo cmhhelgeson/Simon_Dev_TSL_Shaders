@@ -150,9 +150,10 @@ class ColorBoost extends App {
 		this.createPostProcessingPipeline( 'postScene' ).outputNode = scenePass;
 		this.createPostProcessingPipeline( 'postColor' ).outputNode = postProcessFunction( scenePass );
 
-		this.DebugGui.add( effectController.remapUVXBegin, 'value', 0.01, 0.9 ).name( 'remapXBegin' );
-		this.DebugGui.add( effectController.remapUVXEnd, 'value', 0.01, 0.9 ).name( 'remapXEnd' );
-		const postProcessingFolder = this.DebugGui.addFolder( 'Post Processing' );
+		const gui = this.Inspector.createParameters( 'Color Boost' );
+		gui.add( effectController.remapUVXBegin, 'value', 0.01, 0.9 ).name( 'remapXBegin' );
+		gui.add( effectController.remapUVXEnd, 'value', 0.01, 0.9 ).name( 'remapXEnd' );
+		const postProcessingFolder = gui.addFolder( 'Post Processing' );
 		postProcessingFolder.add( effectController.saturation, 'value', 0.0, 2.0 ).name( 'saturation' );
 		postProcessingFolder.add( effectController.brightness, 'value', - 1.0, 1.0 ).step( 0.1 ).name( 'brightness' );
 		postProcessingFolder.add( effectController.contrast, 'value', 0.0, 2.0 ).step( 0.1 ).name( 'contrast' );
@@ -168,6 +169,7 @@ class ColorBoost extends App {
 const app = new ColorBoost();
 app.initialize( {
 	debug: true,
+	withInspector: true,
 	projectName: 'Color Boost',
 	rendererType: 'WebGPU',
 	initialCameraMode: 'orthographic',

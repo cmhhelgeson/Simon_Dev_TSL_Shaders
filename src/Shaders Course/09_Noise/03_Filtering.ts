@@ -99,7 +99,8 @@ class NoiseFiltering extends App {
 		const quad = new THREE.Mesh( geometry, material );
 		this.Scene.add( quad );
 
-		this.DebugGui.add( effectController, 'externalFilterMode', Object.keys( externalFilterModes ) ).onChange( () => {
+		const gui = this.Inspector.createParameters( 'Chapter 9: Filtering' );
+		gui.add( effectController, 'externalFilterMode', Object.keys( externalFilterModes ) ).onChange( () => {
 
 			// Destroy current shader to prevent destroyed texture from being accessed in a submit
 			material.colorNode = null;
@@ -113,7 +114,7 @@ class NoiseFiltering extends App {
 
 		} );
 
-		this.DebugGui.add( effectController, 'internalFilterMode', Object.keys( internalFilterModes ) ).onChange( () => {
+		gui.add( effectController, 'internalFilterMode', Object.keys( internalFilterModes ) ).onChange( () => {
 
 			effectController.internalFilterUniform.value = internalFilterModes[ effectController.internalFilterMode ];
 
@@ -131,6 +132,7 @@ window.addEventListener( 'DOMContentLoaded', async () => {
 	await APP_.initialize( {
 		projectName: 'Chapter 9: Filtering',
 		debug: false,
+		withInspector: true,
 		rendererType: 'WebGPU',
 		initialCameraMode: 'orthographic'
 	} );

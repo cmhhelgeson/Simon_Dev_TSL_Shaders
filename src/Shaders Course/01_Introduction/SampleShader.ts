@@ -36,6 +36,7 @@ window.addEventListener( 'DOMContentLoaded', async () => {
 	await APP_.initialize( {
 		projectName: 'Introduction Shader',
 		debug: false,
+		withInspector: false,
 		rendererType: 'WebGPU',
 		initialCameraMode: 'orthographic'
 	} );

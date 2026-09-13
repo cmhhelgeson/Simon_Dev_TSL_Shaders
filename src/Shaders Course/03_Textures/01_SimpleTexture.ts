@@ -33,11 +33,8 @@ class SimpleTexture extends App {
 		const quad = new THREE.Mesh( geometry, material );
 		this.Scene.add( quad );
 
-		this.DebugGui.addColor( { color: effectController.tint.value.getHex( THREE.SRGBColorSpace ) }, 'color' ).onChange( ( value ) => {
-
-			effectController.tint.value.set( value );
-
-		} ).name( 'tint' );
+		const gui = this.Inspector.createParameters( 'Simple Texture' );
+		gui.addColor( effectController.tint, 'value' ).name( 'tint' );
 
 	}
 
@@ -50,6 +47,7 @@ window.addEventListener( 'DOMContentLoaded', async () => {
 	await APP_.initialize( {
 		projectName: 'Simple Texture',
 		debug: false,
+		withInspector: true,
 		rendererType: 'WebGPU',
 		initialCameraMode: 'orthographic'
 	} );

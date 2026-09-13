@@ -13,7 +13,7 @@ import { bleach } from 'three/addons/tsl/display/BleachBypass.js';
 import { dotScreen } from 'three/addons/tsl/display/DotScreenNode.js';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
-import { PostProcessing, MeshBasicNodeMaterial } from 'three/webgpu';
+import { MeshBasicNodeMaterial } from 'three/webgpu';
 import { App } from '../../utils/App';
 import { ThreeRenderer } from '../../utils/types';
 
@@ -86,9 +86,10 @@ class PostFXIntro extends App {
 		this.createPostProcessingPipeline( 'postBleach' ).outputNode = bleach( scenePass, effectController.bleachOpacity );
 		this.createPostProcessingPipeline( 'postPixelation' ).outputNode = dotScreen( scenePass );
 
-		this.DebugGui.add( effectController.remapUVXBegin, 'value', 0.01, 0.9 ).name( 'remapXBegin' );
-		this.DebugGui.add( effectController.remapUVXEnd, 'value', 0.01, 0.9 ).name( 'remapXEnd' );
-		const postProcessingFolder = this.DebugGui.addFolder( 'Post Processing' );
+		const gui = this.Inspector.createParameters( 'Post FX Intro' );
+		gui.add( effectController.remapUVXBegin, 'value', 0.01, 0.9 ).name( 'remapXBegin' );
+		gui.add( effectController.remapUVXEnd, 'value', 0.01, 0.9 ).name( 'remapXEnd' );
+		const postProcessingFolder = gui.addFolder( 'Post Processing' );
 		postProcessingFolder.add( effectController.bleachOpacity, 'value', 0.01, 10.0 ).name( 'bleachOpacity' );
 
 	}
@@ -102,6 +103,7 @@ class PostFXIntro extends App {
 const app = new PostFXIntro();
 app.initialize( {
 	debug: true,
+	withInspector: true,
 	projectName: 'Post FX Intro',
 	rendererType: 'WebGPU',
 	initialCameraMode: 'perspective',

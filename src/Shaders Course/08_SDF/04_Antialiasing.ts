@@ -20,7 +20,8 @@ import {
 	If,
 } from 'three/tsl';
 
-import { DrawGrid, SDFBox, SDFCircle } from './util';
+import { DrawGrid, SDFBox } from './util';
+import { sdfCircle } from '../../utils/tsl/sdf/shapes';
 import { MeshBasicNodeMaterial } from 'three/webgpu';
 import { App } from '../../utils/App';
 
@@ -108,7 +109,7 @@ class Antialiasing extends App {
 
 			If( shapeUniform.equal( ShapeEnum.CIRCLE ), () => {
 
-				sdfDistance.assign( SDFCircle( viewportPosition, circleRadius ) );
+				sdfDistance.assign( sdfCircle( viewportPosition, circleRadius ) );
 
 			} ).ElseIf( shapeUniform.equal( ShapeEnum.BOX ), () => {
 
@@ -133,7 +134,8 @@ class Antialiasing extends App {
 		const quad = new THREE.Mesh( geometry, material );
 		this.Scene.add( quad );
 
-		this.DebugGui.add( this.#settings, 'shape', [ 'CIRCLE', 'BOX', 'HEXAGON' ] ).onChange( () => {
+		const gui = this.Inspector.createParameters( 'Antialiasing' );
+		gui.add( this.#settings, 'shape', [ 'CIRCLE', 'BOX', 'HEXAGON' ] ).onChange( () => {
 
 			const value = ShapeEnum[ this.#settings.shape ];
 			console.log( value );
@@ -142,9 +144,9 @@ class Antialiasing extends App {
 			material.needsUpdate = true;
 
 		} );
-		this.DebugGui.add( this.#settings.circleRadius, 'value', 1.0, 500.0 ).step( 1.0 ).name( 'sdfSize' );
-		this.DebugGui.add( this.#settings.antialiasRange, 'value', 0.1, 5.0 ).step( 10.0 ).name( 'antialiasRange' );
-		const vignetteFolder = this.DebugGui.addFolder( 'Vignette' );
+		gui.add( this.#settings.circleRadius, 'value', 1.0, 500.0 ).step( 1.0 ).name( 'sdfSize' );
+		gui.add( this.#settings.antialiasRange, 'value', 0.1, 5.0 ).step( 10.0 ).name( 'antialiasRange' );
+		const vignetteFolder = gui.addFolder( 'Vignette' );
 		vignetteFolder.add( this.#settings.vignetteColorMin, 'value', 0.0, 0.5 ).step( 0.01 ).name( 'vignetteColorMin' );
 		vignetteFolder.add( this.#settings.vignetteColorMax, 'value', 0.5, 1.0 ).step( 0.01 ).name( 'vignetteColorMax' );
 		vignetteFolder.add( this.#settings.vignetteRadius, 'value', 0.0, 1.0 ).step( 0.01 ).name( 'vignetteRadius' );
@@ -161,6 +163,7 @@ window.addEventListener( 'DOMContentLoaded', async () => {
 	await APP_.initialize( {
 		projectName: 'Antialiasing',
 		debug: false,
+		withInspector: true,
 		rendererType: 'WebGPU',
 		initialCameraMode: 'orthographic'
 	} );

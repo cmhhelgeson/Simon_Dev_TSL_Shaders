@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { MeshBasicNodeMaterial } from 'three/webgpu';
+import { MeshBasicNodeMaterial, Node } from 'three/webgpu';
 import {
 	length,
 	smoothstep,
@@ -22,8 +22,9 @@ import {
 	time,
 } from 'three/tsl';
 
-import { DrawGrid, SDFBox, SDFCircle } from './util';
+import { DrawGrid, SDFBox } from './util';
 import { App } from '../../utils/App';
+import { sdfCircle } from '../../utils/tsl/sdf/shapes';
 
 enum BooleanEnum {
 	UNION,
@@ -78,23 +79,29 @@ class BooleanOperations extends App {
 
 		};
 
-		const opUnion = /*@__PURE__*/ Fn( ( [ d1, d2 ] ) => {
+		// Annotating the destructured tuple is what steers Fn to its array-argument
+		// overload; without it TypeScript matches the ( builder: NodeBuilder ) => ...
+		// signature and every parameter degrades to an untyped node.
+		type SDFPair = [ Node<'float'>, Node<'float'> ];
+
+		const opUnion = /*@__PURE__*/ Fn( ( [ d1, d2 ]: SDFPair ) => {
 
 			return min( d1, d2 );
 
 		}, { d1: 'float', d2: 'float', return: 'float' } );
 
-		const opIntersection = Fn( ( [ d1, d2 ] ) => {
+		const opIntersection = Fn( ( [ d1, d2 ]: SDFPair ) => {
 
 			return max( d1, d2 );
 
 		}, { d1: 'float', d2: 'float', return: 'float' } );
 
-		const opSubtraction = ( d1Node, d2Node ) => {
+		// Subtracts d1 from d2, matching the call convention used in 06_Cloudy_Day.
+		const opSubtraction = Fn( ( [ d1, d2 ]: SDFPair ) => {
 
-			return max( negate( d1Node ), d2Node );
+			return max( negate( d1 ), d2 );
 
-		};
+		}, { d1: 'float', d2: 'float', return: 'float' } );
 
 		material.colorNode = Fn( () => {
 
@@ -115,10 +122,16 @@ class BooleanOperations extends App {
 
 			const offsetFromViewportX = viewportSize.x.div( 4 );
 
-			const boxD = SDFBox( rotate( viewportPosition, time ), vec2( 200.0, 100.0 ) );
-			const d1 = SDFCircle( viewportPosition.sub( vec2( negate( offsetFromViewportX ), - 150.0 ) ), float( 150.0 ) );
-			const d2 = SDFCircle( viewportPosition.sub( vec2( offsetFromViewportX, - 150.0 ) ), float( 150.0 ) );
-			const d3 = SDFCircle( viewportPosition.sub( vec2( 0, 200.0 ) ), float( 150.0 ) );
+			// Must be a var in this scope. An Fn call materialises as a variable
+			// whose declaration is hoisted to function scope but whose assignment
+			// is emitted wherever the node is first built - here, the first If
+			// branch. The remaining branches would read it still zero-initialised,
+			// so SUBTRACTION would compute max( -0, d ) and merely flatten the
+			// circles to d = 0 instead of carving the box out of them.
+			const boxD = SDFBox( rotate( viewportPosition, time ), vec2( 200.0, 100.0 ) ).toVar( 'boxD' );
+			const d1 = sdfCircle( viewportPosition.sub( vec2( negate( offsetFromViewportX ), - 150.0 ) ), float( 150.0 ) );
+			const d2 = sdfCircle( viewportPosition.sub( vec2( offsetFromViewportX, - 150.0 ) ), float( 150.0 ) );
+			const d3 = sdfCircle( viewportPosition.sub( vec2( 0, 200.0 ) ), float( 150.0 ) );
 
 			const d = opUnion( opUnion( d1, d2 ), d3 ).toVar( 'd' );
 
@@ -150,12 +163,13 @@ class BooleanOperations extends App {
 		const quad = new THREE.Mesh( geometry, material );
 		this.Scene.add( quad );
 
-		this.DebugGui.add( this.#settings, 'currentOp', [ 'UNION', 'INTERSECTION', 'SUBTRACTION' ] ).onChange( () => {
+		const gui = this.Inspector.createParameters( 'Boolean Operations' );
+		gui.add( this.#settings, 'currentOp', [ 'UNION', 'INTERSECTION', 'SUBTRACTION' ] ).onChange( () => {
 
 			this.#settings.currentOpUniform.value = BooleanEnum[ this.#settings.currentOp ];
 
 		} );
-		this.DebugGui.add( this.#settings.antialiasRange, 'value', 0.1, 5.0 ).step( 0.1 ).name( 'antialiasRange' );
+		gui.add( this.#settings.antialiasRange, 'value', 0.1, 5.0 ).step( 0.1 ).name( 'antialiasRange' );
 
 	}
 
@@ -168,6 +182,7 @@ window.addEventListener( 'DOMContentLoaded', async () => {
 	await APP_.initialize( {
 		projectName: 'Boolean Operations',
 		debug: false,
+		withInspector: true,
 		rendererType: 'WebGPU',
 		initialCameraMode: 'orthographic'
 	} );

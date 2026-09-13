@@ -1,11 +1,12 @@
 
 import * as THREE from 'three';
-import { uniform, viewportSize, Fn, time, sin, mix, floor, float, vec3, dot, fract, uint, Loop, uv, negate, length, smoothstep, vec2, exp, If, abs, remap, sqrt } from 'three/tsl';
+import { uniform, Fn, time, sin, mix, floor, float, vec3, dot, fract, uint, Loop, uv, negate, length, smoothstep, vec2, exp, If, abs, remap, sqrt, screenSize } from 'three/tsl';
 
 import { MeshBasicNodeMaterial, Node } from 'three/webgpu';
 import { App } from '../../utils/App';
+import { NodeMaterialNodeProperties } from 'three/src/materials/nodes/NodeMaterial.js';
 
-const hash3 = ( pNode ) => {
+const hash3 = ( pNode: Node<'vec3'> ) => {
 
 	const p = vec3(
 		dot( pNode, vec3( 127.1, 311.7, 74.7 ) ),
@@ -21,7 +22,7 @@ const hash3 = ( pNode ) => {
 
 };
 
-const noise3D = ( p: Node | number ) => {
+const noise3D = ( p: Node<'vec3'> ) => {
 
 	const i = floor( p );
 	const f = fract( p );
@@ -74,7 +75,7 @@ const noise3D = ( p: Node | number ) => {
 
 };
 
-const fbm = ( pNode: Node ) => {
+const fbm = ( pNode: Node<'vec3'> ) => {
 
 	const {
 		amplitudePersistence,
@@ -96,13 +97,13 @@ const fbm = ( pNode: Node ) => {
 
 };
 
-const mod289 = ( x: Node ) => {
+const mod289 = ( x: Node<'float'> ) => {
 
-	return x.sub( floor( x / 289.0 ).mul( 289.0 ) );
+	return x.sub( floor( x.div( 289.0 ) ).mul( 289.0 ) );
 
 };
 
-const permute = ( x: Node ) => {
+const permute = ( x: Node<'float'> ) => {
 
 	return mod289(
 		( x.mul( 34.0 ).add( 1.0 ) ).mul( x )
@@ -111,13 +112,22 @@ const permute = ( x: Node ) => {
 
 };
 
-const taylorInvSqrt = ( r: Node ) => {
+const taylorInvSqrt = ( r: Node<'float'> ) => {
 
 	return float( 1.79284291400159 ).sub( r.mul( 0.85373472095314 ) );
 
 };
 
-type ShaderType = 'Step 1: UV' | 'Complete Shader';
+type ShaderType =
+	'Step 1: UV' |
+	'Step 2: Initial Cell UV' |
+	'Step 3: Offset Cell UV' |
+	'Step 4: Scale Cell UV' |
+	'Step 5: Cell ID' |
+	'Step 6: Cell Hash' |
+	'Step 7: Dist to Star' |
+	'Step 8: Scaled Dist to Star' |
+	'Complete Shader';
 
 
 class Stars extends App {
@@ -159,10 +169,10 @@ class Stars extends App {
 		];
 
 		const GetCellInfo = (
-			pixelCoords: Node,
-			cellSize: Node,
-			seed,
-			seedChange
+			pixelCoords: Node<'vec2'>,
+			cellSize: Node<'float'>,
+			seed: Node<'float'>,
+			seedChange: Node<'float'>
 		) => {
 
 			const cellInvert = pixelCoords.div( cellSize ).toVar( 'cellInvert' );
@@ -179,7 +189,13 @@ class Stars extends App {
 
 		};
 
-		const GenerateGridStars = Fn( ( [ pixelCoords, starRadius, cellSize, seed, isTwinkle ] ) => {
+		const GenerateGridStars = Fn( ( [ pixelCoords, starRadius, cellSize, seed, isTwinkle ]: [
+			Node<'vec2'>,
+			Node<'float'>,
+			Node<'float'>,
+			Node<'float'>,
+			Node<'bool'>
+		] ) => {
 
 			const { distanceFromCellCenter, twinkleMultiplier, horizontalTwinkleHeight, twinkleSpeed, seedChange } = effectController;
 
@@ -220,14 +236,6 @@ class Stars extends App {
 					smoothstep( twinkleSize, 0.0, absDist.y )
 				);
 
-				const s = 4;
-				const t = 4;
-				if ( test = 4 ) {
-
-					const s = 4;
-
-				}
-
 				twinkleValue.addAssign( verticalTwinkle );
 
 				glow.addAssign( twinkleValue );
@@ -239,15 +247,22 @@ class Stars extends App {
 
 			return vec3( glow.mul( starBrightness ) );
 
-		}, { seed: 'float', isTwinkle: 'bool', return: 'vec3' } );
+		}, {
+			pixelCoords: 'vec2',
+			starRadius: 'float',
+			cellSize: 'float',
+			seed: 'float',
+			isTwinkle: 'bool',
+			return: 'vec3'
+		} );
 
-		const sdfCircle = Fn( ( [ p, r, ] ) => {
+		const sdfCircle = Fn( ( [ p, r ]: [ Node<'vec2'>, Node<'float'> ] ) => {
 
 			return length( p ).sub( r );
 
-		}, { p: 'vec2', r: 'vec2', return: 'float' } );
+		}, { p: 'vec2', r: 'float', return: 'float' } );
 
-		const DrawPlanet = ( pixelCoords, color ) => {
+		const DrawPlanet = ( pixelCoords: Node<'vec2'>, color: Node<'vec3'> ) => {
 
 			const { planetRadius } = effectController;
 
@@ -280,7 +295,11 @@ class Stars extends App {
 
 		};
 
-		const GenerateStars = Fn( ( [ pixelCoords, starRadius, cellSize ] ) => {
+		const GenerateStars = Fn( ( [ pixelCoords, starRadius, cellSize ]: [
+			Node<'vec2'>,
+			Node<'float'>,
+			Node<'float'>
+		] ) => {
 
 			const { starRadiusFalloff, cellSizeFalloff } = effectController;
 
@@ -316,10 +335,10 @@ class Stars extends App {
 			inputs: starsInputs,
 		} );
 
-		const fragmentShaders: Record<ShaderType, Node> = {
+		const fragmentShaders: Record<ShaderType, NodeMaterialNodeProperties[ 'colorNode' ]> = {
 			'Step 1: UV': Fn( () => {
 
-				return uv().sub( 0.5 ).mul( viewportSize );
+				return uv().sub( 0.5 ).mul( screenSize );
 
 			} )(),
 
@@ -327,7 +346,7 @@ class Stars extends App {
 
 				const { cellSize } = effectController;
 
-				const pixelCoords = uv().sub( 0.5 ).mul( viewportSize );
+				const pixelCoords = uv().sub( 0.5 ).mul( screenSize );
 				const cellInvert = pixelCoords.div( cellSize ).toVar( 'cellInvert' );
 				//cellInvert.y.assign( negate( cellInvert.y ) );
 
@@ -340,7 +359,7 @@ class Stars extends App {
 
 				const { cellSize } = effectController;
 
-				const pixelCoords = uv().sub( 0.5 ).mul( viewportSize );
+				const pixelCoords = uv().sub( 0.5 ).mul( screenSize );
 				const cellInvert = pixelCoords.div( cellSize ).toVar( 'cellInvert' );
 				//cellInvert.y.assign( negate( cellInvert.y ) );
 
@@ -353,7 +372,7 @@ class Stars extends App {
 
 				const { cellSize } = effectController;
 
-				const pixelCoords = uv().sub( 0.5 ).mul( viewportSize );
+				const pixelCoords = uv().sub( 0.5 ).mul( screenSize );
 				const cellInvert = pixelCoords.div( cellSize ).toVar( 'cellInvert' );
 				cellInvert.y.assign( negate( cellInvert.y ) );
 
@@ -366,7 +385,7 @@ class Stars extends App {
 
 				const { cellSize, seedChange } = effectController;
 
-				const pixelCoords = uv().sub( 0.5 ).mul( viewportSize );
+				const pixelCoords = uv().sub( 0.5 ).mul( screenSize );
 				const cellInvert = pixelCoords.div( cellSize ).toVar( 'cellInvert' );
 				cellInvert.y.assign( negate( cellInvert.y ) );
 
@@ -380,7 +399,7 @@ class Stars extends App {
 
 				const { cellSize, seedChange } = effectController;
 
-				const pixelCoords = uv().sub( 0.5 ).mul( viewportSize );
+				const pixelCoords = uv().sub( 0.5 ).mul( screenSize );
 
 				const { cellCoords, cellID, cellHashValue } = GetCellInfo( pixelCoords, cellSize, float( 1.0 ), seedChange );
 
@@ -393,7 +412,7 @@ class Stars extends App {
 
 				const { cellSize, seedChange, starRadius, distanceFromCellCenter } = effectController;
 
-				const pixelCoords = uv().sub( 0.5 ).mul( viewportSize );
+				const pixelCoords = uv().sub( 0.5 ).mul( screenSize );
 
 				const { cellCoords, cellID, cellHashValue } = GetCellInfo( pixelCoords, cellSize, float( 1.0 ), seedChange );
 
@@ -410,7 +429,7 @@ class Stars extends App {
 
 				const { cellSize, seedChange, starRadius, distanceFromCellCenter } = effectController;
 
-				const pixelCoords = uv().sub( 0.5 ).mul( viewportSize );
+				const pixelCoords = uv().sub( 0.5 ).mul( screenSize );
 
 				const { cellCoords, cellID, cellHashValue } = GetCellInfo( pixelCoords, cellSize, float( 1.0 ), seedChange );
 
@@ -431,9 +450,9 @@ class Stars extends App {
 
 				const offsetUV = uv().sub( 0.5 );
 
-				color.assign( GenerateStars( offsetUV.mul( viewportSize ), starRadius, cellSize ) );
+				color.assign( GenerateStars( offsetUV.mul( screenSize ), starRadius, cellSize ) );
 
-				DrawPlanet( offsetUV.mul( viewportSize ), color );
+				DrawPlanet( offsetUV.mul( screenSize ), color );
 
 				return color;
 
@@ -450,7 +469,8 @@ class Stars extends App {
 		const quad = new THREE.Mesh( geometry, material );
 		this.Scene.add( quad );
 
-		this.DebugGui.add( effectController, 'currentShader', Object.keys( fragmentShaders ) ).onChange( () => {
+		const gui = this.Inspector.createParameters( 'Stars' );
+		gui.add( effectController, 'currentShader', Object.keys( fragmentShaders ) ).onChange( () => {
 
 			material.colorNode = fragmentShaders[ effectController.currentShader ];
 			material.needsUpdate = true;
@@ -459,7 +479,7 @@ class Stars extends App {
 		} );
 
 		// STAR PARAMETERS
-		const starsFolder = this.DebugGui.addFolder( 'Stars' );
+		const starsFolder = gui.addFolder( 'Stars' );
 		const starCellFolder = starsFolder.addFolder( 'Star Cell' );
 		// Cell parameters
 		starCellFolder.add( effectController.cellSize, 'value', 1.0, 500.0 ).step( 0.1 ).name( 'Cell Size' );
@@ -477,10 +497,19 @@ class Stars extends App {
 		starGlowFolder.add( effectController.twinkleSpeed, 'value', 1.0, 20.0 ).step( 0.01 ).name( 'Twinkle Speed' );
 
 		// PLANET PARAMETERS
-		const planetFolder = this.DebugGui.addFolder( 'Planet' );
+		const planetFolder = gui.addFolder( 'Planet' );
 		planetFolder.add( effectController.planetRadius, 'value', 20.0, 400.0 ).step( 0.1 ).name( 'Planet Radius' );
 
 
 	}
 
 }
+
+const app = new Stars();
+app.initialize( {
+	debug: true,
+	withInspector: true,
+	projectName: 'Distortions & Ripples',
+	rendererType: 'WebGPU',
+	initialCameraMode: 'orthographic',
+} );

@@ -32,12 +32,9 @@ class Alpha extends App {
 		const quad = new THREE.Mesh( geometry, material );
 		this.Scene.add( quad );
 
-		this.DebugGui.addColor( { color: effectController.tint.value.getHex( THREE.SRGBColorSpace ) }, 'color' ).onChange( ( value ) => {
-
-			effectController.tint.value.set( value );
-
-		} ).name( 'tint' );
-		this.DebugGui.add( effectController.transparency, 'value', 0.0, 1.0 ).name( 'transparency' );
+		const gui = this.Inspector.createParameters( 'Alpha' );
+		gui.addColor( effectController.tint, 'value' ).name( 'tint' );
+		gui.add( effectController.transparency, 'value', 0.0, 1.0 ).name( 'transparency' );
 
 	}
 
@@ -51,6 +48,7 @@ window.addEventListener( 'DOMContentLoaded', async () => {
 	await APP_.initialize( {
 		projectName: 'Alpha',
 		debug: false,
+		withInspector: true,
 		rendererType: 'WebGPU',
 		initialCameraMode: 'orthographic'
 	} );

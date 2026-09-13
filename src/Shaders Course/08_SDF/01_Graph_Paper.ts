@@ -109,19 +109,19 @@ class GraphPaper extends App {
 
 			If( functionMode.equal( FunctionMode.CEIL ), () => {
 
-			    color.assign( mix( red, color, ceilFunctionLine ) );
+				color.assign( mix( red, color, ceilFunctionLine ) );
 
 			} );
 
 			If( functionMode.equal( FunctionMode.FLOOR ), () => {
 
-			    color.assign( mix( red, color, floorFunctionLine ) );
+				color.assign( mix( red, color, floorFunctionLine ) );
 
 			} );
 
 			If( functionMode.equal( FunctionMode.ROUND ), () => {
 
-			    color.assign( mix( red, color, roundFunctionLine ) );
+				color.assign( mix( red, color, roundFunctionLine ) );
 
 			} );
 
@@ -139,7 +139,8 @@ class GraphPaper extends App {
 		const quad = new THREE.Mesh( geometry, material );
 		this.Scene.add( quad );
 
-		const gridFolder = this.DebugGui.addFolder( 'Grid' );
+		const gui = this.Inspector.createParameters( 'Chapter 8: Graph Paper' );
+		const gridFolder = gui.addFolder( 'Grid' );
 		gridFolder.add( effectController.cellWidth, 'value', 5, 200 ).step( 1 ).name( 'Cell Width (px)' );
 		gridFolder.add( effectController.lineWidth, 'value', 1.0, 8.0 ).name( 'Line Width' );
 		gridFolder.add( effectController, 'Display Function', [ 'CEIL', 'FLOOR', 'ROUND', 'FRACT' ] ).onChange( () => {
@@ -147,7 +148,7 @@ class GraphPaper extends App {
 			effectController.functionMode.value = FunctionMode[ effectController[ 'Display Function' ] ];
 
 		} );
-		const vignetteFolder = this.DebugGui.addFolder( 'Vignette' );
+		const vignetteFolder = gui.addFolder( 'Vignette' );
 		vignetteFolder.add( effectController.vignetteColorMin, 'value', 0.0, 0.5 ).step( 0.01 ).name( 'vignetteColorMin' );
 		vignetteFolder.add( effectController.vignetteColorMax, 'value', 0.5, 1.0 ).step( 0.01 ).name( 'vignetteColorMax' );
 		vignetteFolder.add( effectController.vignetteRadius, 'value', 0.0, 1.0 ).step( 0.01 ).name( 'vignetteRadius' );
@@ -165,6 +166,7 @@ window.addEventListener( 'DOMContentLoaded', async () => {
 	await APP_.initialize( {
 		projectName: 'Chapter 8: Graph Paper',
 		debug: false,
+		withInspector: true,
 		rendererType: 'WebGPU',
 		initialCameraMode: 'orthographic'
 	} );

@@ -20,9 +20,10 @@ import {
 	uint,
 	int
 } from 'three/tsl';
-import { MeshBasicNodeMaterial, Node } from 'three/webgpu';
+import { MeshBasicNodeMaterial } from 'three/webgpu';
 
 import { App } from '../../utils/App';
+import { NodeMaterialNodeProperties } from 'three/src/materials/nodes/NodeMaterial.js';
 
 type ShaderType = 'Basic Sin' | 'Basic CRT' | 'Refined CRT' | 'Expert CRT';
 
@@ -60,7 +61,7 @@ class SinCos extends App {
 		const red = vec3( 1.0, 0.0, 0.0 );
 		const blue = vec3( 0.0, 0.0, 1.0 );
 
-		const shaders: Record<ShaderType, Node> = {
+		const shaders: Record<ShaderType, NodeMaterialNodeProperties[ 'colorNode' ]> = {
 
 			'Basic Sin': Fn( () => {
 
@@ -184,19 +185,20 @@ class SinCos extends App {
 		const quad = new THREE.Mesh( geometry, material );
 		this.Scene.add( quad );
 
-		this.DebugGui.add( effectController, 'currentShader', Object.keys( shaders ) ).onChange( () => {
+		const gui = this.Inspector.createParameters( 'Chapter 5: Sin, Cos' );
+		gui.add( effectController, 'currentShader', Object.keys( shaders ) ).onChange( () => {
 
 			material.colorNode = shaders[ effectController.currentShader as ShaderType ];
 			material.needsUpdate = true;
 
 		} );
-		const basicCRTFolder = this.DebugGui.addFolder( 'Basic CRT' );
+		const basicCRTFolder = gui.addFolder( 'Basic CRT' );
 		basicCRTFolder.add( effectController.lineSize, 'value', 1.0, 100.0 ).step( 1.0 ).name( 'Line Size' );
 		basicCRTFolder.add( effectController.lineSpeed, 'value', 1.0, 100.0 ).step( 1.0 ).name( 'Line Speed' );
-		const refinedCRTFolder = this.DebugGui.addFolder( 'Refined CRT' );
+		const refinedCRTFolder = gui.addFolder( 'Refined CRT' );
 		refinedCRTFolder.add( effectController.lineSize2, 'value', 1.0, 100.0 ).step( 1.0 ).name( 'Line 2 Size' );
 		refinedCRTFolder.add( effectController.lineSpeed2, 'value', 1.0, 100.0 ).step( 1.0 ).name( 'Line 2 Speed' );
-		const expertCRTFolder = this.DebugGui.addFolder( 'Expert CRT' );
+		const expertCRTFolder = gui.addFolder( 'Expert CRT' );
 		expertCRTFolder.add( effectController.cellSize, 'value', 1, 50 ).step( 1 ).name( 'Cell Size' );
 		expertCRTFolder.add( effectController.cellOffset, 'value', 0.0, 1.0 ).step( 0.01 ).name( 'Cell Offset' );
 		expertCRTFolder.add( effectController.borderMask, 'value', 0.0, 5.0 ).step( 0.1 ).name( 'Border Mask' );
@@ -217,6 +219,7 @@ window.addEventListener( 'DOMContentLoaded', async () => {
 	await APP_.initialize( {
 		projectName: 'Chapter 5: Sin, Cos',
 		debug: false,
+		withInspector: true,
 		rendererType: 'WebGPU',
 		initialCameraMode: 'orthographic'
 	} );

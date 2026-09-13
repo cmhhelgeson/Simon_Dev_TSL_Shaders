@@ -15,9 +15,10 @@ import {
 } from 'three/tsl';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
-import { SDFCircle, DrawGrid } from './util';
+import { DrawGrid } from './util';
 import { App } from '../../utils/App';
 import { MeshBasicNodeMaterial } from 'three/webgpu';
+import { sdfCircle } from '../../utils/tsl/sdf/shapes';
 
 class SimpleShapes extends App {
 
@@ -71,7 +72,7 @@ class SimpleShapes extends App {
 			// Move uvs from range 0, 1 to -0.5, 0.5 thus placing 0,0 in the center of the canvas.
 			const viewportPosition = center.mul( viewportSize );
 
-			const circleDistance = SDFCircle( viewportPosition, circleRadius );
+			const circleDistance = sdfCircle( viewportPosition, circleRadius );
 
 			color.assign( drawBackgroundColor() );
 			color.assign( DrawGrid( viewportPosition, color, vec3( 0.5 ), cellWidth, lineWidth ) );
@@ -86,8 +87,9 @@ class SimpleShapes extends App {
 		const quad = new THREE.Mesh( geometry, material );
 		this.Scene.add( quad );
 
-		this.DebugGui.add( effectController.circleRadius, 'value', 1.0, 500.0 ).step( 1.0 ).name( 'circleRadius' );
-		const vignetteFolder = this.DebugGui.addFolder( 'Vignette' );
+		const gui = this.Inspector.createParameters( 'Simple Shapes' );
+		gui.add( effectController.circleRadius, 'value', 1.0, 500.0 ).step( 1.0 ).name( 'circleRadius' );
+		const vignetteFolder = gui.addFolder( 'Vignette' );
 		vignetteFolder.add( effectController.vignetteColorMin, 'value', 0.0, 0.5 ).step( 0.01 ).name( 'vignetteColorMin' );
 		vignetteFolder.add( effectController.vignetteColorMax, 'value', 0.5, 1.0 ).step( 0.01 ).name( 'vignetteColorMax' );
 		vignetteFolder.add( effectController.vignetteRadius, 'value', 0.0, 1.0 ).step( 0.01 ).name( 'vignetteRadius' );
@@ -104,6 +106,7 @@ window.addEventListener( 'DOMContentLoaded', async () => {
 	await APP_.initialize( {
 		projectName: 'Simple Shapes',
 		debug: false,
+		withInspector: true,
 		rendererType: 'WebGPU',
 		initialCameraMode: 'orthographic'
 	} );
