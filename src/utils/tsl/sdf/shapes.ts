@@ -63,6 +63,17 @@ export const sdBox2d = Fn( ( [ _uv, _size = float( 0.0 ) ]: Vec2AndFloat ) => {
 
 } );
 
+export const sdBox2dAlt = Fn( ( [ position, bounds ]: [ Node<'vec2'>, Node<'vec2'> ] ) => {
+
+	const d = abs( position ).sub( bounds );
+	return length( max( d, 0.0 ) ).add( min( max( d.x, d.y ), 0.0 ) );
+
+}, {
+	position: 'vec2',
+	bounds: 'vec2',
+	return: 'float'
+} );
+
 /**
  * Returns a 2d box SDF based on a given uv and size.
  * @param {vec2} _uv - The UV coordinates (vec2).

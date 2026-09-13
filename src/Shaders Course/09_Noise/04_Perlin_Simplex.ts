@@ -28,6 +28,7 @@ import {
 	floor
 } from 'three/tsl';
 import { SDFLine } from '../08_SDF/util';
+import { hash3 } from '../../utils/tsl/noise/common';
 
 import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { Node, WebGPURenderer } from 'three/webgpu';
@@ -45,48 +46,32 @@ type ShaderType = 'Graph' | 'Gradient Noise';
 const effectController = {
 	currentShader: 'Gradient Noise',
 	// Grid Uniforms
-	cellWidth: uniform( 15 ).label( 'uCellWidth' ),
-	lineWidth: uniform( 1.0 ).label( 'uLineWidth' ),
+	cellWidth: uniform( 15 ).setName( 'uCellWidth' ),
+	lineWidth: uniform( 1.0 ).setName( 'uLineWidth' ),
 	// Vignette Uniforms
-	vignetteColorMin: uniform( 0.3 ).label( 'uVignetteColorMin' ),
-	vignetteColorMax: uniform( 1.0 ).label( 'uVignetteColorMax' ),
-	vignetteRadius: uniform( 1.0 ).label( 'uVignetteRadius' ),
-	lightFallOff: uniform( 0.3 ).label( 'uLightFallOff' ),
+	vignetteColorMin: uniform( 0.3 ).setName( 'uVignetteColorMin' ),
+	vignetteColorMax: uniform( 1.0 ).setName( 'uVignetteColorMax' ),
+	vignetteRadius: uniform( 1.0 ).setName( 'uVignetteRadius' ),
+	lightFallOff: uniform( 0.3 ).setName( 'uLightFallOff' ),
 	// Antialias Uniforms
-	antialiasRange: uniform( 1.0 ).label( 'uAntialiasRange' ),
+	antialiasRange: uniform( 1.0 ).setName( 'uAntialiasRange' ),
 	// Function Uniforms
 	lineSpeed: uniform( 96.0 ),
 	gradientSpeed: uniform( 0.2 ),
 	gradientSize: uniform( 10.0 ),
-	functionDetail: uniform( 1.0 ).label( 'uFunctionDetail' ),
-	baseAmplitude: uniform( 0.5 ).label( 'uBaseAmplitude' ),
+	functionDetail: uniform( 1.0 ).setName( 'uFunctionDetail' ),
+	baseAmplitude: uniform( 0.5 ).setName( 'uBaseAmplitude' ),
 	baseFrequencyController: 1.0,
-	baseFrequency: uniform( 1.0 ).label( 'uBaseFrequency' ),
-	amplitudePersistence: uniform( 0.5 ).label( 'uPersistence' ),
-	frequencyLacunarity: uniform( 2.0 ).label( 'uLacunity' ),
+	baseFrequency: uniform( 1.0 ).setName( 'uBaseFrequency' ),
+	amplitudePersistence: uniform( 0.5 ).setName( 'uPersistence' ),
+	frequencyLacunarity: uniform( 2.0 ).setName( 'uLacunity' ),
 	octaves: uniform( uint( 4 ) ),
-	px: uniform( 2.0 ).label( 'uPx' ),
+	px: uniform( 2.0 ).setName( 'uPx' ),
 	function: 'SIN',
 	defineFunction: uniform( uint( 0 ) ),
 };
 
 const RED = vec3( 1.0, 0.0, 0.0 );
-
-const hash3 = ( pNode ) => {
-
-	const p = vec3(
-		dot( pNode, vec3( 127.1, 311.7, 74.7 ) ),
-		dot( pNode, vec3( 269.5, 183.3, 246.1 ) ),
-		dot( pNode, vec3( 113.5, 271.9, 124.6 ) )
-	);
-
-	return float( - 1.0 ).add(
-		float( 2.0 ).mul( fract(
-			sin( p ).mul( 43578.543123 )
-		) )
-	);
-
-};
 
 const Math_Random = Fn( ( [ coords ] ) => {
 

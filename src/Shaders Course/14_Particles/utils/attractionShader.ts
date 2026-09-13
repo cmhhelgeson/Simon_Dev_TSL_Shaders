@@ -1,4 +1,5 @@
-import { distance, exp, sub, Fn, negateBefore, negate, normalize } from 'three/tsl';
+import { distance, exp, sub, Fn, negate } from 'three/tsl';
+import { Node } from 'three/webgpu';
 
 export const CalculateAttractorForce = /*@__PURE__*/ Fn( ( [
 	currentPosition,
@@ -6,6 +7,12 @@ export const CalculateAttractorForce = /*@__PURE__*/ Fn( ( [
 	attractorRadius,
 	attractorDecay,
 	attractorIntensity
+]: [
+	Node<'vec3'>,
+	Node<'vec3'>,
+	Node<'float'>,
+	Node<'float'>,
+	Node<'float'>
 ] ) => {
 
 	const distToAttractor = distance( currentPosition, attractorPosition );

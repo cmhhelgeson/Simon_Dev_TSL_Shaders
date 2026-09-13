@@ -20,8 +20,8 @@ import {
 	If,
 } from 'three/tsl';
 
-import { DrawGrid, SDFBox } from './util';
-import { sdfCircle } from '../../utils/tsl/sdf/shapes';
+import { DrawGrid } from './util';
+import { sdfCircle, sdHexagon, sdBox2dAlt } from '../../utils/tsl/sdf/shapes';
 import { MeshBasicNodeMaterial } from 'three/webgpu';
 import { App } from '../../utils/App';
 
@@ -44,7 +44,7 @@ class Antialiasing extends App {
 
 		this.#settings = {
 			shape: 'CIRCLE',
-			shapeUniform: uniform( 0 ).label( 'shapeUniform' ),
+			shapeUniform: uniform( 0 ).setName( 'shapeUniform' ),
 			cellWidth: uniform( 15 ),
 			lineWidth: uniform( 1.0 ),
 			vignetteColorMin: uniform( 0.3 ),
@@ -75,6 +75,7 @@ class Antialiasing extends App {
 
 		};
 
+		// This function will end up modifying the existing viewportPosition
 		const sdfHexagon = ( pNode, rNode ) => {
 
 			const k = vec3( - 0.866025404, 0.5, 0.577350269 );
@@ -113,7 +114,7 @@ class Antialiasing extends App {
 
 			} ).ElseIf( shapeUniform.equal( ShapeEnum.BOX ), () => {
 
-				sdfDistance.assign( SDFBox( viewportPosition, vec2( circleRadius, 50.0 ) ) );
+				sdfDistance.assign( sdBox2dAlt( viewportPosition, vec2( circleRadius, circleRadius ) ) );
 
 			} ).ElseIf( shapeUniform.equal( ShapeEnum.HEXAGON ), () => {
 
@@ -151,6 +152,8 @@ class Antialiasing extends App {
 		vignetteFolder.add( this.#settings.vignetteColorMax, 'value', 0.5, 1.0 ).step( 0.01 ).name( 'vignetteColorMax' );
 		vignetteFolder.add( this.#settings.vignetteRadius, 'value', 0.0, 1.0 ).step( 0.01 ).name( 'vignetteRadius' );
 		vignetteFolder.add( this.#settings.lightFallOff, 'value', 0.0, 1.0 ).step( 0.01 ).name( 'lightFallOff' );
+
+		await this.getDebugShader( quad );
 
 	}
 

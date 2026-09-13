@@ -5,22 +5,7 @@ import { uniform, Fn, time, sin, mix, floor, float, vec3, dot, fract, uint, Loop
 import { MeshBasicNodeMaterial, Node } from 'three/webgpu';
 import { App } from '../../utils/App';
 import { NodeMaterialNodeProperties } from 'three/src/materials/nodes/NodeMaterial.js';
-
-const hash3 = ( pNode: Node<'vec3'> ) => {
-
-	const p = vec3(
-		dot( pNode, vec3( 127.1, 311.7, 74.7 ) ),
-		dot( pNode, vec3( 269.5, 183.3, 246.1 ) ),
-		dot( pNode, vec3( 113.5, 271.9, 124.6 ) )
-	);
-
-	return float( - 1.0 ).add(
-		float( 2.0 ).mul( fract(
-			sin( p ).mul( 43578.543123 )
-		) )
-	);
-
-};
+import { hash3 } from '../../utils/tsl/noise/common';
 
 const noise3D = ( p: Node<'vec3'> ) => {
 
@@ -75,48 +60,6 @@ const noise3D = ( p: Node<'vec3'> ) => {
 
 };
 
-const fbm = ( pNode: Node<'vec3'> ) => {
-
-	const {
-		amplitudePersistence,
-		frequencyLacunarity,
-		octaves
-	} = effectController;
-
-	const currentAmplitude = float( 0.0 ).toVar( 'currentAmplitude' );
-	const currentFrequency = float( 0.0 ).toVar( 'currentFrequency' );
-	const total = float();
-
-	Loop( { start: uint( 0 ), end: octaves, type: 'uint', condition: '<' }, () => {
-
-		const noiseValue = noise3D( pNode.mul() );
-
-
-	} );
-
-
-};
-
-const mod289 = ( x: Node<'float'> ) => {
-
-	return x.sub( floor( x.div( 289.0 ) ).mul( 289.0 ) );
-
-};
-
-const permute = ( x: Node<'float'> ) => {
-
-	return mod289(
-		( x.mul( 34.0 ).add( 1.0 ) ).mul( x )
-	);
-
-
-};
-
-const taylorInvSqrt = ( r: Node<'float'> ) => {
-
-	return float( 1.79284291400159 ).sub( r.mul( 0.85373472095314 ) );
-
-};
 
 type ShaderType =
 	'Step 1: UV' |

@@ -1,4 +1,4 @@
-import { floor, Fn, vec3, sub, vec4, mul, overloadingFn, fract, abs, dot, lessThan, float, mod } from 'three/tsl';
+import { floor, sin, Fn, vec3, sub, vec4, mul, overloadingFn, fract, abs, dot, lessThan, float, mod } from 'three/tsl';
 import { Node } from 'three/webgpu';
 
 /**
@@ -32,6 +32,28 @@ type TaylorInvSqrtFn = {
  * that has lost the node type its members return.
  */
 const overloads = <T>( fns: unknown[] ): T => overloadingFn( fns as Node[] ) as unknown as T;
+
+/**
+ * Hashes a vec3 into a pseudo-random vec3 in the -1 to 1 range.
+ *
+ * Kept bit-for-bit equivalent to the inline copies in 09_Noise/04_Perlin_Simplex
+ * and 11_Planet/01_Stars: the three dot products all read the untouched input,
+ * and the multiplier is 43578.543123.
+ *
+ * @param {vec3} p - Input vector.
+ * @returns {vec3} Hashed vector.
+ */
+export const hash3 = /*@__PURE__*/ Fn( ( [ p_immutable ]: [ Node<'vec3'> ] ) => {
+
+	const p = vec3(
+		dot( p_immutable, vec3( 127.1, 311.7, 74.7 ) ),
+		dot( p_immutable, vec3( 269.5, 183.3, 246.1 ) ),
+		dot( p_immutable, vec3( 113.5, 271.9, 124.6 ) )
+	);
+
+	return float( - 1.0 ).add( float( 2.0 ).mul( fract( sin( p ).mul( 43578.543123 ) ) ) );
+
+}, { p: 'vec3', return: 'vec3' } );
 
 export const mod289_0 = /*#__PURE__*/ Fn( ( [ x_immutable ]: [ Node<'vec3'> ] ) => {
 

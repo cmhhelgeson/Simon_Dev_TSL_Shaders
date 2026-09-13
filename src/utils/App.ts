@@ -962,6 +962,13 @@ class App {
 
 	}
 
+	async getDebugShader( object: THREE.Object3D ) {
+
+		const debugShader = await this.#renderer.debug.getShaderAsync( this.Scene, this.Camera, object );
+		console.log( debugShader.fragmentShader );
+
+	}
+
 	get EnvironmentMap() {
 
 		return this.Scene.environment;
