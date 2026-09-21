@@ -5,7 +5,7 @@ import { App } from '../../../utils/App';
 
 class Shaders extends App {
 
-	async onSetupProject( projectFolder?: GUI ): Promise<void> {
+	async onSetupProject(): Promise<void> {
 
 	}
 

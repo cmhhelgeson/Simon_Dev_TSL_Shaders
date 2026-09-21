@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { attribute, Fn } from 'three/tsl';
 import { App } from '../../utils/App';
-import { AttributeNode, MeshBasicNodeMaterial } from 'three/webgpu';
+import { AttributeNode, MeshBasicNodeMaterial, Node } from 'three/webgpu';
 
 class Attributes extends App {
 
@@ -40,7 +40,7 @@ class Attributes extends App {
     }
   */
 
-		const colorAttribute: AttributeNode<'vec3'> = attribute( 'vColor' );
+		const colorAttribute: Node<'vec3'> = attribute( 'vColor' );
 
 		material.colorNode = Fn( () => {
 

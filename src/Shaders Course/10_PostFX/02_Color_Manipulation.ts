@@ -13,7 +13,6 @@ import {
 	saturate,
 } from 'three/tsl';
 
-import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { MeshBasicNodeMaterial } from 'three/webgpu';
 import { App } from '../../utils/App';
 import { ThreeRenderer } from '../../utils/types';
@@ -70,7 +69,7 @@ const postProcessFunction = Fn( ( [ color ] ) => {
 
 class ColorManipulation extends App {
 
-	async onSetupProject( projectFolder?: GUI ): Promise<void> {
+	async onSetupProject(): Promise<void> {
 
 		const geometry = new THREE.PlaneGeometry( 2, 2 );
 

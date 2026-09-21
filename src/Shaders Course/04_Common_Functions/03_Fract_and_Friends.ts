@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { fract, Fn, mix, If, round, ceil, viewportSize, floor, uniform, max, smoothstep, abs, uv, vec3 } from 'three/tsl';
 
 import { App } from '../../utils/App';
-import { MeshBasicNodeMaterial, Node } from 'three/webgpu';
+import { MeshBasicNodeMaterial } from 'three/webgpu';
 
 // abs(a) - returns the absolute value of a
 // return a < 0 > -a : a;
@@ -25,6 +25,15 @@ enum FunctionMode {
 	ROUND,
 	FRACT,
 }
+
+/**
+ * Naming the enum's keys keeps the dropdown, the stored selection and the
+ * FunctionMode lookup provably in step - as a bare string the selection could
+ * index the enum with anything and silently yield undefined.
+ */
+type FunctionModeName = keyof typeof FunctionMode;
+
+const functionModeNames: FunctionModeName[] = [ 'CEIL', 'FLOOR', 'ROUND', 'FRACT' ];
 class FractAndFriends extends App {
 
 	async onSetupProject(): Promise<void> {
@@ -37,7 +46,7 @@ class FractAndFriends extends App {
 			cellWidth: uniform( 100 ),
 			lineWidth: uniform( 1.0 ),
 			functionMode: uniform( 0 ),
-			'Display Function': 'CEIL',
+			'Display Function': 'CEIL' as FunctionModeName,
 		};
 		const red = vec3( 1.0, 0.0, 0.0 );
 		const blue = vec3( 0.0, 0.0, 1.0 );
@@ -72,17 +81,11 @@ class FractAndFriends extends App {
 			const xAxis = smoothstep( 0, 0.002, abs( vUv.y.sub( 0.5 ) ) );
 			const yAxis = smoothstep( 0, 0.002, abs( vUv.x.sub( 0.5 ) ) );
 
-			const createFunctionLine = ( xVal: Node | number ) => {
-
-				return smoothstep( 0.0, 0.075, abs( pos.y.sub( xVal ) ) );
-
-			};
-
 			const functionLine = smoothstep( 0.0, 0.075, abs( pos.y.sub( pos.x ) ) );
-			const ceilFunctionLine = createFunctionLine( ceil( pos.x ) );
-			const floorFunctionLine = createFunctionLine( floor( pos.x ) );
-			const roundFunctionLine = createFunctionLine( round( pos.x ) );
-			const fractFunctionLine = createFunctionLine( fract( pos.x ) );
+			const ceilFunctionLine = smoothstep( 0.0, 0.075, abs( pos.y.sub( ceil( pos.x ) ) ) );
+			const floorFunctionLine = smoothstep( 0.0, 0.075, abs( pos.y.sub( floor( pos.x ) ) ) );
+			const roundFunctionLine = smoothstep( 0.0, 0.075, abs( pos.y.sub( round( pos.x ) ) ) );
+			const fractFunctionLine = smoothstep( 0.0, 0.075, abs( pos.y.sub( fract( pos.x ) ) ) );
 			//const cellUVShift = cellUV.add( - 100 );
 			//const diagonalLine = smoothstep( 0, 0.005, abs( cellUVShift.y.sub( cellUVShift.x ) ) );
 
@@ -93,19 +96,19 @@ class FractAndFriends extends App {
 
 			If( functionMode.equal( FunctionMode.CEIL ), () => {
 
-			    color.assign( mix( red, color, ceilFunctionLine ) );
+				color.assign( mix( red, color, ceilFunctionLine ) );
 
 			} );
 
 			If( functionMode.equal( FunctionMode.FLOOR ), () => {
 
-			    color.assign( mix( red, color, floorFunctionLine ) );
+				color.assign( mix( red, color, floorFunctionLine ) );
 
 			} );
 
 			If( functionMode.equal( FunctionMode.ROUND ), () => {
 
-			    color.assign( mix( red, color, roundFunctionLine ) );
+				color.assign( mix( red, color, roundFunctionLine ) );
 
 			} );
 
@@ -126,7 +129,7 @@ class FractAndFriends extends App {
 		const gui = this.Inspector.createParameters( 'Chapter 4: Fract and Friends' );
 		gui.add( effectController.cellWidth, 'value', 1, 100 ).step( 1 ).name( 'Cell Width (px)' );
 		gui.add( effectController.lineWidth, 'value', 1.0, 8.0 ).name( 'Line Width' );
-		gui.add( effectController, 'Display Function', [ 'CEIL', 'FLOOR', 'ROUND', 'FRACT' ] ).onChange( () => {
+		gui.add( effectController, 'Display Function', functionModeNames ).onChange( () => {
 
 			effectController.functionMode.value = FunctionMode[ effectController[ 'Display Function' ] ];
 

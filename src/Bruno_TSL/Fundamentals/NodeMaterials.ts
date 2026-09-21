@@ -1,33 +1,31 @@
 import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
 import { App } from '../../utils/App';
 import * as THREE from 'three/webgpu';
-import { checker, mix, sin, smoothstep, time, uv, vec2, vec3, float, positionLocal, fract, uniform, vec4 } from 'three/tsl';
+import { checker, mix, sin, smoothstep, time, uv, vec2, vec3, positionLocal, uniform, Fn } from 'three/tsl';
 import { NodeMaterialNodeProperties } from 'three/src/materials/nodes/NodeMaterial.js';
 
+
+type ShaderType = 'Oscilation' | 'Snake';
 
 class NodeMaterials extends App {
 
 	torusMaterial: THREE.MeshStandardNodeMaterial = new THREE.MeshStandardNodeMaterial();
-	currentShader: string = 'Oscilation';
+	currentShader: ShaderType = 'Oscilation';
 
 	registerMaterial(
 		properties: Partial<NodeMaterialNodeProperties>
 	) {
 
 		this.torusMaterial.dispose();
-
-		for ( const key in this.torusMaterial ) {
-
-			( this.torusMaterial )[ key ] = null;
-
-		}
+		this.torusMaterial.positionNode = null;
+		this.torusMaterial.colorNode = null;
 
 		Object.assign( this.torusMaterial, properties );
 		this.torusMaterial.needsUpdate = true;
 
 	}
 
-	async onSetupProject( projectFolder?: GUI ): Promise<void> {
+	async onSetupProject(): Promise<void> {
 
 		this.PerspectiveCamera.fov = 35;
 		this.PerspectiveCamera.position.x = 5;
@@ -126,42 +124,68 @@ class NodeMaterials extends App {
 		directionalLight.shadow.normalBias = 0.1;
 		this.Scene.add( directionalLight );
 
-		const ambientLight = new THREE.AmbientLight( 0x859dff, 1 );
+		const ambientLight = new THREE.AmbientLight( 0x859dff, 3 );
 		this.Scene.add( ambientLight );
 
-		const snakeFolder = this.DebugGui.addFolder( 'Snake' );
+
+		const colorShaders: Record<ShaderType, NodeMaterialNodeProperties[ 'colorNode' ]> = {
+
+			'Oscilation': Fn( () => {
+
+				return checker( uv().add( slowedTime ).mul( ( vec2( 40, 5 ) ) ) );
+
+			} )(),
+
+			'Snake': Fn( () => {
+
+				return mix( rimColor, scaleColor, scaleMask );
+
+			} )(),
+
+		};
+
+		const positionShaders: Record<string, NodeMaterialNodeProperties[ 'positionNode' ]> = {
+
+			'Oscilation': Fn( () => {
+
+				return positionLocal.add( vec3( 0, 0, zOffset ) );
+
+			} )(),
+
+			'Snake': Fn( () => {
+
+				return positionLocal;
+
+			} )()
+
+		};
+
+		const gui = this.Inspector.createParameters( 'Chapter 3. Node Materials' );
+		const snakeFolder = gui.addFolder( 'Snake' );
 		snakeFolder.add( effectController.constrictionStart, 'value', 10, 100 ).step( 1 ).name( 'Constriction Start' );
 		snakeFolder.add( effectController.constrictionRange, 'value', 0, 50 ).step( 1 ).name( 'Constriction Range' );
 		snakeFolder.add( effectController.scaleOffset, 'value', 0.1, 0.7 ).step( 0.01 ).name( 'Scale Offset' );
 		snakeFolder.add( effectController.testUniform, 'value', 0.1, 5 ).step( 0.1 ).name( 'testUniform' );
 
-		const oscilationFolder = this.DebugGui.addFolder( 'Oscilation' );
-		oscilationFolder.add( effectController.oscilationRange, 'value', 0.1, 2 ).step( 0.1 ).name( 'Oscilation Range' );
-		oscilationFolder.add( effectController.oscilationSpeed, 'value', 0.1, 5 ).step( 0.1 ).name( 'Oscilation Speed' );
-		oscilationFolder.add( effectController.oscilationStrength, 'value', 0.1, 5 ).step( 0.1 ).name( 'Oscilation Strength' );
+		this.addFolderWithRanges(
+			gui,
+			'Oscilation',
+			effectController,
+			[
+				{ key: 'oscilationRange', min: 0.1, max: 2, step: 0.1, title: 'Oscilation Range' },
+				{ key: 'oscilationSpeed', min: 0.1, max: 5, step: 0.1, title: 'Oscilation Speed' },
+				{ key: 'oscilationStrength', min: 0.1, max: 5, step: 0.1, title: 'Oscilation Strength' },
 
-		this.DebugGui.add( this, 'currentShader', [ 'Oscilation', 'Snake' ] ).onChange( () => {
+			]
+		);
+		gui.add( this, 'currentShader', [ 'Oscilation', 'Snake' ] ).onChange( ( value ) => {
 
-			if ( this.currentShader === 'Snake' ) {
-
-				this.registerMaterial( {
-					positionNode: positionLocal,
-					colorNode: mix( rimColor, scaleColor, scaleMask )
-				} );
-
-			} else if (this.currentShader === '')
-
-			} else {
-
-				this.registerMaterial( {
-					positionNode: positionLocal.add( vec3( 0, 0, zOffset ) ),
-					colorNode: checker( uv().add( slowedTime ).mul( ( vec2( 40, 5 ) ) ) ),
-				} );
-
-			}
+			this.registerMaterial( {
+				positionNode: positionShaders[ this.currentShader ],
+				colorNode: colorShaders[ this.currentShader ]
+			} );
 
 		} );
-
 
 	}
 

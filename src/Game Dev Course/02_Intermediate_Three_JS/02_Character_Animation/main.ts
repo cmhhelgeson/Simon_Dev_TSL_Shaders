@@ -24,7 +24,7 @@ class CharacterAnimation extends App {
 
 	}
 
-	async onSetupProject( projectFolder?: GUI ) {
+	async onSetupProject() {
 
 		this.Camera.position.set( 3, 2, 3 );
 		this.Camera.lookAt( new THREE.Vector3( 0, 0, 0 ) );

@@ -14,7 +14,6 @@ import {
 	step,
 } from 'three/tsl';
 
-import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { DrawGrid } from './util';
 import { App } from '../../utils/App';
 import { MeshBasicNodeMaterial } from 'three/webgpu';
@@ -22,7 +21,7 @@ import { sdfCircle } from '../../utils/tsl/sdf/shapes';
 
 class SimpleShapes extends App {
 
-	async onSetupProject( projectFolder?: GUI ): Promise<void> {
+	async onSetupProject(): Promise<void> {
 
 		const geometry = new THREE.PlaneGeometry( 2, 2 );
 

@@ -102,7 +102,7 @@ const postProcessFunction = Fn( ( [ color ] ) => {
 
 class ColorBoost extends App {
 
-	async onSetupProject( projectFolder?: GUI ): Promise<void> {
+	async onSetupProject(): Promise<void> {
 
 		this.ColorSpace = THREE.LinearSRGBColorSpace;
 

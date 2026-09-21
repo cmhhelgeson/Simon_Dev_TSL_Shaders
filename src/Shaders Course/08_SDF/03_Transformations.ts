@@ -25,7 +25,7 @@ import GUI from 'three/examples/jsm/libs/lil-gui.module.min.js';
 
 class Transformations extends App {
 
-	async onSetupProject( projectFolder?: GUI ): Promise<void> {
+	async onSetupProject(): Promise<void> {
 
 		const geometry = new THREE.PlaneGeometry( 2, 2 );
 

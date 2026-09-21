@@ -5,7 +5,6 @@ import { ComputeNode, UniformNode, WebGPURenderer, Scene, Camera, Object3DEventM
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 
-import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import Stats from 'three/addons/libs/stats.module.js';
 import { Font, FontLoader } from 'three/addons/loaders/FontLoader.js';
 import { GLTF, GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -13,9 +12,9 @@ import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { uniform } from 'three/tsl';
 import { RenderCallback, ThreeRenderer } from './types';
 import { PostProcessingMachine } from './PostProcessingMachine';
-import { GUIManager } from './GUIManager';
 import { LightManager } from './LightManager';
 import { Inspector } from 'three/examples/jsm/inspector/Inspector.js';
+import { ParametersGroup } from 'three/examples/jsm/inspector/tabs/Parameters.js';
 
 type RendererEnum = 'WebGPU' | 'WebGLFallback';
 
@@ -30,6 +29,15 @@ interface AppInitializationOptions {
 	/* Whether the scene is first rendered using a perspective or an orthographic camera */
 	initialCameraMode?: 'perspective' | 'orthographic',
 	fixedFrameRate?: number
+}
+
+interface GUIRange<TKey extends string = string> {
+	/** Property on the object being bound. */
+	key: TKey;
+	title: string;
+	min: number;
+	max: number;
+	step: number;
 }
 
 /**
@@ -105,11 +113,6 @@ class App {
 	#timer!: THREE.Timer;
 	#controls!: OrbitControls;
 	#stats!: Stats;
-	/**
-	 * Legacy lil-gui panel. Created on first access so examples that only use
-	 * the Inspector never get an empty lil-gui panel on screen.
-	 */
-	#GUIManager: GUIManager | null = null;
 	/**
 	 * The three.js Inspector, which owns the debug parameter panel. Created
 	 * when `withInspector` or `debug` is set on initialization.
@@ -198,7 +201,7 @@ class App {
 	#timeSinceLastRender = 0;
 
 	// Override these methods
-	async onSetupProject( projectFolder?: GUI ) {
+	async onSetupProject() {
 	}
 
 	onRender( deltaTime: number ) {
@@ -1005,31 +1008,6 @@ class App {
 
 	}
 
-	/**
-	 * @deprecated Use {@link App#Inspector} and `createParameters()` instead.
-	 * Retained for the courses that have not been migrated off lil-gui yet.
-	 */
-	get GUIManager() {
-
-		if ( this.#GUIManager === null ) {
-
-			this.#GUIManager = new GUIManager( new GUI() );
-
-		}
-
-		return this.#GUIManager;
-
-	}
-
-	/**
-	 * @deprecated Use {@link App#Inspector} and `createParameters()` instead.
-	 */
-	get DebugGui() {
-
-		return this.GUIManager.gui;
-
-	}
-
 	get LightManager() {
 
 		return this.#LightManager;
@@ -1039,6 +1017,37 @@ class App {
 	get Inspector() {
 
 		return this.#inspector;
+
+	}
+
+	/**
+	 * Adds a named folder under `parent` and fills it with one slider per range.
+	 *
+	 * Binding `ranges` to the keys of `baseObject` means a mistyped key is a
+	 * compile error rather than a silently missing control.
+	 *
+	 * @returns the folder, so callers can add further controls to it.
+	 */
+	addFolderWithRanges<T extends Record<string, UniformNode<'float', number>>>(
+		parent: ParametersGroup,
+		name: string,
+		baseObject: T,
+		ranges: GUIRange<Extract<keyof T, string>>[]
+	) {
+
+		const folder = parent.addFolder( name );
+
+		for ( const range of ranges ) {
+
+			// Resolve the indexed access to a concrete node before calling add(),
+			// or the overload cannot prove 'value' is one of its numeric keys.
+			const node: UniformNode<'float', number> = baseObject[ range.key ];
+
+			folder.add( node, 'value', range.min, range.max ).step( range.step ).name( range.title );
+
+		}
+
+		return folder;
 
 	}
 

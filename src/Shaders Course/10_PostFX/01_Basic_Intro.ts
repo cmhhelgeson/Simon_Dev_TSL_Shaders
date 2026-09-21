@@ -12,7 +12,6 @@ import { sobel } from 'three/addons/tsl/display/SobelOperatorNode.js';
 import { bleach } from 'three/addons/tsl/display/BleachBypass.js';
 import { dotScreen } from 'three/addons/tsl/display/DotScreenNode.js';
 
-import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { MeshBasicNodeMaterial } from 'three/webgpu';
 import { App } from '../../utils/App';
 import { ThreeRenderer } from '../../utils/types';
@@ -28,7 +27,7 @@ const effectController = {
 
 class PostFXIntro extends App {
 
-	async onSetupProject( projectFolder?: GUI ): Promise<void> {
+	async onSetupProject(): Promise<void> {
 
 		this.ColorSpace = THREE.LinearSRGBColorSpace;
 

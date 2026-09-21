@@ -22,7 +22,6 @@ import {
 	time,
 } from 'three/tsl';
 
-import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { pixelationPass } from 'three/examples/jsm/tsl/display/PixelationPassNode.js';
 import { MeshBasicNodeMaterial } from 'three/webgpu';
 import { App } from '../../utils/App';
@@ -121,7 +120,7 @@ const onMouseMove = ( e: MouseEvent ) => {
 
 class DistortionsRipples extends App {
 
-	async onSetupProject( projectFolder?: GUI ): Promise<void> {
+	async onSetupProject(): Promise<void> {
 
 		this.changeRenderHandler( ( renderer: ThreeRenderer, scene: THREE.Scene, camera: THREE.Camera )=> {
 

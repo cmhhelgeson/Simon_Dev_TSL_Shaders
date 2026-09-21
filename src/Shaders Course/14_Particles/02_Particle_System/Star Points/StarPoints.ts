@@ -155,7 +155,7 @@ class ParticleProject extends App {
 
 	}
 
-	async onSetupProject( projectFolder?: GUI ): Promise<void> {
+	async onSetupProject(): Promise<void> {
 
 		this.loadHDRBackground( './resources/moonless_golf_2k.hdr' );
 

@@ -12,7 +12,7 @@ class HDRExample extends App {
 		textureColorSpace: THREE.SRGBColorSpace,
 	}
 
-  async onSetupProject(projectFolder?: GUI) {
+  async onSetupProject() {
 
 		this.Camera.position.set( 2, 1, 2 );
 		this.Camera.lookAt( new THREE.Vector3( 0, 0, 0 ) );

@@ -16,7 +16,7 @@ class SimpleTowerDefense extends App {
 
 	}
 
-	async onSetupProject( projectFolder?: GUI ) {
+	async onSetupProject() {
 
 		/* const options = new CachedAssetStreamerOptions();
 		options.renderer = this.Renderer;

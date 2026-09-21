@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { vec4, Fn } from 'three/tsl';
-import { ConstNode, MeshBasicNodeMaterial } from 'three/webgpu';
+import { MeshBasicNodeMaterial, Node } from 'three/webgpu';
 import { App } from '../../utils/App';
 
 class IntroductionShader extends App {
@@ -10,7 +10,7 @@ class IntroductionShader extends App {
 		const geometry = new THREE.PlaneGeometry( 2, 2 );
 		const material = new MeshBasicNodeMaterial();
 
-		const getColorUsingOut = ( color: ConstNode<THREE.Vector4> ) => {
+		const getColorUsingOut = ( color: Node<'vec4'> ) => {
 
 			return color.mul( vec4( 0.5 ) );
 
