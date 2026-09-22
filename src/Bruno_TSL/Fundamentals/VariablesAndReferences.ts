@@ -1,6 +1,6 @@
 import { App } from '../../utils/App';
 import * as THREE from 'three/webgpu';
-import { checker, sin, time, uv, vec3, positionLocal, uniform, materialColor, normalWorld, positionWorld } from 'three/tsl';
+import { checker, sin, time, uv, vec3, positionLocal, uniform, materialColor, positionWorld } from 'three/tsl';
 
 
 class VariablesAndReferences extends App {
@@ -25,8 +25,10 @@ class VariablesAndReferences extends App {
 			oscilationStrength: uniform( 4 )
 		};
 
+		const planeGeometry = this.registerGeometry( 'plane', new THREE.PlaneGeometry( 10, 10, 10, 10 ) );
+		const torusKnotGeometry = this.registerGeometry( 'torus', new THREE.TorusKnotGeometry( 0.5, 0.24, 128, 32 ) );
+
 		// Torus Knot
-		const torusGeometry = new THREE.TorusKnotGeometry( 0.5, 0.24, 128, 32 );
 		const { torusMaterial } = this;
 		torusMaterial.colorNode = positionWorld;
 
@@ -37,14 +39,13 @@ class VariablesAndReferences extends App {
 		const zOffset = sin( adjustedTime.add( yOffsetFromStartPosition ) ).mul( effectController.oscilationRange );
 		torusMaterial.positionNode = positionLocal.add( vec3( 0, 0, zOffset ) );
 
-		const torusMesh = new THREE.Mesh( torusGeometry, torusMaterial );
+		const torusMesh = new THREE.Mesh( torusKnotGeometry, torusMaterial );
 		torusMesh.castShadow = true;
 		torusMesh.receiveShadow = true;
 		torusMesh.position.y = 1;
 		this.Scene.add( torusMesh );
 
 		// Plane
-		const planeGeo = new THREE.PlaneGeometry( 10, 10, 10, 10 );
 		const planeMaterial = new THREE.MeshStandardNodeMaterial( {
 			map: textureColor,
 			transparent: true
@@ -53,7 +54,7 @@ class VariablesAndReferences extends App {
 		planeMaterial.opacityNode = fade;//  = vec4( vec3( fade ), 1 );
 		const pattern = vec3( checker( uv().mul( 4 ) ) );
 		planeMaterial.colorNode = materialColor.mul( pattern );
-		const planeMesh = new THREE.Mesh( planeGeo, planeMaterial );
+		const planeMesh = new THREE.Mesh( planeGeometry, planeMaterial );
 		planeMesh.rotation.x = - Math.PI * 0.5;
 		planeMesh.receiveShadow = true;
 		this.Scene.add( planeMesh );
@@ -72,7 +73,9 @@ class VariablesAndReferences extends App {
 		const ambientLight = new THREE.AmbientLight( 0x859dff, 1 );
 		this.Scene.add( ambientLight );
 
-		const oscilationFolder = this.DebugGui.addFolder( 'Oscilation' );
+		const params = this.Inspector.createParameters( 'Chapter 4. Variables and References' );
+
+		const oscilationFolder = params.addFolder( 'Oscilation' );
 		oscilationFolder.add( effectController.oscilationRange, 'value', 0.1, 2 ).step( 0.1 ).name( 'Oscilation Range' );
 		oscilationFolder.add( effectController.oscilationSpeed, 'value', 0.1, 5 ).step( 0.1 ).name( 'Oscilation Speed' );
 		oscilationFolder.add( effectController.oscilationStrength, 'value', 0.1, 5 ).step( 0.1 ).name( 'Oscilation Strength' );

@@ -1,4 +1,4 @@
-import { App } from '../../utils/App';
+import { App } from '../../../utils/App';
 import * as THREE from 'three/webgpu';
 import { checker, mix, sin, smoothstep, time, uv, vec2, vec3, positionLocal, positionGeometry, uniform, Fn } from 'three/tsl';
 import { NodeMaterialNodeProperties } from 'three/src/materials/nodes/NodeMaterial.js';
@@ -6,7 +6,7 @@ import { NodeMaterialNodeProperties } from 'three/src/materials/nodes/NodeMateri
 
 type ShaderType = 'Oscilation' | 'Oscilation (positionGeometry)' | 'Snake';
 
-class NodeMaterials extends App {
+class ToolsAndDebug extends App {
 
 	torusMaterial: THREE.MeshStandardNodeMaterial = new THREE.MeshStandardNodeMaterial();
 	currentShader: ShaderType = 'Oscilation';
@@ -94,6 +94,12 @@ class NodeMaterials extends App {
 		torusMaterial.positionNode = positionLocal.add( vec3( 0, 0, zOffset ) );
 
 		const torusMesh = new THREE.InstancedMesh( torusGeometry, torusMaterial, 4 );
+
+		const positionWorldTemp = positionWorld.toVar().debug().toInspector();
+
+		const dummyPlane = new THREE.Mesh( new THREE.PlaneGeometry(), new THREE.MeshStandardNodeMaterial( {} ) );
+		this.Scene.add( dummyPlane );
+		dummyPlane.visible = false;
 
 		const dummy = new THREE.Object3D();
 		for ( let i = 0; i < 4; i ++ ) {
@@ -222,3 +228,7 @@ app.initialize( {
 	projectName: 'Node Materials',
 	debug: true
 } );
+
+
+
+

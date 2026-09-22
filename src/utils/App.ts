@@ -15,6 +15,7 @@ import { PostProcessingMachine } from './PostProcessingMachine';
 import { LightManager } from './LightManager';
 import { Inspector } from 'three/examples/jsm/inspector/Inspector.js';
 import { ParametersGroup } from 'three/examples/jsm/inspector/tabs/Parameters.js';
+import { NodeMaterialNodeProperties } from 'three/src/materials/nodes/NodeMaterial.js';
 
 type RendererEnum = 'WebGPU' | 'WebGLFallback';
 
@@ -152,6 +153,8 @@ class App {
 	#fontLoader!: FontLoader;
 	#ktx2Loader!: KTX2Loader;
 	#textureLoader!: THREE.TextureLoader;
+
+	#geometries: Record<string, THREE.BufferGeometry> = {};
 
 	#postProcessingPipelines: Record<string, PostProcessing > = {};
 	#postProcessingMachine: PostProcessingMachine | null = null;
@@ -1061,6 +1064,43 @@ class App {
 	changeRenderHandler( renderCallback: RenderCallback ) {
 
 		this.#handleRender = renderCallback;
+
+	}
+
+	registerGeometry( geoName: string, geo: THREE.BufferGeometry ) {
+
+		this.#geometries[ geoName ] = geo;
+		return this.#geometries[ geoName ];
+
+	}
+
+	registerMaterial(
+		material: THREE.NodeMaterial,
+		properties: Partial<NodeMaterialNodeProperties>
+	) {
+
+		material.dispose();
+		material.positionNode = null;
+		material.colorNode = null;
+		material.opacityNode = null;
+
+		Object.assign( material, properties );
+		material.needsUpdate = true;
+
+	}
+
+	dispose() {
+
+		for ( const geo of Object.values( this.#geometries ) ) {
+
+			geo.dispose();
+
+		}
+
+		this.#geometries = {};
+
+		this.#scene.dispose();
+		this.#renderer.dispose();
 
 	}
 

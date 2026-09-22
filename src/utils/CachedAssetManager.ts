@@ -3,9 +3,9 @@ import { Renderer } from 'three/webgpu';
 import { ManagedGroup } from './ManagedGroup';
 
 interface CachedAssetStreamerOptions {
-    renderer: THREE.WebGLRenderer | Renderer
-    scene: THREE.Scene
-    camera: THREE.Camera
+	renderer: THREE.WebGLRenderer | Renderer
+	scene: THREE.Scene
+	camera: THREE.Camera
 }
 
 class CachedAssetStreamer {
