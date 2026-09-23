@@ -59,9 +59,9 @@ interface SettingsType {
 
 class LightsExample extends App {
 
-	#cube: THREE.Mesh;
-	#torus: THREE.Mesh;
-	#settings: SettingsType;
+	#cube!: THREE.Mesh;
+	#torus!: THREE.Mesh;
+	#settings!: SettingsType;
 
 	constructor() {
 
@@ -214,7 +214,7 @@ class LightsExample extends App {
 			hemiLightOn: true,
 		};
 
-		const directionalLightFolder = this.DebugGui.addFolder( 'Directional Light' );
+		const directionalLightFolder = this.Inspector.createParameters( 'Directional Light' );
 		directionalLightFolder.add( this.#settings, 'directionalLightOn' ).name( 'On' ).onChange( () => {
 
 			dirLight.visible = ! dirLight.visible;
@@ -226,7 +226,7 @@ class LightsExample extends App {
 
 		} );
 
-		const hemiLightFolder = this.DebugGui.addFolder( 'Hemisphere Light' );
+		const hemiLightFolder = this.Inspector.createParameters( 'Hemisphere Light' );
 		hemiLightFolder.add( this.#settings, 'hemiLightOn' ).name( 'On' ).onChange( () => {
 
 			hemiLight.visible = ! hemiLight.visible;
@@ -239,8 +239,7 @@ class LightsExample extends App {
 	onStep( deltaTime: number, totalTimeElapsed: number ) {
 
 		this.CameraControls.update( deltaTime );
-		this.Stats.update();
-		    // this.#light_.position.set(
+		// this.#light_.position.set(
 		//     5 * Math.sin(this.#timer.getElapsed() * 0.1),
 		//     5,
 		//     5 * Math.cos(this.#timer.getElapsed() * 0.1));

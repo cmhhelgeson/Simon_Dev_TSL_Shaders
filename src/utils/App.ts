@@ -5,7 +5,6 @@ import { ComputeNode, UniformNode, WebGPURenderer, Scene, Camera, Object3DEventM
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 
-import Stats from 'three/addons/libs/stats.module.js';
 import { Font, FontLoader } from 'three/addons/loaders/FontLoader.js';
 import { GLTF, GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
@@ -113,7 +112,6 @@ class App {
 	#scene!: THREE.Scene;
 	#timer!: THREE.Timer;
 	#controls!: OrbitControls;
-	#stats!: Stats;
 	/**
 	 * The three.js Inspector, which owns the debug parameter panel. Created
 	 * when `withInspector` or `debug` is set on initialization.
@@ -256,9 +254,6 @@ class App {
 		this.#renderer.setSize( window.innerWidth, window.innerHeight );
 		this.#renderer.setClearColor( 0x000000 );
 		document.body.appendChild( this.#renderer.domElement );
-
-		this.#stats = new Stats();
-		document.body.appendChild( this.#stats.dom );
 
 		const aspect = window.innerWidth / window.innerHeight;
 		const cameraType = options.initialCameraMode ? options.initialCameraMode : 'perspective';
@@ -1008,12 +1003,6 @@ class App {
 	get CameraControls() {
 
 		return this.#controls;
-
-	}
-
-	get Stats() {
-
-		return this.#stats;
 
 	}
 

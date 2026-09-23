@@ -1,14 +1,23 @@
 import { App } from '../../../utils/App';
 import * as THREE from 'three/webgpu';
-import { normalWorld, time, uv, vec3, positionLocal, uniform, remap, materialColor, positionWorld, Fn, hash, rand, mx_noise_float, rotate, mx_noise_vec3, positionView, texture, fract, rotateUV, vec2, floor, select, abs, triplanarTexture, float, normalLocal, mix, color, blendBurn, blendDodge, blendColor, vec4, saturation, sin, grayscale, vibrance, hue } from 'three/tsl';
+import { time, uv, vec3, positionLocal, uniform, remap, materialColor, positionWorld, Fn, hash, rand, mx_noise_float, rotate, texture, fract, vec2, floor, select, abs, triplanarTexture, float, normalLocal, mix, color, blendBurn, blendDodge, blendColor, vec4, saturation, sin, grayscale, vibrance, hue, uniformArray, attribute, bufferAttribute } from 'three/tsl';
 import { NodeMaterialNodeProperties } from 'three/src/materials/nodes/NodeMaterial.js';
+
+interface EffectControllerInterface {
+	oscilationRange: THREE.UniformNode<'float', number>
+	oscilationSpeed: THREE.UniformNode<'float', number>
+	oscilationStrength: THREE.UniformNode<'float', number>
+	textureRepeat: THREE.UniformNode<'float', number>
+	pulseFrequency: THREE.UniformNode<'vec2', THREE.Vector2>
+	_colors: THREE.UniformArrayNode<'vec3'>
+}
 
 class TexturesApp extends App {
 
 	torusMaterial: THREE.MeshStandardNodeMaterial = new THREE.MeshStandardNodeMaterial();
 	colorShader: string = 'UV Checker (Emulated Wrap)';
 	opacityShader: string = 'Ground Fade';
-	torusColorShader: string = '7. MX Noise x Position World';
+	torusColorShader: string = 'Position World Pulse';
 	torusPositionShader: string = 'Simple Rotation';
 
 	async onSetupProject(): Promise<void> {
@@ -21,19 +30,42 @@ class TexturesApp extends App {
 		this.setClearColor( 0x111111 );
 		const uvChecker = await this.loadTexture( './resources/images/uvChecker.png' );
 
-		const effectController = {
+		const effectController: EffectControllerInterface = {
 			// Snake parameters
 			// Basic oscillation parameters
 			oscilationRange: uniform( 1 ),
 			oscilationSpeed: uniform( 1 ),
 			oscilationStrength: uniform( 1.5 ),
 			textureRepeat: uniform( 10 ),
-			colorOneAlpha: uniform( 0.7 ),
-			colorTwoAlpha: uniform( 0.5 )
+			pulseFrequency: uniform( vec2( 2, 1 ) ),
+			_colors: uniformArray( [
+				new THREE.Color( 0x0b5d79 ),
+				new THREE.Color( 0x5ed6c2 ),
+				new THREE.Color( 0xfeedaa ),
+				new THREE.Color( 0xfc8f74 ),
+				new THREE.Color( 0xcf2c65 )
+			] )
 		};
 
 		const planeGeometry = this.registerGeometry( 'plane', new THREE.PlaneGeometry( 10, 10, 10, 10 ) );
+		const planeGeoCount = planeGeometry.attributes.position.count;
+
+		const planeRandomArray = new Float32Array( planeGeoCount );
+		for ( let i = 0; i < planeGeoCount; i ++ ) {
+
+			planeRandomArray[ i ] = Math.random();
+
+		}
+
+		const planeRandomBuffer = new THREE.BufferAttribute( planeRandomArray, 1 );
+		const planeRandomAttribute = bufferAttribute( planeRandomBuffer );
+
 		const torusKnotGeometry = this.registerGeometry( 'torus', new THREE.TorusKnotGeometry( 0.5, 0.24, 128, 32 ) );
+
+
+
+		//const torusRandomBuffer = new THREE.BufferAttribute( torusRandomArray, 1 );
+		//torusKnotGeometry.setAttribute( 'random', torusRandomBuffer );
 
 		// Torus Knot
 		const { torusMaterial } = this;
@@ -67,22 +99,6 @@ class TexturesApp extends App {
 
 		const colorShaders: Record<string, NodeMaterialNodeProperties[ 'colorNode' ]> = {
 
-			'UV Checker (No Wrap)': Fn( () => {
-
-				//const rotatedCells = rotateUV( cellUV, sin( time ), vec2( 0 ) );
-				const cellDisplay = fract( cellUV );
-
-				return texture( uvChecker, cellDisplay );
-
-			} )(),
-
-			'UV Checker (With Wrap)': Fn( () => {
-
-				const cellUV = uv().mul( effectController.textureRepeat );
-				return texture( uvChecker, cellUV );
-
-			} )(),
-
 			'UV Checker (Emulated Wrap)': Fn( () => {
 
 				// Emulates a mirror wrap
@@ -103,76 +119,45 @@ class TexturesApp extends App {
 
 			} )(),
 
-			'Triplanar Texture': Fn( () => {
+			'Position World Pulse': Fn( () => {
 
-				// Triplanar Texture will mix together three separate views
-				// of a texture using the (scaled) positionNode as the uvs.
-				// It then accumulates the weighted results of the textureSample
-				// based on the mesh normal (i.e if the surface normal faces in the y)
-				// direction, the texture will sample more from the y facing sample
+				const { pulseFrequency, _colors } = effectController;
 
-				return triplanarTexture(
-					texture( uvChecker ),
-					null,
-					null,
-					float( 1 ),
-					positionWorld,
-					normalWorld
-				);
+				// Get a pattern with multiple 0 -> 1 ranges up the mesh
+				const pattern = fract( positionWorld.y.mul( pulseFrequency.x ).sub( time.mul( pulseFrequency.y ) ) );
+
+				// Colors will exist within the pulseFrequency, so five colors within one band
+				const index = pattern.mul( _colors.array.length ).floor().toInt();
+
+				const element = _colors.element( index );
+
+				return element;
 
 			} )(),
 
-			'Blend Burn': Fn( () => {
+			'Pos World Pulse Alt': Fn( () => {
 
-				return blendBurn( texture( uvChecker ).rgb, color( 0xff0000 ) );
+				// Banding is determined by pulse frequency x
+				// Bands will match frequency, but not always guaranteed 5 colors
+				const { pulseFrequency, _colors } = effectController;
 
-			} )(),
+				// Get a pattern with multiple 0 -> 1 ranges up the mesh
+				const pattern = fract( positionWorld.y.mul( 1 ).sub( time.mul( pulseFrequency.y ) ) );
 
-			'Blend Dodge': Fn( () => {
+				// Colors will exist within the pulseFrequency, so five colors within one band
+				const index = pattern.mul( pulseFrequency.x ).floor().toInt().mod( _colors.array.length );
 
-				return blendDodge( texture( uvChecker ).rgb, color( 0xff0000 ) );
+				const element = _colors.element( index );
 
-			} )(),
-
-			'Blend Color': Fn( () => {
-
-				const { colorOneAlpha, colorTwoAlpha } = effectController;
-
-				return blendColor(
-					vec4( texture( uvChecker ).rgb, colorOneAlpha ),
-					vec4( color( 0xff000000 ), colorTwoAlpha )
-				);
+				return element;
 
 			} )(),
 
-			'Saturation': Fn( () => {
+			'Random': Fn( () => {
 
-				return saturation( texture( uvChecker ).rgb, offsetSin.mul( 2 ) );
-
-			} )(),
-
-			'Grayscale to Saturation 0': Fn( () => {
-
-				const tap = texture( uvChecker ).rgb.toVar();
-
-				const gray = grayscale( tap );
-				const sat0 = saturation( tap, 0 );
-
-				return mix( gray, sat0, sin( time ).mul( 0.5 ).add( 0.5 ) );
+				return planeRandomAttribute;
 
 			} )(),
-
-			'Vibrance': Fn( () => {
-
-				return vibrance( texture( uvChecker ).rgb, offsetSin );
-
-			} )(),
-
-			'Hue': Fn( () => {
-
-				return hue( texture( uvChecker ).rgb, time );
-
-			} )()
 
 		};
 
@@ -260,8 +245,14 @@ class TexturesApp extends App {
 
 		const hashFolder = params.addFolder( 'Shader Params' );
 		hashFolder.add( effectController.textureRepeat, 'value', 1, 10 ).step( 1 ).name( 'Texture Repeat' );
-		hashFolder.add( effectController.colorOneAlpha, 'value', 0.0, 1.0 ).step( 0.01 ).name( 'Blend Color 1 Alpha' );
-		hashFolder.add( effectController.colorTwoAlpha, 'value', 0.0, 1.0 ).step( 0.01 ).name( 'Blend Color 2 Alpha' );
+		hashFolder.add( effectController.pulseFrequency.value, 'x', 1, 10 ).step( 1 ).name( 'Pulse Frequency' );
+		hashFolder.add( effectController.pulseFrequency.value, 'y', 1, 10 ).step( 1 ).name( 'Pulse Speed' );
+		const colorsFolder = hashFolder.addFolder( 'Pulse Colors' );
+		effectController._colors.array.forEach( ( _color, index ) => {
+
+			colorsFolder.addColor( effectController._colors.array, index ).name( `Color ${ index + 1 }` );
+
+		} );
 
 		torusMaterialFolder.add( this, 'torusColorShader', Object.keys( colorShaders ) ).onChange( () => {
 

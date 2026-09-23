@@ -1,4 +1,4 @@
-/* eslint-disable compat/compat */
+
 
 // Mesh: instance of object out in world
 // Material: Defines appearance of a surface
@@ -55,7 +55,6 @@ class MeshMaterialExample extends App {
 	onStep( deltaTime: number, totalTimeElapsed: number ) {
 
 		this.CameraControls.update( deltaTime );
-		this.Stats.update();
 
 		const WHITE = new THREE.Color( 0xfffff );
 		const RED = new THREE.Color( 0xff0000 );

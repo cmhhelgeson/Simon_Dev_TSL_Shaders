@@ -1,14 +1,13 @@
 import { App } from '../../../utils/App';
 import * as THREE from 'three';
 
-
 interface ParamsType {
 	wireframe: boolean,
 	transparent: boolean,
 	opacity: number,
 	cubeColor: THREE.Color,
-	offset2D: {x: number, y: number},
-	offset3D: {x: number, y: number, z: number}
+	offset2D: { x: number, y: number },
+	offset3D: { x: number, y: number, z: number }
 }
 
 class DebugGuiExample extends App {
@@ -91,7 +90,6 @@ class DebugGuiExample extends App {
 	onStep( deltaTime: number, totalTimeElapsed: number ) {
 
 		this.CameraControls.update( deltaTime );
-		this.Stats.update();
 
 	}
 
