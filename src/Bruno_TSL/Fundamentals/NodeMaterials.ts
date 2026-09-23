@@ -1,6 +1,6 @@
 import { App } from '../../utils/App';
 import * as THREE from 'three/webgpu';
-import { checker, mix, sin, smoothstep, time, uv, vec2, vec3, positionLocal, positionGeometry, uniform, Fn } from 'three/tsl';
+import { checker, mix, sin, positionWorld, positionView, smoothstep, time, uv, vec2, vec3, positionLocal, positionGeometry, uniform, Fn, normalWorld, normalView } from 'three/tsl';
 import { NodeMaterialNodeProperties } from 'three/src/materials/nodes/NodeMaterial.js';
 
 
@@ -10,19 +10,7 @@ class NodeMaterials extends App {
 
 	torusMaterial: THREE.MeshStandardNodeMaterial = new THREE.MeshStandardNodeMaterial();
 	currentShader: ShaderType = 'Oscilation';
-
-	registerMaterial(
-		properties: Partial<NodeMaterialNodeProperties>
-	) {
-
-		this.torusMaterial.dispose();
-		this.torusMaterial.positionNode = null;
-		this.torusMaterial.colorNode = null;
-
-		Object.assign( this.torusMaterial, properties );
-		this.torusMaterial.needsUpdate = true;
-
-	}
+	positionShader: string = 'Oscilation';
 
 	async onSetupProject(): Promise<void> {
 
@@ -139,6 +127,31 @@ class NodeMaterials extends App {
 
 		const colorShaders: Record<string, NodeMaterialNodeProperties[ 'colorNode' ]> = {
 
+			'positionWorld': Fn( () => {
+
+				return positionWorld;
+
+			} )(),
+
+			'positionView': Fn( () => {
+
+				return positionView;
+
+			} )(),
+
+			'normalWorld': Fn( () => {
+
+				return normalWorld;
+
+			} )(),
+
+
+			'normalView': Fn( () => {
+
+				return normalView;
+
+			} )(),
+
 			'Oscilation': Fn( () => {
 
 				return checker( uv().add( slowedTime ).mul( ( vec2( 40, 5 ) ) ) );
@@ -181,7 +194,7 @@ class NodeMaterials extends App {
 
 		};
 
-		this.registerMaterial( {
+		this.registerMaterial( this.torusMaterial, {
 			positionNode: positionShaders[ 'Oscilation' ],
 			colorNode: colorShaders[ 'Oscilation' ]
 		} );
@@ -206,10 +219,23 @@ class NodeMaterials extends App {
 		);
 		gui.add( this, 'currentShader', Object.keys( colorShaders ) ).onChange( ( value ) => {
 
-			this.registerMaterial( {
-				positionNode: positionShaders[ this.currentShader ],
-				colorNode: colorShaders[ this.currentShader ]
-			} );
+			this.registerMaterial( this.torusMaterial,
+				{
+					...this.torusMaterial,
+					colorNode: colorShaders[ this.currentShader ]
+				}
+			);
+
+		} );
+
+		gui.add( this, 'positionShader', Object.keys( positionShaders ) ).onChange( () => {
+
+			this.registerMaterial( this.torusMaterial,
+				{
+					...this.torusMaterial,
+					positionNode: positionShaders[ this.currentShader ]
+				}
+			);
 
 		} );
 

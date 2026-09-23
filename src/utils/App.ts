@@ -293,8 +293,14 @@ class App {
 
 		this.#LightManager = new LightManager();
 
+		if ( options.withInspector === undefined ) {
+
+			options.withInspector = true;
+
+		}
+
 		// The debug parameters live in the Inspector, so `debug` implies it.
-		if ( options.withInspector || options.debug ) {
+		if ( options.withInspector ) {
 
 			this.#inspector = new Inspector();
 			this.#renderer.inspector = this.#inspector;
@@ -1019,7 +1025,7 @@ class App {
 
 	get Inspector() {
 
-		return this.#inspector;
+		return this.#inspector as Inspector;
 
 	}
 
