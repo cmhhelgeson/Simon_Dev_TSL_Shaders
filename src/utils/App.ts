@@ -18,6 +18,9 @@ import { NodeMaterialNodeProperties } from 'three/src/materials/nodes/NodeMateri
 
 type RendererEnum = 'WebGPU' | 'WebGLFallback';
 
+const _boundingBox = new THREE.Box3();
+const _boundingSphere = new THREE.Sphere();
+
 interface AppInitializationOptions {
 	/* The name of the application and the title of the page */
 	projectName?: string,
@@ -1096,6 +1099,23 @@ class App {
 
 		this.#scene.dispose();
 		this.#renderer.dispose();
+
+	}
+
+	/* Frames the scene to center a specific object */
+	frameFor( obj: THREE.Object3D, padding = 0 ) {
+
+		_boundingBox.makeEmpty();
+		_boundingBox.expandByObject( obj );
+		_boundingBox.getBoundingSphere( _boundingSphere );
+
+		// Get vertical and horizontal half height in radians
+		const vertical = THREE.MathUtils.degToRad( this.PerspectiveCamera.fov / 2 );
+		const horizontal = Math.atan( Math.tan( vertical ) * this.PerspectiveCamera.aspect );
+		const distance = ( _boundingSphere.radius + padding ) / Math.sin( Math.min( vertical, horizontal ) );
+		const direction = this.PerspectiveCamera.position.clone().sub( this.CameraControls.target ).normalize();
+		this.CameraControls.target.copy( _boundingSphere.center );
+		this.PerspectiveCamera.position.copy( _boundingSphere.center ).addScaledVector( direction, distance );
 
 	}
 
