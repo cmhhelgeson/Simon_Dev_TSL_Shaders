@@ -1102,12 +1102,7 @@ class App {
 
 	}
 
-	/* Frames the scene to center a specific object */
-	frameFor( obj: THREE.Object3D, padding = 0 ) {
-
-		_boundingBox.makeEmpty();
-		_boundingBox.expandByObject( obj );
-		_boundingBox.getBoundingSphere( _boundingSphere );
+	_calculateCameraBounds( padding: number ) {
 
 		// Get vertical and horizontal half height in radians
 		const vertical = THREE.MathUtils.degToRad( this.PerspectiveCamera.fov / 2 );
@@ -1116,6 +1111,50 @@ class App {
 		const direction = this.PerspectiveCamera.position.clone().sub( this.CameraControls.target ).normalize();
 		this.CameraControls.target.copy( _boundingSphere.center );
 		this.PerspectiveCamera.position.copy( _boundingSphere.center ).addScaledVector( direction, distance );
+
+	}
+
+	/* Frames the scene to center a specific object */
+	frameFor( obj: THREE.Object3D, padding = 0 ) {
+
+		_boundingBox.makeEmpty();
+		_boundingBox.expandByObject( obj );
+		_boundingBox.getBoundingSphere( _boundingSphere );
+
+		this._calculateCameraBounds( padding );
+
+		// Get vertical and horizontal half height in radians
+		const vertical = THREE.MathUtils.degToRad( this.PerspectiveCamera.fov / 2 );
+		const horizontal = Math.atan( Math.tan( vertical ) * this.PerspectiveCamera.aspect );
+		const distance = ( _boundingSphere.radius + padding ) / Math.sin( Math.min( vertical, horizontal ) );
+		const direction = this.PerspectiveCamera.position.clone().sub( this.CameraControls.target ).normalize();
+		this.CameraControls.target.copy( _boundingSphere.center );
+		this.PerspectiveCamera.position.copy( _boundingSphere.center ).addScaledVector( direction, distance );
+
+	}
+
+	frameForBox3( boxes: THREE.Box3[], padding = 0 ) {
+
+		if ( boxes.length === 0 ) {
+
+			return;
+
+		}
+
+		_boundingBox.copy( boxes[ 0 ] );
+		for ( let i = 1; i < boxes.length; i ++ ) {
+
+			_boundingBox.union( boxes[ i ] );
+
+		}
+
+		if ( _boundingBox.isEmpty() ) {
+
+			return;
+
+		}
+
+		this._calculateCameraBounds( padding );
 
 	}
 
